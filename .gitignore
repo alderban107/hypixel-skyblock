@@ -1,0 +1,16 @@
+# Credentials
+.env
+
+# Account-specific data
+data/last_profile.json
+
+# Generated / large (regenerable with tools)
+data/price_cache.json
+data/wiki/
+data/neu-repo/
+data/vault/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
