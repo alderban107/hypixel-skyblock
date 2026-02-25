@@ -59,7 +59,6 @@ Cover ALL of these areas, not just one or two. The user invokes this skill when 
 - Fairy souls only give SkyBlock XP now, NOT stats. They must be exchanged in chunks of 5 — don't recommend spending them unless the user has 5+ unspent.
 - **Do NOT recommend money farming or flag low purse/bank balance.** The Banking API often doesn't return data, so the purse value shown may be misleading — many players keep most coins in the bank. Treat money as a non-issue unless the user specifically asks about it.
 - Don't recommend the fandom wiki — use the official wiki (wiki.hypixel.net) or the local wiki dump
-- HOTM level can't be read from the API (no experience field in mining_core)
 - If the API key has expired, check the dev key expiry or personal key approval status in `.env`
 - **Check the INVENTORIES section carefully before recommending items.** Don't recommend talismans/gear the user already owns — they may be in the ender chest, backpack, or accessory bag.
 - Don't push expensive consumables (like HPBs) on transitional gear that will be replaced soon
