@@ -154,6 +154,32 @@ Large and/or generated files that don't belong in version control. Everything he
 
 No pip packages required — everything uses the Python standard library.
 
+## Claude Code Skill
+
+This repo includes a [Claude Code skill](https://docs.anthropic.com/en/docs/claude-code/skills) that turns `/skyblock` into an AI-powered profile analyzer. When invoked, Claude fetches your live profile data, cross-references the local wiki, checks current market prices, and gives prioritized gameplay recommendations.
+
+### Installing the Skill
+
+1. Complete the setup steps above (API key, wiki dump)
+
+2. Copy the skill file to your Claude Code skills directory:
+   ```bash
+   mkdir -p ~/.claude/skills/skyblock
+   cp SKILL.md ~/.claude/skills/skyblock/SKILL.md
+   ```
+
+3. Open Claude Code from the project root and type `/skyblock`
+
+### Prerequisites
+
+- **Hypixel API key** — Apply at [developer.hypixel.net](https://developer.hypixel.net/). Approval is not instant; dev keys may take a few days.
+- **Local wiki dump** — The skill relies on grepping the wiki to verify game mechanics before making claims. Without it, recommendations may be less accurate. Run `cd tools && python3 wiki_dump.py` (~5 min, rate-limited to 1 req/sec).
+- **Claude Code working directory** — The skill uses relative paths, so Claude Code must be opened from the project root.
+
+### Customization
+
+The `SKILL.md` file's "Important Context" section controls how Claude approaches recommendations. You can edit your local copy to match your playstyle — for example, adding notes about your budget preferences, which content you enjoy, or specific goals you're working toward.
+
 ## License
 
 This is a personal project. The wiki content belongs to [Hypixel](https://hypixel.net/) and the NEU-REPO data belongs to the [NotEnoughUpdates](https://github.com/NotEnoughUpdates) contributors.

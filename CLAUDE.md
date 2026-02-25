@@ -1,6 +1,6 @@
 # Hypixel SkyBlock Project
 
-Tools and resources for Ellie's Hypixel SkyBlock gameplay.
+Tools and resources for Hypixel SkyBlock gameplay.
 
 ## Structure
 
@@ -22,68 +22,21 @@ data/           Reference data and generated output
 
 ## Running Tools
 
-All scripts are in `tools/`. Run from that directory so the `from pricing import` works:
+All scripts are in `tools/`. Run from that directory:
 
 ```bash
-cd ~/projects/hypixel-skyblock/tools
-
-# Fetch profile (core sections)
-python3 profile.py
-
-# Fetch profile (all sections)
-python3 profile.py --full
-
-# Fetch profile (specific sections)
-python3 profile.py -s dungeons,slayers,collections
-
-# Check item prices
+cd tools
+python3 profile.py                          # core sections
+python3 profile.py --full                   # all sections
+python3 profile.py -s dungeons,collections  # specific sections
 python3 pricing.py SHADOW_ASSASSIN_CHESTPLATE ENCHANTED_DIAMOND
-
-# Update wiki dump (incremental)
-python3 wiki_dump.py --update
-
-# Full wiki dump
-python3 wiki_dump.py
-
-# Regenerate Obsidian vault
-python3 converter.py
-
-# Convert single wiki page (debugging)
-python3 converter.py --page "Coal"
+python3 wiki_dump.py --update               # incremental wiki update
 ```
-
-## Data Regeneration
-
-```bash
-# Wiki dump (incremental update)
-cd ~/projects/hypixel-skyblock/tools && python3 wiki_dump.py --update
-
-# NEU-repo (git pull or fresh clone)
-cd ~/projects/hypixel-skyblock/data && git -C neu-repo pull
-# or fresh: git clone https://github.com/NotEnoughUpdates/NotEnoughUpdates-REPO neu-repo
-
-# Obsidian vault (requires wiki + neu-repo)
-cd ~/projects/hypixel-skyblock/tools && python3 converter.py
-```
-
-## API Key
-
-- Location: `.env` in project root
-- Key type: Hypixel Developer API key
-- Rate limit: 300 requests / 5 minutes
-- Status: Dev key may need renewal; personal key pending Hypixel approval
 
 ## Important Rules
 
-- **ALWAYS grep the local wiki** (`data/wiki/`) before making game mechanics claims or recommendations. Don't rely on training data for SkyBlock specifics.
+- **ALWAYS grep the local wiki** (`data/wiki/`) before making game mechanics claims or recommendations. Don't rely on training data for SkyBlock specifics — it may be outdated.
 - **Only use the official wiki** (wiki.hypixel.net). Do NOT use the fandom wiki.
-- **Bazaar purchases don't count** toward collections — must gather manually.
-- **Respect budget** — don't push expensive upgrades without checking coin balance.
-
-## Player Context
-
-- **IGN**: alderban107
-- **SB Level**: 56, MP 141
-- **Dungeons**: Catacombs 17, Berserk 17, cleared F5
-- **Gear**: SA Boots + Leggings, Strong Dragon CP (dungeonized), Bonzo's Mask (all Fierce), Hyper Cleaver (Fabled 5-star), AOTE, Zombie Sword
-- **Next goals**: More F5 runs, MP upgrades
+- **Bazaar purchases don't count** toward collections — materials must be gathered manually.
+- **Don't push expensive upgrades** without context on the player's budget.
+- **Always verify claims** against the local wiki or beginner guide before stating them as fact. If unsure about a mechanic, grep the wiki first.
