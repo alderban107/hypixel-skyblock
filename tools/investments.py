@@ -488,8 +488,41 @@ def fetch_current_prices():
 
 # ─── Analysis ────────────────────────────────────────────────────────
 
+def _median(values):
+    """Compute median of a sorted list."""
+    n = len(values)
+    if n == 0:
+        return 0
+    s = sorted(values)
+    if n % 2 == 1:
+        return s[n // 2]
+    return (s[n // 2 - 1] + s[n // 2]) / 2
+
+
+def _filter_outliers(prices):
+    """Remove extreme outliers using IQR method.
+
+    AH daily averages are heavily skewed by troll listings (e.g. a Snow Suit
+    piece "selling" for 1B when the real price is 80K). IQR filtering removes
+    these so the median reflects actual market prices.
+    """
+    if len(prices) < 4:
+        return prices
+    s = sorted(prices)
+    q1 = s[len(s) // 4]
+    q3 = s[3 * len(s) // 4]
+    iqr = q3 - q1
+    lower = q1 - 3 * iqr
+    upper = q3 + 3 * iqr
+    return [p for p in prices if lower <= p <= upper]
+
+
 def compute_item_stats(points, event):
-    """Compute event vs off-event stats from historical data points."""
+    """Compute event vs off-event stats from historical data points.
+
+    Uses median after IQR outlier filtering — AH daily averages are heavily
+    skewed by troll listings (items listed for billions).
+    """
     event_prices = []
     off_event_prices = []
 
@@ -510,13 +543,15 @@ def compute_item_stats(points, event):
         "off_event_count": len(off_event_prices),
     }
     if event_prices:
-        result["event_avg"] = sum(event_prices) / len(event_prices)
-        result["event_min"] = min(event_prices)
-        result["event_max"] = max(event_prices)
+        filtered = _filter_outliers(event_prices)
+        result["event_avg"] = _median(filtered)
+        result["event_min"] = min(filtered)
+        result["event_max"] = max(filtered)
     if off_event_prices:
-        result["off_event_avg"] = sum(off_event_prices) / len(off_event_prices)
-        result["off_event_min"] = min(off_event_prices)
-        result["off_event_max"] = max(off_event_prices)
+        filtered = _filter_outliers(off_event_prices)
+        result["off_event_avg"] = _median(filtered)
+        result["off_event_min"] = min(filtered)
+        result["off_event_max"] = max(filtered)
 
     return result
 
