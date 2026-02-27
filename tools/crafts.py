@@ -2,7 +2,7 @@
 """Craft flip scanner for Hypixel SkyBlock.
 
 Finds items where bazaar-bought ingredients can be crafted into items
-that sell on the Auction House for more than the material cost.
+that sell on the Auction House (lowest BIN) for more than the material cost.
 
 Usage:
     python3 crafts.py              # Full scan — all profitable crafts
@@ -29,6 +29,7 @@ LEVELING_PATH = DATA_DIR / "neu-repo" / "constants" / "leveling.json"
 LAST_PROFILE_PATH = DATA_DIR / "last_profile.json"
 
 COFLNET_PRICE_URL = "https://sky.coflnet.com/api/item/price/{tag}"
+COFLNET_BIN_URL = "https://sky.coflnet.com/api/item/price/{tag}/bin"
 COFLNET_RATE_LIMIT = 0.6  # seconds between requests
 
 SOLD_PRICE_TTL = 3600        # 1 hour
@@ -323,39 +324,74 @@ def save_craft_cache(cache):
         print(f"  Warning: couldn't save cache: {e}", file=sys.stderr)
 
 
-def fetch_sold_price(item_id, cache, last_coflnet_time):
-    """Fetch median sold price from Coflnet. Returns (price_data, new_last_time)."""
+def _coflnet_get(url, last_coflnet_time):
+    """Rate-limited GET to Coflnet. Returns (json_data | None, new_last_time)."""
     now = time.time()
-    sold = cache["sold_prices"]
-
-    # Check cache freshness
-    cached = sold.get(item_id)
-    if cached and now - cached.get("ts", 0) < SOLD_PRICE_TTL:
-        return cached, last_coflnet_time
-
-    # Rate limit
     wait = last_coflnet_time + COFLNET_RATE_LIMIT - now
     if wait > 0:
         time.sleep(wait)
-
     try:
-        url = COFLNET_PRICE_URL.format(tag=item_id)
         req = Request(url, headers={"User-Agent": "SkyblockCrafts/1.0"})
         with urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read())
-        last_time = time.time()
+        return data, time.time()
     except (HTTPError, URLError, OSError) as e:
-        last_time = time.time()
-        if isinstance(e, HTTPError) and e.code == 404:
-            sold[item_id] = {"median": 0, "mean": 0, "volume": 0, "ts": now}
+        return (None if not isinstance(e, HTTPError) or e.code != 404 else "404"), time.time()
+
+
+def fetch_sold_price(item_id, cache, last_coflnet_time):
+    """Fetch volume + median from Coflnet price endpoint. Returns (entry, new_last_time)."""
+    now = time.time()
+    sold = cache["sold_prices"]
+
+    cached = sold.get(item_id)
+    if cached and now - cached.get("ts", 0) < SOLD_PRICE_TTL and "median" in cached:
+        return cached, last_coflnet_time
+
+    url = COFLNET_PRICE_URL.format(tag=item_id)
+    data, last_time = _coflnet_get(url, last_coflnet_time)
+
+    if data == "404":
+        sold[item_id] = {"median": 0, "volume": 0, "lowest_bin": 0, "ts": now}
+        return sold[item_id], last_time
+    if data is None:
         return sold.get(item_id), last_time
 
-    entry = {
+    entry = sold.get(item_id, {})
+    entry.update({
         "median": data.get("median", 0),
-        "mean": data.get("mean", 0),
         "volume": data.get("volume", 0),
         "ts": now,
-    }
+    })
+    sold[item_id] = entry
+    return entry, last_time
+
+
+def fetch_bin_price(item_id, cache, last_coflnet_time):
+    """Fetch lowest BIN from Coflnet. Returns (entry, new_last_time)."""
+    now = time.time()
+    sold = cache["sold_prices"]
+
+    cached = sold.get(item_id)
+    if cached and now - cached.get("ts", 0) < SOLD_PRICE_TTL and "lowest_bin" in cached:
+        return cached, last_coflnet_time
+
+    url = COFLNET_BIN_URL.format(tag=item_id)
+    data, last_time = _coflnet_get(url, last_coflnet_time)
+
+    if data == "404":
+        entry = sold.get(item_id, {})
+        entry.update({"lowest_bin": 0, "ts": now})
+        sold[item_id] = entry
+        return entry, last_time
+    if data is None:
+        return sold.get(item_id), last_time
+
+    entry = sold.get(item_id, {})
+    entry.update({
+        "lowest_bin": data.get("lowest", 0),
+        "ts": now,
+    })
     sold[item_id] = entry
     return entry, last_time
 
@@ -405,50 +441,87 @@ def calculate_craft_cost(recipe, price_cache):
 
 
 def scan_craft_flips(recipes, price_cache, craft_cache, use_cached_only=False):
-    """Scan all recipes and return profitable craft flips."""
-    flips = []
+    """Scan all recipes and return profitable craft flips.
+
+    Two-pass approach:
+      1. Fetch volume + median from the price endpoint → filter by volume
+      2. Fetch lowest BIN only for items that passed the volume filter
+    This avoids fetching BIN for items nobody actually buys.
+    """
     last_coflnet = 0
     total = len(recipes)
 
+    # ── Pass 1: volume + median (quick profit pre-filter) ──
+    candidates = []
     for i, recipe in enumerate(recipes):
         item_id = recipe["item_id"]
 
-        # Calculate ingredient cost
         cost = calculate_craft_cost(recipe, price_cache)
         if cost is None:
             continue
 
-        # Get sold price
         if use_cached_only:
             sold = craft_cache["sold_prices"].get(item_id)
         else:
             if (i + 1) % 25 == 0:
-                print(f"  Scanning... {i + 1}/{total}", end="\r", file=sys.stderr)
+                print(f"  Pass 1 (volume)... {i + 1}/{total}", end="\r", file=sys.stderr)
             sold, last_coflnet = fetch_sold_price(item_id, craft_cache, last_coflnet)
 
-        if not sold or sold.get("median", 0) <= 0:
+        if not sold:
             continue
 
-        median = sold["median"]
         volume = sold.get("volume", 0)
+        median = sold.get("median", 0)
 
-        # After-tax profit
-        profit = median * 0.99 - cost
+        if volume < MIN_VOLUME:
+            continue
 
-        if profit < MIN_PROFIT or volume < MIN_VOLUME:
+        # Quick profit check using median to avoid unnecessary BIN fetches
+        if median > 0 and median * 0.99 - cost < MIN_PROFIT:
+            continue
+
+        candidates.append({"recipe": recipe, "cost": cost, "volume": volume})
+
+    if not use_cached_only and total > 25:
+        print("  " + " " * 40, end="\r", file=sys.stderr)
+
+    # ── Pass 2: lowest BIN for candidates only ──
+    flips = []
+    n_cands = len(candidates)
+    if not use_cached_only and n_cands:
+        print(f"  Pass 2 (BIN)... {n_cands} candidates", file=sys.stderr)
+
+    for i, cand in enumerate(candidates):
+        item_id = cand["recipe"]["item_id"]
+        cost = cand["cost"]
+
+        if use_cached_only:
+            sold = craft_cache["sold_prices"].get(item_id)
+        else:
+            if (i + 1) % 25 == 0:
+                print(f"  Fetching BIN... {i + 1}/{n_cands}", end="\r", file=sys.stderr)
+            sold, last_coflnet = fetch_bin_price(item_id, craft_cache, last_coflnet)
+
+        if not sold or sold.get("lowest_bin", 0) <= 0:
+            continue
+
+        lowest_bin = sold["lowest_bin"]
+        profit = lowest_bin * 0.99 - cost
+
+        if profit < MIN_PROFIT:
             continue
 
         flips.append({
             "item_id": item_id,
             "cost": cost,
-            "median": median,
+            "lowest_bin": lowest_bin,
             "profit": profit,
-            "volume": volume,
-            "requirement": recipe["requirement"],
+            "volume": cand["volume"],
+            "requirement": cand["recipe"]["requirement"],
         })
 
-    if not use_cached_only and total > 25:
-        print("  " + " " * 40, end="\r", file=sys.stderr)  # clear progress line
+    if not use_cached_only and n_cands > 25:
+        print("  " + " " * 40, end="\r", file=sys.stderr)
 
     flips.sort(key=lambda x: x["profit"], reverse=True)
     return flips
@@ -536,17 +609,19 @@ def check_unlocked(req, member, slayer_thresholds):
 def print_flips(flips, title="CRAFT FLIPS"):
     """Print a table of craft flips."""
     print(f"\n{title} (min {_fmt(MIN_PROFIT)} profit, min {MIN_VOLUME} sale/day)")
-    print("=" * 78)
-    print(f"  {'Item':<30s} {'Cost':>8s}  {'Median':>8s}  {'Profit':>8s} {'Vol':>4s}  Requirement")
-    print(f"  {'-'*30} {'-'*8}  {'-'*8}  {'-'*8} {'-'*4}  {'-'*20}")
+    print("=" * 85)
+    print(f"  {'Item':<30s} {'Cost':>10s}  {'Lbin':>10s}  {'Profit':>10s} {'Vol':>5s}  Requirement")
+    print(f"  {'-'*30} {'-'*10}  {'-'*10}  {'-'*10} {'-'*5}  {'-'*20}")
 
     for flip in flips:
         name = display_name(flip["item_id"])
         if len(name) > 30:
             name = name[:27] + "..."
         req_text = flip["requirement"]["text"] if flip["requirement"] else ""
-        print(f"  {name:<30s} {_fmt(flip['cost']):>8s}  {_fmt(flip['median']):>8s}  "
-              f"{_fmt(flip['profit']):>8s} {int(flip['volume']):>4d}  {req_text}")
+        vol = flip.get("volume", 0)
+        vol_str = f"{vol:.0f}" if vol >= 10 else f"{vol:.1f}"
+        print(f"  {name:<30s} {_fmt(flip['cost']):>10s}  {_fmt(flip['lowest_bin']):>10s}  "
+              f"{_fmt(flip['profit']):>10s} {vol_str:>5s}  {req_text}")
 
     if not flips:
         print("  No profitable crafts found.")
@@ -572,14 +647,16 @@ def print_profile_flips(flips, member, slayer_thresholds):
     print(f"\nUNLOCKED CRAFT FLIPS")
     print("=" * 78)
     if unlocked:
-        print(f"  {'Item':<30s} {'Cost':>8s}  {'Median':>8s}  {'Profit':>8s} {'Vol':>4s}")
-        print(f"  {'-'*30} {'-'*8}  {'-'*8}  {'-'*8} {'-'*4}")
+        print(f"  {'Item':<30s} {'Cost':>10s}  {'Lbin':>10s}  {'Profit':>10s} {'Vol':>5s}")
+        print(f"  {'-'*30} {'-'*10}  {'-'*10}  {'-'*10} {'-'*5}")
         for flip in unlocked:
             name = display_name(flip["item_id"])
             if len(name) > 30:
                 name = name[:27] + "..."
-            print(f"  {name:<30s} {_fmt(flip['cost']):>8s}  {_fmt(flip['median']):>8s}  "
-                  f"{_fmt(flip['profit']):>8s} {int(flip['volume']):>4d}")
+            vol = flip.get("volume", 0)
+            vol_str = f"{vol:.0f}" if vol >= 10 else f"{vol:.1f}"
+            print(f"  {name:<30s} {_fmt(flip['cost']):>10s}  {_fmt(flip['lowest_bin']):>10s}  "
+                  f"{_fmt(flip['profit']):>10s} {vol_str:>5s}")
     else:
         print("  No unlocked profitable crafts found.")
     print()
@@ -648,7 +725,7 @@ def main():
 
     # Scan for profitable flips
     if not args.cached:
-        print(f"  Fetching sold prices from Coflnet ({len(valid)} items)...", file=sys.stderr)
+        print(f"  Scanning {len(valid)} items (volume → BIN)...", file=sys.stderr)
     flips = scan_craft_flips(valid, price_cache, craft_cache, use_cached_only=args.cached)
 
     # Save caches

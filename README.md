@@ -71,9 +71,9 @@ Also used as a library — `profile.py` imports `PriceCache` directly for inline
 
 ---
 
-**`crafts.py`** — Scans for profitable **craft flips**: items where bazaar-bought ingredients can be crafted into items that sell on the Auction House for more than the material cost. Parses all crafting recipes from the NEU-REPO item database, prices ingredients using the Bazaar API (`quick_status.buyPrice`), and fetches actual sold prices from the [Coflnet](https://sky.coflnet.com/) median price API.
+**`crafts.py`** — Scans for profitable **craft flips**: items where bazaar-bought ingredients can be crafted into items that sell on the Auction House for more than the material cost. Parses all crafting recipes from the NEU-REPO item database, prices ingredients using the Bazaar API (`quick_status.buyPrice`), and fetches lowest BIN (Buy It Now) prices from the [Coflnet](https://sky.coflnet.com/) auction API.
 
-Filters to items where all ingredients are available on the Bazaar and the output is sold on the AH (not the Bazaar). Calculates profit after the 1% AH tax. Minimum thresholds: 10K profit and 1 sale/day.
+Filters to items where all ingredients are available on the Bazaar and the output is sold on the AH (not the Bazaar). Uses a two-pass scan: first fetches volume data to filter out items nobody buys, then fetches lowest BIN only for viable candidates. Calculates profit after the 1% AH tax. Minimum thresholds: 10K profit and 1 sale/day.
 
 Each item's unlock requirement (collection tier, slayer level, HotM level) is parsed from the NEU-REPO data and resolved against the Hypixel collections API for actual tier thresholds.
 
