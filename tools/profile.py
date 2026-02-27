@@ -1832,17 +1832,16 @@ def print_craft_flips(member, price_cache):
     """Print profitable craft flips filtered by player unlocks."""
     print_section("CRAFT FLIPS")
 
-    # Load craft cache — does NOT hit Coflnet (stays fast)
+    # Load craft cache — reads Moulberry bulk data (no API calls)
     craft_cache = load_craft_cache()
-    sold_prices = craft_cache.get("sold_prices", {})
+    mb = craft_cache.get("moulberry", {})
+    avg_lbin = mb.get("avg_lbin", {})
+    auction_averages = mb.get("auction_averages", {})
+    lowestbin = mb.get("lowestbin", {})
+    cache_ts = mb.get("ts", 0)
+    cache_age = time.time() - cache_ts if cache_ts else None
 
-    if not sold_prices:
-        cache_age = None
-    else:
-        oldest_ts = min(v.get("ts", 0) for v in sold_prices.values())
-        cache_age = time.time() - oldest_ts
-
-    if not sold_prices or (cache_age and cache_age > 86400):
+    if not avg_lbin or (cache_age and cache_age > 86400):
         print("  Run 'python3 crafts.py' to scan craft flips")
         return
 
@@ -1858,27 +1857,32 @@ def print_craft_flips(member, price_cache):
 
     valid = filter_craft_flips(all_recipes, price_cache)
 
-    # Calculate profits using cached sold prices only
+    # Calculate profits using cached Moulberry data
     flips = []
     for recipe in valid:
         item_id = recipe["item_id"]
         cost = calculate_craft_cost(recipe, price_cache)
         if cost is None:
             continue
-        sold = sold_prices.get(item_id)
-        if not sold or sold.get("median", 0) <= 0:
+        item_avg = avg_lbin.get(item_id)
+        if not item_avg or item_avg <= 0:
             continue
-        median = sold["median"]
-        volume = sold.get("volume", 0)
-        profit = median * 0.99 - cost
-        if profit < 10_000 or volume < 1:
+        avg_data = auction_averages.get(item_id)
+        if not avg_data:
+            continue
+        sales_per_day = avg_data.get("sales", 0) / 3.0
+        if sales_per_day < 1:
+            continue
+        profit = item_avg * 0.99 - cost
+        if profit < 10_000:
             continue
         flips.append({
             "item_id": item_id,
             "cost": cost,
-            "median": median,
+            "avg_lbin": item_avg,
+            "lbin": lowestbin.get(item_id, 0),
             "profit": profit,
-            "volume": volume,
+            "sales_per_day": sales_per_day,
             "requirement": recipe["requirement"],
         })
 
@@ -1902,9 +1906,11 @@ def print_craft_flips(member, price_cache):
             name = display_name(flip["item_id"])
             if len(name) > 28:
                 name = name[:25] + "..."
+            spd = flip.get("sales_per_day", 0)
+            spd_str = f"{spd:.0f}/d" if spd >= 10 else f"{spd:.1f}/d"
             print(f"    {name:<28s} {fmt_price_num(flip['cost']):>8s} -> "
-                  f"{fmt_price_num(flip['median']):>8s}  "
-                  f"profit {fmt_price_num(flip['profit']):>8s}  ({flip['volume']} sales/day)")
+                  f"{fmt_price_num(flip['avg_lbin']):>8s}  "
+                  f"profit {fmt_price_num(flip['profit']):>8s}  ({spd_str} sales)")
     else:
         print("    No unlocked profitable crafts found.")
 

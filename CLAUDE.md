@@ -30,9 +30,10 @@ python3 profile.py                          # core sections
 python3 profile.py --full                   # all sections
 python3 profile.py -s dungeons,collections  # specific sections
 python3 pricing.py SHADOW_ASSASSIN_CHESTPLATE ENCHANTED_DIAMOND
-python3 crafts.py                           # scan all craft flips (~5 min, hits Coflnet)
+python3 crafts.py                           # scan all craft flips (~5 sec, Moulberry bulk APIs)
 python3 crafts.py --profile                 # filter by player's unlocked recipes
-python3 crafts.py --cached                  # use cached prices only (fast)
+python3 crafts.py --cached                  # use cached prices only (no API calls)
+python3 crafts.py --fresh                   # ignore cache, fetch all prices fresh
 python3 wiki_dump.py --update               # incremental wiki update
 ```
 

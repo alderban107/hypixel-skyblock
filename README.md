@@ -71,19 +71,20 @@ Also used as a library — `profile.py` imports `PriceCache` directly for inline
 
 ---
 
-**`crafts.py`** — Scans for profitable **craft flips**: items where bazaar-bought ingredients can be crafted into items that sell on the Auction House for more than the material cost. Parses all crafting recipes from the NEU-REPO item database, prices ingredients using the Bazaar API (`quick_status.buyPrice`), and fetches lowest BIN (Buy It Now) prices from the [Coflnet](https://sky.coflnet.com/) auction API.
+**`crafts.py`** — Scans for profitable **craft flips**: items where bazaar-bought ingredients can be crafted into items that sell on the Auction House for more than the material cost. Parses all crafting recipes from the NEU-REPO item database, prices ingredients using the Bazaar API (`quick_status.buyPrice`), and fetches auction house prices from [Moulberry's](https://moulberry.codes/) bulk APIs (3-day averaged lowest BIN, current lowest BIN, and actual sales volume) in three fast requests.
 
-Filters to items where all ingredients are available on the Bazaar and the output is sold on the AH (not the Bazaar). Uses a two-pass scan: first fetches volume data to filter out items nobody buys, then fetches lowest BIN only for viable candidates. Calculates profit after the 1% AH tax. Minimum thresholds: 10K profit and 1 sale/day.
+Filters to items where all ingredients are available on the Bazaar and the output is sold on the AH (not the Bazaar). Uses 3-day averaged lowest BIN for profit calculation (more stable than current BIN), real sales data for volume filtering, and shows current lowest BIN for spot-checking. Calculates profit after the 1% AH tax. Minimum thresholds: 10K profit and 1 sale/day.
 
 Each item's unlock requirement (collection tier, slayer level, HotM level) is parsed from the NEU-REPO data and resolved against the Hypixel collections API for actual tier thresholds.
 
 ```bash
-python3 crafts.py              # full scan — all profitable crafts (~5 min, hits Coflnet)
+python3 crafts.py              # full scan — all profitable crafts (~5 sec)
 python3 crafts.py --profile    # filter by player's unlocked recipes (reads last_profile.json)
-python3 crafts.py --cached     # use cached sold prices only (skip Coflnet, fast)
+python3 crafts.py --cached     # use cached prices only (no API calls)
+python3 crafts.py --fresh      # ignore cache, fetch all prices fresh
 ```
 
-Sold prices are cached in `data/craft_cache.json` (1-hour TTL, 24-hour eviction). The `--profile` mode cross-references the player's collections and slayer XP to show which crafts are unlocked and which are closest to unlocking.
+Price data is cached in `data/craft_cache.json` (5-minute TTL, 1-hour eviction). The `--profile` mode cross-references the player's collections and slayer XP to show which crafts are unlocked and which are closest to unlocking.
 
 Also used as a library — `profile.py` imports craft scanning functions for the `crafts` section.
 
@@ -135,7 +136,7 @@ Large and/or generated files that don't belong in version control. Everything he
 | `collections_resource.json` | ~180 KB | [Hypixel API](https://api.hypixel.net/v2/resources/skyblock/collections) | Collection tier thresholds (no key needed) |
 | `last_profile.json` | ~400 KB | `profile.py` | Latest API fetch (profile, garden, museum, prices) |
 | `price_cache.json` | ~300 KB | `pricing.py` | Bazaar + auction price cache with TTL timestamps |
-| `craft_cache.json` | ~240 KB | `crafts.py` | Coflnet sold prices + collection data cache |
+| `craft_cache.json` | ~240 KB | `crafts.py` | Moulberry bulk price data + collection data cache |
 | `display_names.json` | ~244 KB | `pricing.py` | Item ID → display name mapping from NEU-REPO |
 
 ## Setup

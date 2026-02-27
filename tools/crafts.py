@@ -2,12 +2,15 @@
 """Craft flip scanner for Hypixel SkyBlock.
 
 Finds items where bazaar-bought ingredients can be crafted into items
-that sell on the Auction House (lowest BIN) for more than the material cost.
+that sell on the Auction House for more than the material cost. Uses
+Moulberry's bulk APIs for pricing data (3-day averaged lowest BIN,
+current lowest BIN, and actual sales volume).
 
 Usage:
     python3 crafts.py              # Full scan — all profitable crafts
     python3 crafts.py --profile    # Filter by player's unlocked recipes
-    python3 crafts.py --cached     # Use cached sold prices only (skip Coflnet)
+    python3 crafts.py --cached     # Use cached prices only (skip API calls)
+    python3 crafts.py --fresh      # Ignore cache, fetch all prices fresh
 """
 
 import json
@@ -28,12 +31,11 @@ COLLECTIONS_PATH = DATA_DIR / "collections_resource.json"
 LEVELING_PATH = DATA_DIR / "neu-repo" / "constants" / "leveling.json"
 LAST_PROFILE_PATH = DATA_DIR / "last_profile.json"
 
-COFLNET_PRICE_URL = "https://sky.coflnet.com/api/item/price/{tag}"
-COFLNET_BIN_URL = "https://sky.coflnet.com/api/item/price/{tag}/bin"
-COFLNET_RATE_LIMIT = 0.6  # seconds between requests
-
-SOLD_PRICE_TTL = 3600        # 1 hour
-SOLD_PRICE_EVICT = 86400     # 24 hours
+MOULBERRY_LBIN_URL = "https://moulberry.codes/lowestbin.json"
+MOULBERRY_AVG_LBIN_URL = "https://moulberry.codes/auction_averages_lbin/3day.json"
+MOULBERRY_AVG_URL = "https://moulberry.codes/auction_averages/3day.json"
+MOULBERRY_TTL = 300          # 5 minutes
+MOULBERRY_EVICT = 3600       # 1 hour
 COLLECTIONS_TTL = 86400      # 1 day
 
 MIN_PROFIT = 10_000
@@ -296,24 +298,26 @@ def resolve_slayer_requirement(req, slayer_thresholds):
     return req
 
 
-# ─── Sold Price Cache ─────────────────────────────────────────────────
+# ─── Moulberry Bulk Price Data ───────────────────────────────────────
 
 def load_craft_cache():
     """Load the craft flip cache from disk."""
     if not CRAFT_CACHE_PATH.exists():
-        return {"sold_prices": {}, "collections": None, "collections_ts": 0}
+        return {"moulberry": {}, "collections": None, "collections_ts": 0}
     try:
         data = json.loads(CRAFT_CACHE_PATH.read_text())
-        # Evict sold prices older than 24h
+        # Evict stale moulberry data
         now = time.time()
-        sold = data.get("sold_prices", {})
-        data["sold_prices"] = {
-            k: v for k, v in sold.items()
-            if now - v.get("ts", 0) < SOLD_PRICE_EVICT
-        }
+        mb = data.get("moulberry", {})
+        if mb and now - mb.get("ts", 0) > MOULBERRY_EVICT:
+            data["moulberry"] = {}
+        # Drop old-format sold_prices if present
+        data.pop("sold_prices", None)
+        if "moulberry" not in data:
+            data["moulberry"] = {}
         return data
     except (json.JSONDecodeError, OSError):
-        return {"sold_prices": {}, "collections": None, "collections_ts": 0}
+        return {"moulberry": {}, "collections": None, "collections_ts": 0}
 
 
 def save_craft_cache(cache):
@@ -324,76 +328,43 @@ def save_craft_cache(cache):
         print(f"  Warning: couldn't save cache: {e}", file=sys.stderr)
 
 
-def _coflnet_get(url, last_coflnet_time):
-    """Rate-limited GET to Coflnet. Returns (json_data | None, new_last_time)."""
+def fetch_moulberry_data(cache, force_refresh=False):
+    """Fetch all three Moulberry bulk datasets.
+
+    Returns (lowestbin, avg_lbin, auction_averages) dicts.
+    Uses cache if fresh. Falls back to cached data per-endpoint on failure.
+    """
     now = time.time()
-    wait = last_coflnet_time + COFLNET_RATE_LIMIT - now
-    if wait > 0:
-        time.sleep(wait)
-    try:
-        req = Request(url, headers={"User-Agent": "SkyblockCrafts/1.0"})
-        with urlopen(req, timeout=10) as resp:
-            data = json.loads(resp.read())
-        return data, time.time()
-    except (HTTPError, URLError, OSError) as e:
-        return (None if not isinstance(e, HTTPError) or e.code != 404 else "404"), time.time()
+    mb = cache.get("moulberry", {})
 
+    if not force_refresh and mb and now - mb.get("ts", 0) < MOULBERRY_TTL:
+        return mb.get("lowestbin", {}), mb.get("avg_lbin", {}), mb.get("auction_averages", {})
 
-def fetch_sold_price(item_id, cache, last_coflnet_time):
-    """Fetch volume + median from Coflnet price endpoint. Returns (entry, new_last_time)."""
-    now = time.time()
-    sold = cache["sold_prices"]
+    urls = {
+        "lowestbin": MOULBERRY_LBIN_URL,
+        "avg_lbin": MOULBERRY_AVG_LBIN_URL,
+        "auction_averages": MOULBERRY_AVG_URL,
+    }
 
-    cached = sold.get(item_id)
-    if cached and now - cached.get("ts", 0) < SOLD_PRICE_TTL and "median" in cached:
-        return cached, last_coflnet_time
+    results = {}
+    for key, url in urls.items():
+        try:
+            req = Request(url, headers={"User-Agent": "SkyblockCrafts/1.0"})
+            with urlopen(req, timeout=15) as resp:
+                results[key] = json.loads(resp.read())
+            print(f"  Fetched {key}: {len(results[key])} items", file=sys.stderr)
+        except (HTTPError, URLError, OSError) as e:
+            print(f"  Warning: Moulberry {key} fetch failed: {e}", file=sys.stderr)
+            results[key] = mb.get(key, {})
 
-    url = COFLNET_PRICE_URL.format(tag=item_id)
-    data, last_time = _coflnet_get(url, last_coflnet_time)
-
-    if data == "404":
-        sold[item_id] = {"median": 0, "volume": 0, "lowest_bin": 0, "ts": now}
-        return sold[item_id], last_time
-    if data is None:
-        return sold.get(item_id), last_time
-
-    entry = sold.get(item_id, {})
-    entry.update({
-        "median": data.get("median", 0),
-        "volume": data.get("volume", 0),
+    cache["moulberry"] = {
+        "lowestbin": results["lowestbin"],
+        "avg_lbin": results["avg_lbin"],
+        "auction_averages": results["auction_averages"],
         "ts": now,
-    })
-    sold[item_id] = entry
-    return entry, last_time
+    }
 
-
-def fetch_bin_price(item_id, cache, last_coflnet_time):
-    """Fetch lowest BIN from Coflnet. Returns (entry, new_last_time)."""
-    now = time.time()
-    sold = cache["sold_prices"]
-
-    cached = sold.get(item_id)
-    if cached and now - cached.get("ts", 0) < SOLD_PRICE_TTL and "lowest_bin" in cached:
-        return cached, last_coflnet_time
-
-    url = COFLNET_BIN_URL.format(tag=item_id)
-    data, last_time = _coflnet_get(url, last_coflnet_time)
-
-    if data == "404":
-        entry = sold.get(item_id, {})
-        entry.update({"lowest_bin": 0, "ts": now})
-        sold[item_id] = entry
-        return entry, last_time
-    if data is None:
-        return sold.get(item_id), last_time
-
-    entry = sold.get(item_id, {})
-    entry.update({
-        "lowest_bin": data.get("lowest", 0),
-        "ts": now,
-    })
-    sold[item_id] = entry
-    return entry, last_time
+    return results["lowestbin"], results["avg_lbin"], results["auction_averages"]
 
 
 # ─── Craft Flip Analysis ──────────────────────────────────────────────
@@ -440,73 +411,56 @@ def calculate_craft_cost(recipe, price_cache):
     return total / recipe["output_count"]
 
 
-def scan_craft_flips(recipes, price_cache, craft_cache, use_cached_only=False):
+def scan_craft_flips(recipes, price_cache, craft_cache, use_cached_only=False,
+                     force_refresh=False):
     """Scan all recipes and return profitable craft flips.
 
-    Two-pass approach:
-      1. Fetch volume + median from the price endpoint → filter by volume
-      2. Fetch lowest BIN only for items that passed the volume filter
-    This avoids fetching BIN for items nobody actually buys.
+    All price data is loaded in bulk from Moulberry APIs up front,
+    then a single pass iterates recipes and looks up prices in memory.
     """
-    last_coflnet = 0
-    total = len(recipes)
+    # Load bulk price data
+    if use_cached_only:
+        mb = craft_cache.get("moulberry", {})
+        lowestbin = mb.get("lowestbin", {})
+        avg_lbin = mb.get("avg_lbin", {})
+        auction_averages = mb.get("auction_averages", {})
+        if not avg_lbin:
+            print("  No cached data. Run 'python3 crafts.py' first.", file=sys.stderr)
+            return []
+    else:
+        lowestbin, avg_lbin, auction_averages = fetch_moulberry_data(
+            cache=craft_cache, force_refresh=force_refresh)
+        if not avg_lbin:
+            print("  Error: Could not fetch Moulberry data.", file=sys.stderr)
+            return []
 
-    # ── Pass 1: volume + median (quick profit pre-filter) ──
-    candidates = []
-    for i, recipe in enumerate(recipes):
+    flips = []
+    for recipe in recipes:
         item_id = recipe["item_id"]
 
         cost = calculate_craft_cost(recipe, price_cache)
         if cost is None:
             continue
 
-        if use_cached_only:
-            sold = craft_cache["sold_prices"].get(item_id)
-        else:
-            if (i + 1) % 25 == 0:
-                print(f"  Pass 1 (volume)... {i + 1}/{total}", end="\r", file=sys.stderr)
-            sold, last_coflnet = fetch_sold_price(item_id, craft_cache, last_coflnet)
-
-        if not sold:
+        # Get 3-day avg lowest BIN (primary profit metric)
+        item_avg = avg_lbin.get(item_id)
+        if not item_avg or item_avg <= 0:
             continue
 
-        volume = sold.get("volume", 0)
-        median = sold.get("median", 0)
+        # Get sales volume from auction averages
+        avg_data = auction_averages.get(item_id)
+        if not avg_data:
+            continue
+        sales_per_day = avg_data.get("sales", 0) / 3.0
 
-        if volume < MIN_VOLUME:
+        if sales_per_day < MIN_VOLUME:
             continue
 
-        # Quick profit check using median to avoid unnecessary BIN fetches
-        if median > 0 and median * 0.99 - cost < MIN_PROFIT:
-            continue
+        # Current lowest BIN for display
+        current_lbin = lowestbin.get(item_id, 0)
 
-        candidates.append({"recipe": recipe, "cost": cost, "volume": volume})
-
-    if not use_cached_only and total > 25:
-        print("  " + " " * 40, end="\r", file=sys.stderr)
-
-    # ── Pass 2: lowest BIN for candidates only ──
-    flips = []
-    n_cands = len(candidates)
-    if not use_cached_only and n_cands:
-        print(f"  Pass 2 (BIN)... {n_cands} candidates", file=sys.stderr)
-
-    for i, cand in enumerate(candidates):
-        item_id = cand["recipe"]["item_id"]
-        cost = cand["cost"]
-
-        if use_cached_only:
-            sold = craft_cache["sold_prices"].get(item_id)
-        else:
-            if (i + 1) % 25 == 0:
-                print(f"  Fetching BIN... {i + 1}/{n_cands}", end="\r", file=sys.stderr)
-            sold, last_coflnet = fetch_bin_price(item_id, craft_cache, last_coflnet)
-
-        if not sold or sold.get("lowest_bin", 0) <= 0:
-            continue
-
-        lowest_bin = sold["lowest_bin"]
-        profit = lowest_bin * 0.99 - cost
+        # Profit based on avg BIN (more stable than current BIN)
+        profit = item_avg * 0.99 - cost
 
         if profit < MIN_PROFIT:
             continue
@@ -514,14 +468,12 @@ def scan_craft_flips(recipes, price_cache, craft_cache, use_cached_only=False):
         flips.append({
             "item_id": item_id,
             "cost": cost,
-            "lowest_bin": lowest_bin,
+            "avg_lbin": item_avg,
+            "lbin": current_lbin,
             "profit": profit,
-            "volume": cand["volume"],
-            "requirement": cand["recipe"]["requirement"],
+            "sales_per_day": sales_per_day,
+            "requirement": recipe["requirement"],
         })
-
-    if not use_cached_only and n_cands > 25:
-        print("  " + " " * 40, end="\r", file=sys.stderr)
 
     flips.sort(key=lambda x: x["profit"], reverse=True)
     return flips
@@ -609,19 +561,20 @@ def check_unlocked(req, member, slayer_thresholds):
 def print_flips(flips, title="CRAFT FLIPS"):
     """Print a table of craft flips."""
     print(f"\n{title} (min {_fmt(MIN_PROFIT)} profit, min {MIN_VOLUME} sale/day)")
-    print("=" * 85)
-    print(f"  {'Item':<30s} {'Cost':>10s}  {'Lbin':>10s}  {'Profit':>10s} {'Vol':>5s}  Requirement")
-    print(f"  {'-'*30} {'-'*10}  {'-'*10}  {'-'*10} {'-'*5}  {'-'*20}")
+    print("=" * 100)
+    print(f"  {'Item':<30s} {'Cost':>10s}  {'Avg BIN':>10s}  {'Lbin':>10s}  {'Profit':>10s} {'Sales':>6s}  Requirement")
+    print(f"  {'-'*30} {'-'*10}  {'-'*10}  {'-'*10}  {'-'*10} {'-'*6}  {'-'*20}")
 
     for flip in flips:
         name = display_name(flip["item_id"])
         if len(name) > 30:
             name = name[:27] + "..."
         req_text = flip["requirement"]["text"] if flip["requirement"] else ""
-        vol = flip.get("volume", 0)
-        vol_str = f"{vol:.0f}" if vol >= 10 else f"{vol:.1f}"
-        print(f"  {name:<30s} {_fmt(flip['cost']):>10s}  {_fmt(flip['lowest_bin']):>10s}  "
-              f"{_fmt(flip['profit']):>10s} {vol_str:>5s}  {req_text}")
+        spd = flip.get("sales_per_day", 0)
+        spd_str = f"{spd:.0f}/d" if spd >= 10 else f"{spd:.1f}/d"
+        lbin_str = _fmt(flip["lbin"]) if flip.get("lbin") else "N/A"
+        print(f"  {name:<30s} {_fmt(flip['cost']):>10s}  {_fmt(flip['avg_lbin']):>10s}  "
+              f"{lbin_str:>10s}  {_fmt(flip['profit']):>10s} {spd_str:>6s}  {req_text}")
 
     if not flips:
         print("  No profitable crafts found.")
@@ -645,18 +598,19 @@ def print_profile_flips(flips, member, slayer_thresholds):
 
     # Print unlocked
     print(f"\nUNLOCKED CRAFT FLIPS")
-    print("=" * 78)
+    print("=" * 90)
     if unlocked:
-        print(f"  {'Item':<30s} {'Cost':>10s}  {'Lbin':>10s}  {'Profit':>10s} {'Vol':>5s}")
-        print(f"  {'-'*30} {'-'*10}  {'-'*10}  {'-'*10} {'-'*5}")
+        print(f"  {'Item':<30s} {'Cost':>10s}  {'Avg BIN':>10s}  {'Lbin':>10s}  {'Profit':>10s} {'Sales':>6s}")
+        print(f"  {'-'*30} {'-'*10}  {'-'*10}  {'-'*10}  {'-'*10} {'-'*6}")
         for flip in unlocked:
             name = display_name(flip["item_id"])
             if len(name) > 30:
                 name = name[:27] + "..."
-            vol = flip.get("volume", 0)
-            vol_str = f"{vol:.0f}" if vol >= 10 else f"{vol:.1f}"
-            print(f"  {name:<30s} {_fmt(flip['cost']):>10s}  {_fmt(flip['lowest_bin']):>10s}  "
-                  f"{_fmt(flip['profit']):>10s} {vol_str:>5s}")
+            spd = flip.get("sales_per_day", 0)
+            spd_str = f"{spd:.0f}/d" if spd >= 10 else f"{spd:.1f}/d"
+            lbin_str = _fmt(flip["lbin"]) if flip.get("lbin") else "N/A"
+            print(f"  {name:<30s} {_fmt(flip['cost']):>10s}  {_fmt(flip['avg_lbin']):>10s}  "
+                  f"{lbin_str:>10s}  {_fmt(flip['profit']):>10s} {spd_str:>6s}")
     else:
         print("  No unlocked profitable crafts found.")
     print()
@@ -692,11 +646,17 @@ def main():
     parser.add_argument("--profile", action="store_true",
                         help="Filter by player's unlocked recipes (reads last_profile.json)")
     parser.add_argument("--cached", action="store_true",
-                        help="Use cached sold prices only (skip Coflnet, fast)")
+                        help="Use cached prices only (skip API calls)")
+    parser.add_argument("--fresh", action="store_true",
+                        help="Ignore cache, fetch all prices fresh")
     args = parser.parse_args()
 
     # Load cache
     craft_cache = load_craft_cache()
+
+    if args.fresh:
+        craft_cache["moulberry"] = {}
+        print("  Cleared price cache (--fresh)", file=sys.stderr)
 
     # Parse all recipes from NEU repo
     print("  Parsing recipes from NEU repo...", file=sys.stderr)
@@ -724,9 +684,8 @@ def main():
         return
 
     # Scan for profitable flips
-    if not args.cached:
-        print(f"  Scanning {len(valid)} items (volume → BIN)...", file=sys.stderr)
-    flips = scan_craft_flips(valid, price_cache, craft_cache, use_cached_only=args.cached)
+    flips = scan_craft_flips(valid, price_cache, craft_cache,
+                             use_cached_only=args.cached, force_refresh=args.fresh)
 
     # Save caches
     save_craft_cache(craft_cache)
@@ -745,7 +704,11 @@ def main():
     else:
         print_flips(flips)
 
-    print(f"  Cache: {len(craft_cache['sold_prices'])} sold prices cached", file=sys.stderr)
+    mb = craft_cache.get("moulberry", {})
+    n_lbin = len(mb.get("lowestbin", {}))
+    n_avg = len(mb.get("avg_lbin", {}))
+    n_sales = len(mb.get("auction_averages", {}))
+    print(f"  Data: {n_lbin} lowest BINs, {n_avg} avg BINs, {n_sales} sale records", file=sys.stderr)
 
 
 if __name__ == "__main__":
