@@ -28,20 +28,20 @@ Interactive features: localStorage-backed checkboxes with per-section progress t
 
 ### `tools/` — Python Scripts
 
-Four standalone scripts. No dependencies beyond the standard library. Run from the `tools/` directory (profile.py imports from pricing.py via relative import).
+Five standalone scripts. No dependencies beyond the standard library. Run from the `tools/` directory (scripts import from each other via relative imports).
 
 ---
 
 **`profile.py`** — Fetches a player's SkyBlock profile from the [Hypixel API v2](https://api.hypixel.net/) and prints a comprehensive breakdown. Decodes base64-gzip NBT inventory blobs to extract item details (reforges, enchantments with levels, star count, hot potato book count, rarity) for every equipped item, accessory, wardrobe slot, ender chest item, and backpack.
 
-Output is organized into 22 sections — 8 core shown by default, 14 extended available on request:
+Output is organized into 23 sections — 8 core shown by default, 15 extended available on request:
 
 | Core (default) | Extended (`--full` or `-s`) |
 |---|---|
 | general, skills, slayers, dungeons | collections, minions, garden, museum |
 | hotm, effects, pets, inventories | rift, sacks, jacob, crystals |
 | | bestiary, stats, foraging, chocolate |
-| | community, misc |
+| | community, misc, crafts |
 
 Also includes:
 - **Market prices** for all equipped gear and weapons, with total accessory bag value (top 5 most expensive shown)
@@ -68,6 +68,24 @@ python3 pricing.py SHADOW_ASSASSIN_CHESTPLATE ENCHANTED_DIAMOND
 ```
 
 Also used as a library — `profile.py` imports `PriceCache` directly for inline market valuations.
+
+---
+
+**`crafts.py`** — Scans for profitable **craft flips**: items where bazaar-bought ingredients can be crafted into items that sell on the Auction House for more than the material cost. Parses all crafting recipes from the NEU-REPO item database, prices ingredients using the Bazaar API (`quick_status.buyPrice`), and fetches actual sold prices from the [Coflnet](https://sky.coflnet.com/) median price API.
+
+Filters to items where all ingredients are available on the Bazaar and the output is sold on the AH (not the Bazaar). Calculates profit after the 1% AH tax. Minimum thresholds: 10K profit and 1 sale/day.
+
+Each item's unlock requirement (collection tier, slayer level, HotM level) is parsed from the NEU-REPO data and resolved against the Hypixel collections API for actual tier thresholds.
+
+```bash
+python3 crafts.py              # full scan — all profitable crafts (~5 min, hits Coflnet)
+python3 crafts.py --profile    # filter by player's unlocked recipes (reads last_profile.json)
+python3 crafts.py --cached     # use cached sold prices only (skip Coflnet, fast)
+```
+
+Sold prices are cached in `data/craft_cache.json` (1-hour TTL, 24-hour eviction). The `--profile` mode cross-references the player's collections and slayer XP to show which crafts are unlocked and which are closest to unlocking.
+
+Also used as a library — `profile.py` imports craft scanning functions for the `crafts` section.
 
 ---
 
@@ -114,8 +132,11 @@ Large and/or generated files that don't belong in version control. Everything he
 | `wiki/` | ~27 MB | `wiki_dump.py` | 4,800+ `.wiki` files + `.dump_meta.json` |
 | `neu-repo/` | ~82 MB | [git clone](https://github.com/NotEnoughUpdates/NotEnoughUpdates-REPO) | Item JSONs, constants, recipes |
 | `vault/` | ~53 MB | `converter.py` | ~12,000 interlinked `.md` files for Obsidian |
+| `collections_resource.json` | ~180 KB | [Hypixel API](https://api.hypixel.net/v2/resources/skyblock/collections) | Collection tier thresholds (no key needed) |
 | `last_profile.json` | ~400 KB | `profile.py` | Latest API fetch (profile, garden, museum, prices) |
 | `price_cache.json` | ~300 KB | `pricing.py` | Bazaar + auction price cache with TTL timestamps |
+| `craft_cache.json` | ~240 KB | `crafts.py` | Coflnet sold prices + collection data cache |
+| `display_names.json` | ~244 KB | `pricing.py` | Item ID → display name mapping from NEU-REPO |
 
 ## Setup
 

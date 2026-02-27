@@ -6,6 +6,8 @@ data/last_profile.json
 
 # Generated / large (regenerable with tools)
 data/price_cache.json
+data/collections_resource.json
+data/craft_cache.json
 data/display_names.json
 data/wiki/
 data/neu-repo/

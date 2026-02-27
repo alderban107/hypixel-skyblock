@@ -9,6 +9,7 @@ import os
 import re
 import struct
 import sys
+import time
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
@@ -16,6 +17,10 @@ from urllib.request import Request, urlopen
 from urllib.error import HTTPError
 
 from pricing import PriceCache, _fmt as fmt_price_num, display_name
+from crafts import (parse_recipes, load_craft_cache, load_collections_data,
+                    load_slayer_thresholds, resolve_collection_requirement,
+                    resolve_slayer_requirement, filter_craft_flips,
+                    calculate_craft_cost, check_unlocked, CRAFT_CACHE_PATH)
 
 DATA_DIR = Path(__file__).parent.parent / "data"
 
@@ -38,7 +43,7 @@ CORE_SECTIONS = [
 EXTENDED_SECTIONS = [
     "collections", "minions", "garden", "museum", "rift",
     "sacks", "jacob", "crystals", "bestiary", "stats",
-    "foraging", "chocolate", "community", "misc",
+    "foraging", "chocolate", "community", "misc", "crafts",
 ]
 ALL_SECTIONS = CORE_SECTIONS + EXTENDED_SECTIONS
 
@@ -1823,6 +1828,105 @@ UPGRADE_TARGETS = {
 }
 
 
+def print_craft_flips(member, price_cache):
+    """Print profitable craft flips filtered by player unlocks."""
+    print_section("CRAFT FLIPS")
+
+    # Load craft cache — does NOT hit Coflnet (stays fast)
+    craft_cache = load_craft_cache()
+    sold_prices = craft_cache.get("sold_prices", {})
+
+    if not sold_prices:
+        cache_age = None
+    else:
+        oldest_ts = min(v.get("ts", 0) for v in sold_prices.values())
+        cache_age = time.time() - oldest_ts
+
+    if not sold_prices or (cache_age and cache_age > 86400):
+        print("  Run 'python3 crafts.py' to scan craft flips")
+        return
+
+    # Parse recipes and filter
+    all_recipes = parse_recipes()
+    all_items, name_to_key = load_collections_data(craft_cache)
+    slayer_thresholds = load_slayer_thresholds()
+
+    for recipe in all_recipes:
+        if recipe["requirement"]:
+            resolve_collection_requirement(recipe["requirement"], name_to_key)
+            resolve_slayer_requirement(recipe["requirement"], slayer_thresholds)
+
+    valid = filter_craft_flips(all_recipes, price_cache)
+
+    # Calculate profits using cached sold prices only
+    flips = []
+    for recipe in valid:
+        item_id = recipe["item_id"]
+        cost = calculate_craft_cost(recipe, price_cache)
+        if cost is None:
+            continue
+        sold = sold_prices.get(item_id)
+        if not sold or sold.get("median", 0) <= 0:
+            continue
+        median = sold["median"]
+        volume = sold.get("volume", 0)
+        profit = median * 0.99 - cost
+        if profit < 10_000 or volume < 1:
+            continue
+        flips.append({
+            "item_id": item_id,
+            "cost": cost,
+            "median": median,
+            "profit": profit,
+            "volume": volume,
+            "requirement": recipe["requirement"],
+        })
+
+    flips.sort(key=lambda x: x["profit"], reverse=True)
+
+    # Split into unlocked and almost-unlocked
+    unlocked = []
+    almost = []
+    for flip in flips:
+        is_ok, progress, needed = check_unlocked(flip["requirement"], member, slayer_thresholds)
+        if is_ok:
+            unlocked.append(flip)
+        elif progress is not None and needed and needed > 0:
+            pct = progress / needed
+            almost.append({**flip, "progress": progress, "needed": needed, "pct": pct})
+
+    # Top 10 unlocked
+    print(f"  Unlocked ({len(unlocked)} total, showing top 10):")
+    if unlocked:
+        for flip in unlocked[:10]:
+            name = display_name(flip["item_id"])
+            if len(name) > 28:
+                name = name[:25] + "..."
+            print(f"    {name:<28s} {fmt_price_num(flip['cost']):>8s} -> "
+                  f"{fmt_price_num(flip['median']):>8s}  "
+                  f"profit {fmt_price_num(flip['profit']):>8s}  ({flip['volume']} sales/day)")
+    else:
+        print("    No unlocked profitable crafts found.")
+
+    # Top 5 almost unlocked
+    almost.sort(key=lambda x: x["pct"], reverse=True)
+    if almost:
+        print(f"\n  Almost Unlocked:")
+        for flip in almost[:5]:
+            name = display_name(flip["item_id"])
+            if len(name) > 24:
+                name = name[:21] + "..."
+            req_text = flip["requirement"]["text"] if flip["requirement"] else ""
+            prog_str = f"{format_number(flip['progress'])}/{format_number(flip['needed'])}"
+            if flip["requirement"]["type"] == "slayer":
+                prog_str += " XP"
+            print(f"    {name:<24s} {fmt_price_num(flip['profit']):>8s} profit  "
+                  f"{req_text:<22s} {prog_str} ({flip['pct']*100:.0f}%)")
+
+    hours_ago = cache_age / 3600 if cache_age else 0
+    print(f"\n  (Prices cached {hours_ago:.1f}h ago. Run 'python3 crafts.py' to refresh)")
+
+
 def print_market_prices(member, price_cache):
     """Print current market prices for equipped gear and upgrade targets."""
     print_section("MARKET PRICES")
@@ -2048,6 +2152,10 @@ def main():
     # --- Market prices (always shown) ---
     price_cache = PriceCache()
     print_market_prices(member, price_cache)
+
+    # --- Craft flips (extended) ---
+    if show("crafts"):      print_craft_flips(member, price_cache)
+
     price_cache.flush()
 
     if not args.full and active_sections == set(CORE_SECTIONS):
