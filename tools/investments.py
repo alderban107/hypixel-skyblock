@@ -2,8 +2,14 @@
 """SkyBlock event investment tracker.
 
 Analyzes event-driven price cycles using Coflnet historical data and recommends
-when to buy/sell. Items flood the market during events (prices drop) and become
-scarce between events (prices rise).
+when to buy/sell. Three price patterns:
+
+  flood_during  — event creates supply (drops/rewards), prices drop during event
+  demand_during — event creates demand (consumables), prices spike during event
+  demand_before — anticipation drives demand, prices rise before event
+
+For bazaar items on short events (< 6h), fetches high-resolution windows (5-min
+data) around event times to capture spikes that 2-hour broad data would miss.
 
 All historical data is fetched on-demand from Coflnet — no background jobs or
 local snapshots needed.
@@ -181,8 +187,8 @@ EVENTS = {
         "schedule": [(7, 29, 31)],  # Autumn (idx 7), days 29-31
         "shop_window": "Autumn 26 - Late Autumn 3",
         "items": {
-            "GREEN_CANDY":              {"market": "bazaar",  "pattern": "flood_during"},
-            "PURPLE_CANDY":             {"market": "bazaar",  "pattern": "flood_during"},
+            "GREEN_CANDY":              {"market": "bazaar",  "pattern": "demand_during"},
+            "PURPLE_CANDY":             {"market": "bazaar",  "pattern": "demand_during"},
             "SPOOKY_SHARD":             {"market": "auction", "pattern": "flood_during"},
             "BAT_PERSON_HELMET":        {"market": "auction", "pattern": "flood_during"},
             "BAT_PERSON_CHESTPLATE":    {"market": "auction", "pattern": "flood_during"},
@@ -221,11 +227,11 @@ EVENTS = {
         "name": "Hoppity's Hunt",
         "schedule": [(0, 1, 31)],  # Early Spring (idx 0), full month
         "items": {
-            "NIBBLE_CHOCOLATE_STICK":   {"market": "auction", "pattern": "demand_before"},
-            "SMOOTH_CHOCOLATE_BAR":     {"market": "auction", "pattern": "demand_before"},
-            "RICH_CHOCOLATE_CHUNK":     {"market": "auction", "pattern": "demand_before"},
-            "GANACHE_CHOCOLATE_SLAB":   {"market": "auction", "pattern": "demand_before"},
-            "PRESTIGE_CHOCOLATE_REALM": {"market": "auction", "pattern": "demand_before"},
+            "NIBBLE_CHOCOLATE_STICK":   {"market": "auction", "pattern": "flood_during"},
+            "SMOOTH_CHOCOLATE_BAR":     {"market": "auction", "pattern": "flood_during"},
+            "RICH_CHOCOLATE_CHUNK":     {"market": "auction", "pattern": "flood_during"},
+            "GANACHE_CHOCOLATE_SLAB":   {"market": "auction", "pattern": "flood_during"},
+            "PRESTIGE_CHOCOLATE_REALM": {"market": "auction", "pattern": "flood_during"},
         },
     },
     "zoo": {
@@ -282,34 +288,95 @@ def _parse_coflnet_ts(ts_str):
     return int(dt.timestamp())
 
 
+def _find_event_windows(item_id, days=30):
+    """Find all event windows for a bazaar item within the last N days.
+
+    Returns list of (event_start_ts, event_end_ts) tuples.
+    """
+    now = time.time()
+    start_ts = now - days * 86400
+    start_sb = real_to_sb(start_ts)
+    end_sb = real_to_sb(now)
+    windows = []
+
+    for event in EVENTS.values():
+        if item_id not in event["items"]:
+            continue
+        if not event.get("schedule"):
+            continue
+        for year in range(start_sb["year"], end_sb["year"] + 1):
+            year_start = sb_to_real(year, 0, 1)
+            for month_idx, s_day, e_day in event["schedule"]:
+                ev_start = year_start + sb_month_day_to_year_offset(month_idx, s_day)
+                ev_end = year_start + sb_month_day_to_year_offset(month_idx, e_day) + SB_DAY_SECONDS
+                if ev_end > start_ts and ev_start < now:
+                    windows.append((ev_start, ev_end))
+
+    return windows
+
+
+def _fetch_bazaar_history(item_id, start_ts, end_ts):
+    """Fetch bazaar history for a specific time range. Returns raw points."""
+    start_iso = datetime.fromtimestamp(start_ts, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    end_iso = datetime.fromtimestamp(end_ts, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    url = f"https://sky.coflnet.com/api/bazaar/{item_id}/history?start={start_iso}&end={end_iso}"
+
+    points = []
+    try:
+        records = _coflnet_get(url)
+        for r in records:
+            ts = _parse_coflnet_ts(r["timestamp"])
+            points.append({
+                "ts": ts,
+                "sb_date": real_to_sb(ts),
+                "price": r.get("buy", 0) or 0,
+                "sell": r.get("sell", 0) or 0,
+                "volume": r.get("buyVolume", 0),
+            })
+    except (HTTPError, URLError, OSError, KeyError, ValueError):
+        pass
+    return points
+
+
 def fetch_item_history(item_id, market, days=30):
     """Fetch price history for one item from Coflnet.
 
+    For bazaar items, fetches the full 30-day range (2h resolution) plus
+    targeted windows around short events (5-min resolution) to capture
+    price spikes during events like Spooky Festival.
+
     Returns list of {ts, sb_date, price, volume} dicts, sorted by time.
+    Extra API calls needed for targeted fetches are returned as the second
+    value when called directly, but fetch_all_history handles rate limiting.
     """
     points = []
+    extra_calls = 0
 
     if market == "bazaar":
-        # Custom date range for bazaar
         now = time.time()
         start_ts = now - days * 86400
-        start_iso = datetime.fromtimestamp(start_ts, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-        end_iso = datetime.fromtimestamp(now, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-        url = f"https://sky.coflnet.com/api/bazaar/{item_id}/history?start={start_iso}&end={end_iso}"
 
-        try:
-            records = _coflnet_get(url)
-            for r in records:
-                ts = _parse_coflnet_ts(r["timestamp"])
-                points.append({
-                    "ts": ts,
-                    "sb_date": real_to_sb(ts),
-                    "price": r.get("buy", 0) or 0,
-                    "sell": r.get("sell", 0) or 0,
-                    "volume": r.get("buyVolume", 0),
-                })
-        except (HTTPError, URLError, OSError, KeyError, ValueError):
-            pass
+        # Broad 30-day fetch (2h resolution)
+        points = _fetch_bazaar_history(item_id, start_ts, now)
+
+        # Find short event windows and fetch high-res data around them
+        # "Short" = event duration < 6 hours real time (where 2h resolution
+        # would miss the event entirely or only catch 1-2 data points)
+        event_windows = _find_event_windows(item_id, days)
+        for ev_start, ev_end in event_windows:
+            duration = ev_end - ev_start
+            if duration < 6 * 3600:
+                # Pad 2 hours each side for context
+                pad = 2 * 3600
+                hi_res = _fetch_bazaar_history(item_id, ev_start - pad, ev_end + pad)
+                extra_calls += 1
+                # Merge: remove broad points in this window, add hi-res points
+                window_start = ev_start - pad
+                window_end = ev_end + pad
+                points = [p for p in points
+                          if p["ts"] < window_start or p["ts"] > window_end]
+                points.extend(hi_res)
+                time.sleep(COFLNET_RATE_LIMIT)
 
     else:
         # AH item — use /history/month (30 days, daily intervals)
@@ -330,8 +397,16 @@ def fetch_item_history(item_id, market, days=30):
         except (HTTPError, URLError, OSError, KeyError, ValueError):
             pass
 
-    points.sort(key=lambda p: p["ts"])
-    return points
+    # Deduplicate by timestamp (hi-res windows may overlap broad data)
+    seen = set()
+    deduped = []
+    for p in points:
+        if p["ts"] not in seen:
+            seen.add(p["ts"])
+            deduped.append(p)
+
+    deduped.sort(key=lambda p: p["ts"])
+    return deduped
 
 
 def fetch_all_history(items_by_market):
@@ -461,8 +536,27 @@ def recommend(item_id, event, current_price, stats, position):
         pct = ((sell_target / from_price) - 1) * 100
         return f"+{pct:.0f}%" if pct > 0 else None
 
-    if pattern == "demand_before":
-        # Prices rise around event, fall off-event. Buy off-event, sell pre/during.
+    if pattern == "demand_during":
+        # Demand spikes DURING event (e.g. candy — people buy to use in event).
+        # Prices peak during event, crash after when leftovers are dumped.
+        # Buy: off-event / post-event crash. Sell: during event.
+        if position == "DURING_EVENT":
+            if current_price >= event_avg * 0.9:
+                return ("SELL", "Event active, demand peak", None)
+            return ("HOLD", "Event active but price below avg", None)
+        elif position == "PRE_EVENT":
+            if current_price <= off_event_avg * 1.1:
+                return ("BUY", "Pre-event, still near off-event price", profit_pct(current_price))
+            return ("HOLD", "Pre-event, price already rising", None)
+        elif position == "POST_EVENT":
+            return ("BUY", "Post-event crash, prices at lows", profit_pct(current_price))
+        else:
+            if current_price <= off_event_avg * 1.1:
+                return ("BUY", "Off-event lows, buy for next event", profit_pct(current_price))
+            return ("HOLD", "Mid-cycle, price above off-event avg", None)
+    elif pattern == "demand_before":
+        # Demand rises BEFORE event (e.g. pet materials before Traveling Zoo).
+        # Prices peak pre-event, fall off-event. Buy off-event, sell pre/during.
         if position == "DURING_EVENT":
             if current_price >= event_avg * 0.9:
                 return ("SELL", "Event active, demand price peak", None)
@@ -478,7 +572,8 @@ def recommend(item_id, event, current_price, stats, position):
                 return ("BUY", "Off-event lows, buy for next event", profit_pct(current_price))
             return ("HOLD", "Mid-cycle, price above off-event avg", None)
     else:
-        # flood_during: prices drop during event. Buy during, sell off-event.
+        # flood_during: Supply floods during event (e.g. armor drops).
+        # Prices drop during event. Buy during, sell off-event.
         if position == "DURING_EVENT":
             if current_price <= event_avg * 1.1:
                 return ("BUY", "Event active, price near event low", profit_pct(current_price))

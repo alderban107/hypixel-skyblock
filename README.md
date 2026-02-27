@@ -90,22 +90,27 @@ Also used as a library — `profile.py` imports craft scanning functions for the
 
 ---
 
-**`investments.py`** — Event-driven investment tracker that identifies buy/sell opportunities based on SkyBlock's recurring event cycle. Events like the Spooky Festival, Jerry's Workshop, and Hoppity's Hunt cause predictable price swings — items flood the market during events (prices drop) and become scarce between them (prices rise).
+**`investments.py`** — Event-driven investment tracker that identifies buy/sell opportunities based on SkyBlock's recurring event cycle. Each event creates predictable price swings through one of three mechanisms:
 
-All historical price data is fetched on-demand from [Coflnet](https://sky.coflnet.com/) — no background jobs, cron, or local data accumulation needed. Bazaar items use Coflnet's custom date range endpoint (30 days of history), AH items use the monthly price aggregation endpoint (daily min/max/avg/volume for 30 days). Current prices come from the Hypixel Bazaar API and Moulberry's lowest BIN data.
+- **Flood during** — The event produces items as drops/rewards, flooding supply and crashing prices. Buy during the event when prices bottom out, sell between events when supply dries up. *(e.g. Bat Person armor from Spooky Festival bosses, Snow Suit from Jerry's gifts)*
+- **Demand during** — The event creates demand for consumable items, spiking prices while it's active. Buy between events when nobody needs the items, sell during the event when demand peaks. *(e.g. Green/Purple Candy — players buy it to earn Spooky Festival rewards)*
+- **Demand before** — Players buy materials in anticipation of an upcoming event, driving prices up before it starts. Buy well after the event when demand fades, sell in the lead-up. *(e.g. enchanted meat/fish before the Traveling Zoo for pet leveling)*
+
+All historical price data is fetched on-demand from [Coflnet](https://sky.coflnet.com/) — no background jobs, cron, or local data accumulation needed. For bazaar items, Coflnet's resolution scales with the requested time range (5-minute data for short windows, 2-hour for 7 days, daily for 30 days). The script automatically fetches high-resolution windows around short events (like the 1-hour Spooky Festival) so that price spikes are captured, while using the broad 30-day range for overall trends. AH items use the monthly price aggregation endpoint (daily min/max/avg/volume). Current prices come from the Hypixel Bazaar API and Moulberry's lowest BIN data.
 
 Includes a SkyBlock calendar system that converts real-world time to in-game dates (epoch: June 11, 2019; 1 SB year = 124 real hours) to determine event timing and cycle position. For each tracked item, the script compares current price against historical event-period and off-event averages, then generates BUY/SELL/HOLD/WATCH recommendations with expected profit percentages.
 
 Tracks 46 items across 6 events:
 
-| Event | Schedule | Pattern | Items |
+| Event | Schedule | Items | Pattern |
 |---|---|---|---|
-| Spooky Festival | Autumn 29-31 | Flood during | Candy, Bat Person armor, Spooky armor |
-| Jerry's Workshop | Late Winter 1-31 | Flood during | Gifts, Snow Suit, Nutcracker armor, Yeti Sword |
-| Hoppity's Hunt | Early Spring 1-31 | Demand before | Chocolate items |
-| Traveling Zoo | Early Summer/Winter 1-3 | Demand before | Enchanted meat/fish (pet materials) |
-| Fishing Festival | Mayor-dependent (Marina) | Flood during | Shark fins, shark teeth |
-| Mining Fiesta | Mayor-dependent (Cole) | Flood during | Refined Mineral, Glossy Gemstone |
+| Spooky Festival | Autumn 29-31 | Candy (bazaar) | Demand during — buy off-event, sell during |
+| | | Bat Person armor, Spooky armor, Spooky Shard (AH) | Flood during — buy during event, sell off-event |
+| Jerry's Workshop | Late Winter 1-31 | Gifts, Snow Suit, Nutcracker armor, Yeti Sword | Flood during |
+| Hoppity's Hunt | Early Spring 1-31 | Chocolate items | Flood during |
+| Traveling Zoo | Early Summer/Winter 1-3 | Enchanted meat/fish (pet materials) | Demand before — buy off-event, sell pre-event |
+| Fishing Festival | Mayor-dependent (Marina) | Shark fins, shark teeth | Flood during |
+| Mining Fiesta | Mayor-dependent (Cole) | Refined Mineral, Glossy Gemstone | Flood during |
 
 ```bash
 python3 investments.py                      # recommendations (fetches 30-day history, ~30 sec)
