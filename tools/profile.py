@@ -37,7 +37,7 @@ API_KEY = os.environ.get("HYPIXEL_API_KEY", "")
 
 # --- Section definitions ---
 CORE_SECTIONS = [
-    "general", "skills", "slayers", "dungeons", "hotm",
+    "general", "dailies", "skills", "slayers", "dungeons", "hotm",
     "effects", "pets", "inventories",
 ]
 EXTENDED_SECTIONS = [
@@ -115,6 +115,7 @@ _FALLBACK_MAX_LEVELS = {
 # These get populated by fetch_skill_tables() or fall back to hardcoded
 SKILL_THRESHOLDS = {}  # skill_name -> [0, xp1, xp2, ...]
 SKILL_MAX_LEVELS = {}
+COLLECTION_TIERS = {}  # item_id -> {name, tiers: [{tier, amountRequired, unlocks}]}
 
 
 def fetch_skill_tables():
@@ -140,6 +141,35 @@ def fetch_skill_tables():
                 SKILL_THRESHOLDS[name] = _FALLBACK_RUNECRAFTING_XP
             else:
                 SKILL_THRESHOLDS[name] = _FALLBACK_SKILL_XP
+
+
+def fetch_collection_tiers():
+    """Fetch collection tier thresholds from the Hypixel API (no auth needed)."""
+    global COLLECTION_TIERS
+    try:
+        data = api_get("https://api.hypixel.net/v2/resources/skyblock/collections")
+        if not data.get("success"):
+            raise ValueError("API returned success=false")
+        collections = data.get("collections", {})
+        for category_id, category_data in collections.items():
+            items = category_data.get("items", {})
+            for item_id, item_data in items.items():
+                tiers = item_data.get("tiers", [])
+                tier_reqs = []
+                for tier in tiers:
+                    tier_reqs.append({
+                        "tier": tier["tier"],
+                        "amountRequired": tier["amountRequired"],
+                        "unlocks": tier.get("unlocks", []),
+                    })
+                COLLECTION_TIERS[item_id] = {
+                    "name": item_data.get("name", item_id),
+                    "tiers": tier_reqs,
+                }
+        print(f"  Loaded collection tier data ({len(COLLECTION_TIERS)} items)")
+    except Exception as e:
+        print(f"  Could not fetch collection tiers ({e})")
+
 
 # Dungeon XP thresholds (catacombs + classes) up to level 50
 DUNGEON_XP_THRESHOLDS = [
@@ -206,6 +236,71 @@ def print_section(title):
     print(f"\n{'=' * 60}")
     print(f"  {title}")
     print(f"{'=' * 60}")
+
+
+def get_real_day_number():
+    """Return floor(unix_time / 86400) — the real-world day counter used by the API."""
+    return int(time.time() / 86400)
+
+
+def print_daily_checklist(member):
+    print_section("DAILY CHECKLIST")
+    today = get_real_day_number()
+    now = time.time()
+
+    # Mining
+    mc = member.get("mining_core", {})
+    mining_day = mc.get("daily_ores_mined_day", 0)
+    mining_count = mc.get("daily_ores_mined", 0)
+    if mining_day == today:
+        print(f"  Mining:          {mining_count} ores mined today")
+    else:
+        days_ago = today - mining_day if mining_day else None
+        ago_str = f" (last: {days_ago}d ago)" if days_ago else ""
+        print(f"  Mining:          Not yet{ago_str}")
+
+    # Foraging
+    fc = member.get("foraging_core", {})
+    forage_day = fc.get("daily_trees_cut_day", 0)
+    forage_count = fc.get("daily_trees_cut", 0)
+    if forage_day == today:
+        print(f"  Foraging:        {forage_count} trees cut today")
+    else:
+        days_ago = today - forage_day if forage_day else None
+        ago_str = f" (last: {days_ago}d ago)" if days_ago else ""
+        print(f"  Foraging:        Not yet{ago_str}")
+
+    # Experiments
+    exp = member.get("experimentation", {})
+    pairings_claimed = exp.get("pairings", {}).get("claimed", False)
+    simon_claimed = exp.get("simon", {}).get("claimed", False)
+    parts = []
+    if pairings_claimed:
+        parts.append("Superpairs claimed")
+    else:
+        parts.append("Superpairs not claimed")
+    if simon_claimed:
+        parts.append("Chronomatron claimed")
+    else:
+        parts.append("Chronomatron not claimed")
+    print(f"  Experiments:     {', '.join(parts)}")
+
+    # Rift entries
+    rift_charge_ts = member.get("rift", {}).get("access", {}).get("charge_track_timestamp")
+    if rift_charge_ts:
+        elapsed_sec = now - (rift_charge_ts / 1000)
+        CHARGE_COOLDOWN_HOURS = 4
+        MAX_CHARGES = 3
+        charges = min(int(elapsed_sec / (CHARGE_COOLDOWN_HOURS * 3600)), MAX_CHARGES)
+        if charges >= MAX_CHARGES:
+            print(f"  Rift Entries:    {charges}/{MAX_CHARGES} (full)")
+        else:
+            next_sec = (CHARGE_COOLDOWN_HOURS * 3600) - (elapsed_sec % (CHARGE_COOLDOWN_HOURS * 3600))
+            next_h = int(next_sec / 3600)
+            next_m = int((next_sec % 3600) / 60)
+            print(f"  Rift Entries:    {charges}/{MAX_CHARGES} (next in {next_h}h {next_m:02d}m)")
+    else:
+        print(f"  Rift Entries:    N/A")
 
 
 def print_skills(member):
@@ -512,6 +607,19 @@ def print_hotm(member):
     if powder_glacite_avail or powder_spent_glacite:
         print(f"  Glacite Powder: {format_number(powder_glacite_avail)} available ({format_number(powder_glacite_avail + powder_spent_glacite)} lifetime)")
 
+    # Last mining access
+    last_access = mining_core.get("greater_mines_last_access", 0)
+    if last_access:
+        elapsed_ms = int(time.time() * 1000) - last_access
+        elapsed_h = elapsed_ms / 3600000
+        if elapsed_h < 1:
+            elapsed_str = f"{elapsed_ms // 60000}m ago"
+        elif elapsed_h < 24:
+            elapsed_str = f"{elapsed_h:.1f}h ago"
+        else:
+            elapsed_str = f"{elapsed_h / 24:.1f}d ago"
+        print(f"  Last Mining:    {elapsed_str}")
+
     # Selected abilities
     if isinstance(abilities, dict):
         for tree, ability in abilities.items():
@@ -653,12 +761,83 @@ def print_collections(member):
     print(f"  Total unique items collected: {len(sorted_colls)}")
     print(f"\n  Top 20 collections:")
     for name, count in sorted_colls[:20]:
-        display_name = name.replace("_", " ").title()
-        print(f"    {display_name:30s} {format_number(count):>10s}")
+        dn = name.replace("_", " ").title()
+        print(f"    {dn:30s} {format_number(count):>10s}")
+
+    # Close to next tier
+    if COLLECTION_TIERS:
+        unlocked_tiers_raw = member.get("player_data", {}).get("unlocked_coll_tiers", [])
+        # Parse highest unlocked tier per item
+        highest_unlocked = {}
+        for entry in unlocked_tiers_raw:
+            last_underscore = entry.rfind("_")
+            if last_underscore < 0:
+                continue
+            item_id = entry[:last_underscore]
+            tier_str = entry[last_underscore + 1:]
+            try:
+                tier_num = int(tier_str)
+            except ValueError:
+                continue
+            if tier_num < 0:
+                highest_unlocked[item_id] = 999  # maxed
+            else:
+                highest_unlocked[item_id] = max(highest_unlocked.get(item_id, 0), tier_num)
+
+        close_to_next = []
+        for item_id, count in collections.items():
+            tier_data = COLLECTION_TIERS.get(item_id, {})
+            tiers = tier_data.get("tiers", [])
+            if not tiers:
+                continue
+            current_tier = highest_unlocked.get(item_id, 0)
+            # Find next tier
+            next_tier = None
+            for t in tiers:
+                if t["tier"] > current_tier:
+                    next_tier = t
+                    break
+            if not next_tier:
+                continue
+            required = next_tier["amountRequired"]
+            if required <= 0:
+                continue
+            progress = count / required
+            if progress >= 0.40:
+                unlocks = next_tier.get("unlocks", [])
+                reward = unlocks[0] if unlocks else ""
+                close_to_next.append({
+                    "name": tier_data.get("name", item_id),
+                    "tier": next_tier["tier"],
+                    "count": count,
+                    "required": required,
+                    "progress": progress,
+                    "reward": reward,
+                })
+
+        close_to_next.sort(key=lambda x: x["progress"], reverse=True)
+        if close_to_next:
+            print(f"\n  Close to Next Tier:")
+            for c in close_to_next[:10]:
+                name = c["name"]
+                tier = c["tier"]
+                count_str = format_number(c["count"])
+                req_str = format_number(c["required"])
+                pct = c["progress"] * 100
+                reward = c["reward"]
+                reward_str = f"  \u2192 {reward}" if reward else ""
+                print(f"    {name:20s} Tier {tier:>2d}   {count_str:>6s}/{req_str:<6s} ({pct:.0f}%){reward_str}")
 
 
 def print_misc(member, profile):
     print_section("GENERAL")
+
+    # First Join
+    first_join_ts = member.get("profile", {}).get("first_join")
+    if first_join_ts:
+        dt = datetime.fromtimestamp(first_join_ts / 1000, tz=timezone.utc)
+        days_ago = (datetime.now(timezone.utc) - dt).days
+        print(f"  First Join:     {dt.strftime('%Y-%m-%d')} ({days_ago} days ago)")
 
     # Fairy souls (v2: nested under fairy_soul)
     fairy_data = member.get("fairy_soul", {})
@@ -669,8 +848,14 @@ def print_misc(member, profile):
     print(f"  Fairy Souls:    {fairy}/253{unspent_str}")
 
     # Purse (v2: nested under currencies)
-    purse = member.get("currencies", {}).get("coin_purse", member.get("coin_purse", 0))
+    currencies = member.get("currencies", {})
+    purse = currencies.get("coin_purse", member.get("coin_purse", 0))
     print(f"  Purse:          {format_number(purse)}")
+
+    # Motes
+    motes = currencies.get("motes_purse", 0)
+    if motes:
+        print(f"  Motes:          {format_number(motes)}")
 
     # Bank
     banking = profile.get("banking", {})
@@ -843,16 +1028,38 @@ def print_rift(member):
         print("  No Rift data (haven't entered the Rift yet)")
         return
 
-    # Access
+    # Access & charge tracking
     access = rift.get("access", {})
     if access:
-        print("  Rift access: Unlocked")
+        charge_ts = access.get("charge_track_timestamp")
+        if charge_ts:
+            import time as _time
+            elapsed_sec = _time.time() - (charge_ts / 1000)
+            elapsed_hours = elapsed_sec / 3600
+            CHARGE_COOLDOWN_HOURS = 4
+            MAX_CHARGES = 3
+            charges_regenerated = int(elapsed_hours / CHARGE_COOLDOWN_HOURS)
+            charges_available = min(charges_regenerated, MAX_CHARGES)
+            if charges_available >= MAX_CHARGES:
+                charge_str = f"{charges_available}/{MAX_CHARGES} (full)"
+            else:
+                next_charge_sec = (CHARGE_COOLDOWN_HOURS * 3600) - (elapsed_sec % (CHARGE_COOLDOWN_HOURS * 3600))
+                next_m, next_s = divmod(int(next_charge_sec), 60)
+                next_h, next_m = divmod(next_m, 60)
+                charge_str = f"{charges_available}/{MAX_CHARGES} (next in {next_h}h {next_m:02d}m)"
+            print(f"  Rift access:    Unlocked — Free entries: {charge_str}")
+            print(f"                  (Can also buy: 32 Grand XP Bottles ~144K or 200 Bits per entry)")
+        else:
+            print("  Rift access:    Unlocked")
 
     # Wizard Tower quest
     wizard = rift.get("wizard_tower", {})
     wiz_step = wizard.get("wizard_quest_step", 0)
     if wiz_step:
         print(f"  Wizard Quest:   Step {wiz_step}")
+    crumbs = wizard.get("crumbs_laid_out", 0)
+    if crumbs:
+        print(f"  Wizard Crumbs:  {crumbs}")
 
     # Enigma souls
     enigma = rift.get("enigma", {})
@@ -888,6 +1095,13 @@ def print_rift(member):
         delivered_eyes = lagoon.get("delivered_eyes", {})
         if delivered_eyes:
             print(f"  Black Lagoon:   {len(delivered_eyes)} eye types delivered")
+        received_paper = lagoon.get("received_science_paper", False)
+        delivered_paper = lagoon.get("delivered_science_paper", False)
+        if received_paper or delivered_paper:
+            if delivered_paper:
+                print(f"  Science Paper:  Delivered")
+            elif received_paper:
+                print(f"  Science Paper:  Received (not delivered)")
 
     # Gallery (Elise / timecharm securing)
     gallery = rift.get("gallery", {})
@@ -917,6 +1131,25 @@ def print_rift(member):
         grubber = castle.get("grubber_stacks", 0)
         if grubber:
             print(f"  Castle Grubber: {grubber} stacks")
+
+    # Purchased boundaries
+    boundaries = rift.get("lifetime_purchased_boundaries", [])
+    if boundaries:
+        boundary_names = [b.replace("_", " ").title() for b in boundaries]
+        print(f"  Paid Entries:   {', '.join(boundary_names)}")
+
+    # Rift lifetime stats
+    rift_stats = member.get("player_stats", {}).get("rift", {})
+    if rift_stats:
+        visits = int(rift_stats.get("visits", 0))
+        lifetime_motes = int(rift_stats.get("lifetime_motes_earned", 0))
+        parts = []
+        if visits:
+            parts.append(f"{visits} visits")
+        if lifetime_motes:
+            parts.append(f"{format_number(lifetime_motes)} lifetime motes")
+        if parts:
+            print(f"  Rift Stats:     {', '.join(parts)}")
 
     # Vampire slayer (check slayer data)
     slayer_data = member.get("slayer", {}).get("slayer_bosses", {}).get("vampire", {})
@@ -1597,12 +1830,28 @@ def print_chocolate(member):
     if rabbit_count:
         print(f"  Rabbits Found:   {rabbit_count}")
 
+    # Prestige progress
+    choc_since_prestige = easter.get("chocolate_since_prestige", 0)
+    if total and choc_since_prestige:
+        prestige_pct = choc_since_prestige / total * 100 if total else 0
+        print(f"  Since Prestige:  {format_number(choc_since_prestige)} ({prestige_pct:.1f}% of lifetime)")
+
     # Time tower
     tt = easter.get("time_tower", {})
     if tt:
         charges = tt.get("charges", 0)
         tt_level = tt.get("level", 0)
-        print(f"  Time Tower:      Level {tt_level}, {charges} charges")
+        activation_ts = tt.get("activation_time", 0)
+        active_str = ""
+        if activation_ts:
+            elapsed_ms = int(time.time() * 1000) - activation_ts
+            if elapsed_ms < 3600000:  # 1 hour
+                remaining_m = (3600000 - elapsed_ms) // 60000
+                active_str = f" — ACTIVE ({remaining_m}m remaining)"
+            else:
+                hours_ago = elapsed_ms / 3600000
+                active_str = f" — last activated {hours_ago:.1f}h ago"
+        print(f"  Time Tower:      Level {tt_level}, {charges} charges{active_str}")
 
     # Employees
     employees = easter.get("employees", {})
@@ -1610,6 +1859,12 @@ def print_chocolate(member):
         emp_str = ", ".join(f"{k.replace('rabbit_', '')} {v}" for k, v in
                            sorted(employees.items(), key=lambda x: x[1], reverse=True))
         print(f"  Employees:       {emp_str}")
+
+    # Collected eggs (egg meals)
+    collected_eggs = rabbits.get("collected_eggs", {})
+    if collected_eggs:
+        egg_names = sorted(collected_eggs.keys())
+        print(f"  Egg Meals:       {', '.join(n.capitalize() for n in egg_names)} ({len(egg_names)}/6)")
 
 
 def print_community(profile):
@@ -1637,6 +1892,22 @@ def print_misc_extras(member):
     print_section("MISCELLANEOUS")
     pd = member.get("player_data", {})
     ps = member.get("player_stats", {})
+    leveling = member.get("leveling", {})
+
+    # BOP bonus
+    bop = leveling.get("bop_bonus")
+    if bop:
+        print(f"  BOP Bonus:       {bop.replace('_', ' ').title()}")
+
+    # Pet score
+    pet_score = leveling.get("highest_pet_score", 0)
+    if pet_score:
+        print(f"  Pet Score:       {pet_score}")
+
+    # Trapper pelts
+    pelt_count = member.get("quests", {}).get("trapper_quest", {}).get("pelt_count", 0)
+    if pelt_count:
+        print(f"  Trapper:         {pelt_count} pelts")
 
     # Abiphone
     abiphone = member.get("nether_island_player_data", {}).get("abiphone", {})
@@ -1706,6 +1977,25 @@ def print_misc_extras(member):
             print(f"  Experimentation: {total_claims} total claims")
             for part in exp_parts:
                 print(f"    {part}")
+        # Experimentation cooldown
+        charge_ts = exp.get("charge_track_timestamp", 0)
+        if charge_ts:
+            elapsed_ms = int(time.time() * 1000) - charge_ts
+            # Experiments recharge every 24h, check if ready
+            hours_since = elapsed_ms / 3600000
+            if hours_since >= 24:
+                print(f"    Experiments: READY ({hours_since:.0f}h since last)")
+            else:
+                remaining_h = 24 - hours_since
+                print(f"    Experiments: {remaining_h:.1f}h until ready")
+
+    # Attribute stacks
+    attr_stacks = member.get("attributes", {}).get("stacks", {})
+    if attr_stacks:
+        total_stacks = sum(attr_stacks.values())
+        top_5 = sorted(attr_stacks.items(), key=lambda x: x[1], reverse=True)[:5]
+        top_str = ", ".join(f"{k.replace('_', ' ').title()} {v}" for k, v in top_5)
+        print(f"  Attributes:      {len(attr_stacks)} types, {total_stacks} total — top: {top_str}")
 
     # Perks
     perks = pd.get("perks", {})
@@ -2121,8 +2411,10 @@ def main():
         print("Could not find member data in profile!")
         sys.exit(1)
 
-    # Fetch dynamic skill XP tables from the API
+    # Fetch dynamic skill XP tables and collection tiers from the API
     fetch_skill_tables()
+    if show("collections"):
+        fetch_collection_tiers()
 
     # Fetch supplementary data
     profile_id = active["profile_id"]
@@ -2131,6 +2423,7 @@ def main():
 
     # --- Core sections ---
     if show("general"):     print_misc(member, active)
+    if show("dailies"):     print_daily_checklist(member)
     if show("skills"):      print_skills(member)
     if show("slayers"):     print_slayers(member)
     if show("dungeons"):    print_dungeons(member)
