@@ -4,7 +4,7 @@ A collection of tools and resources for playing [Hypixel SkyBlock](https://wiki.
 
 [Hypixel SkyBlock](https://hypixel.net/) is an MMORPG-style game mode on Minecraft's largest multiplayer server. Players progress through skills, gear, dungeons, bosses, and a player-driven economy with two distinct markets: the **Bazaar** (bulk commodity exchange with instant buy/sell orders) and **Auctions** (player-to-player item sales, typically using "Buy It Now" fixed prices). Equipment in SkyBlock has hidden properties — reforges, enchantments, star upgrades, hot potato books — stored as compressed [NBT](https://minecraft.wiki/w/NBT_format) data in the API, which the tools here decode and display.
 
-This repo includes a beginner guide, a CLI profile analyzer with live market pricing, a local wiki mirror, and an Obsidian vault generator that cross-links game data for graph-view exploration.
+This repo includes a beginner guide, a CLI profile analyzer with live market pricing, a craft flip scanner, an event investment tracker, a local wiki mirror, and an Obsidian vault generator that cross-links game data for graph-view exploration.
 
 ## What's Here
 
@@ -28,7 +28,7 @@ Interactive features: localStorage-backed checkboxes with per-section progress t
 
 ### `tools/` — Python Scripts
 
-Five standalone scripts. No dependencies beyond the standard library. Run from the `tools/` directory (scripts import from each other via relative imports).
+Six standalone scripts. No dependencies beyond the standard library. Run from the `tools/` directory (scripts import from each other via relative imports).
 
 ---
 
@@ -73,7 +73,7 @@ Also used as a library — `profile.py` imports `PriceCache` directly for inline
 
 **`crafts.py`** — Scans for profitable **craft flips**: items where bazaar-bought ingredients can be crafted into items that sell on the Auction House for more than the material cost. Parses all crafting recipes from the NEU-REPO item database, prices ingredients using the Bazaar API (`quick_status.buyPrice`), and fetches auction house prices from [Moulberry's](https://moulberry.codes/) bulk APIs (3-day averaged lowest BIN, current lowest BIN, and actual sales volume) in three fast requests.
 
-Filters to items where all ingredients are available on the Bazaar and the output is sold on the AH (not the Bazaar). Uses 3-day averaged lowest BIN for profit calculation (more stable than current BIN), real sales data for volume filtering, and shows current lowest BIN for spot-checking. Calculates profit after the 1% AH tax. Minimum thresholds: 10K profit and 1 sale/day.
+Filters to items where all ingredients are available on the Bazaar and the output is sold on the AH (not the Bazaar). Uses current lowest BIN for profit calculation (what you'd undercut to sell), real sales data for volume filtering, and shows 3-day averaged lowest BIN for reference. Calculates profit after the 1% AH tax. Minimum thresholds: 10K profit and 1 sale/day.
 
 Each item's unlock requirement (collection tier, slayer level, HotM level) is parsed from the NEU-REPO data and resolved against the Hypixel collections API for actual tier thresholds.
 
@@ -87,6 +87,32 @@ python3 crafts.py --fresh      # ignore cache, fetch all prices fresh
 Price data is cached in `data/craft_cache.json` (5-minute TTL, 1-hour eviction). The `--profile` mode cross-references the player's collections and slayer XP to show which crafts are unlocked and which are closest to unlocking.
 
 Also used as a library — `profile.py` imports craft scanning functions for the `crafts` section.
+
+---
+
+**`investments.py`** — Event-driven investment tracker that identifies buy/sell opportunities based on SkyBlock's recurring event cycle. Events like the Spooky Festival, Jerry's Workshop, and Hoppity's Hunt cause predictable price swings — items flood the market during events (prices drop) and become scarce between them (prices rise).
+
+All historical price data is fetched on-demand from [Coflnet](https://sky.coflnet.com/) — no background jobs, cron, or local data accumulation needed. Bazaar items use Coflnet's custom date range endpoint (30 days of history), AH items use the monthly price aggregation endpoint (daily min/max/avg/volume for 30 days). Current prices come from the Hypixel Bazaar API and Moulberry's lowest BIN data.
+
+Includes a SkyBlock calendar system that converts real-world time to in-game dates (epoch: June 11, 2019; 1 SB year = 124 real hours) to determine event timing and cycle position. For each tracked item, the script compares current price against historical event-period and off-event averages, then generates BUY/SELL/HOLD/WATCH recommendations with expected profit percentages.
+
+Tracks 46 items across 6 events:
+
+| Event | Schedule | Pattern | Items |
+|---|---|---|---|
+| Spooky Festival | Autumn 29-31 | Flood during | Candy, Bat Person armor, Spooky armor |
+| Jerry's Workshop | Late Winter 1-31 | Flood during | Gifts, Snow Suit, Nutcracker armor, Yeti Sword |
+| Hoppity's Hunt | Early Spring 1-31 | Demand before | Chocolate items |
+| Traveling Zoo | Early Summer/Winter 1-3 | Demand before | Enchanted meat/fish (pet materials) |
+| Fishing Festival | Mayor-dependent (Marina) | Flood during | Shark fins, shark teeth |
+| Mining Fiesta | Mayor-dependent (Cole) | Flood during | Refined Mineral, Glossy Gemstone |
+
+```bash
+python3 investments.py                      # recommendations (fetches 30-day history, ~30 sec)
+python3 investments.py --calendar           # SkyBlock calendar + upcoming event countdowns
+python3 investments.py --event spooky       # detail view for one event with item prices
+python3 investments.py --history GREEN_CANDY # price history table for one item
+```
 
 ---
 

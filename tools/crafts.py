@@ -456,11 +456,13 @@ def scan_craft_flips(recipes, price_cache, craft_cache, use_cached_only=False,
         if sales_per_day < MIN_VOLUME:
             continue
 
-        # Current lowest BIN for display
+        # Current lowest BIN (what you'd undercut to sell)
         current_lbin = lowestbin.get(item_id, 0)
+        if not current_lbin or current_lbin <= 0:
+            continue
 
-        # Profit based on avg BIN (more stable than current BIN)
-        profit = item_avg * 0.99 - cost
+        # Profit based on current lowest BIN (undercut price)
+        profit = current_lbin * 0.99 - cost
 
         if profit < MIN_PROFIT:
             continue

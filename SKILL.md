@@ -1,7 +1,7 @@
 ---
 name: skyblock
 description: Fetch a Hypixel SkyBlock profile and provide live gameplay recommendations
-allowed-tools: Bash(cd tools && python3 profile.py*), Bash(cd tools && python3 pricing.py*)
+allowed-tools: Bash(cd tools && python3 profile.py*), Bash(cd tools && python3 pricing.py*), Bash(cd tools && python3 crafts.py*), Bash(cd tools && python3 investments.py*)
 ---
 
 # SkyBlock Profile Analyzer
@@ -21,7 +21,17 @@ When this skill is invoked:
    cd tools && python3 pricing.py ITEM_ID ITEM_ID_2
    ```
 
-4. **Grep the local wiki** to verify game mechanics before making claims:
+4. **Check craft flips** for money-making opportunities:
+   ```
+   cd tools && python3 crafts.py --profile
+   ```
+
+5. **Check event investments** for buy/sell opportunities based on event cycles:
+   ```
+   cd tools && python3 investments.py
+   ```
+
+6. **Grep the local wiki** to verify game mechanics before making claims:
    ```
    grep -ri "search term" data/wiki/
    ```
@@ -29,9 +39,9 @@ When this skill is invoked:
 
    **If `data/wiki/` is empty or doesn't exist**, tell the user to run the wiki dump first (`cd tools && python3 wiki_dump.py`) before you can verify game mechanics. Do not guess at specifics without wiki verification.
 
-5. **Reference the beginner guide** at `guide/index.html` for progression advice. The guide contains curated gear paths, money-making strategies, mod recommendations, and section-by-section walkthrough content that has been hands-on verified. It covers topics not always on the wiki (e.g., optimal mod setups, budget-conscious upgrade paths, early-game money methods). Prefer its recommendations over generic wiki info when they overlap — but don't modify the guide unless asked.
+7. **Reference the beginner guide** at `guide/index.html` for progression advice. The guide contains curated gear paths, money-making strategies, mod recommendations, and section-by-section walkthrough content that has been hands-on verified. It covers topics not always on the wiki (e.g., optimal mod setups, budget-conscious upgrade paths, early-game money methods). Prefer its recommendations over generic wiki info when they overlap — but don't modify the guide unless asked.
 
-6. **Analyze the profile and provide recommendations.** You ARE the recommendation engine — the script just fetches data for you to interpret.
+8. **Analyze the profile and provide recommendations.** You ARE the recommendation engine — the script just fetches data for you to interpret.
 
 ## Analysis Checklist
 
@@ -45,6 +55,7 @@ Cover ALL of these areas, not just one or two. The user invokes this skill when 
 - **Slayer/Dungeon readiness**: Ready to start or progress in slayers/dungeons? What gear/stats are needed? Check the wiki for floor requirements and slayer level unlock thresholds.
 - **Pets**: Is the active pet optimal? Any pets worth getting for current activities?
 - **Magical Power**: Is accessory bag power appropriate? Check the accessory bag AND ender chest for talismans that should be moved into the bag.
+- **Money-making**: Run `crafts.py --profile` for craft flips and `investments.py` for event investments. Highlight the best current opportunities.
 - **Garden**: Progression status, worth investing time?
 
 ## Response Format
