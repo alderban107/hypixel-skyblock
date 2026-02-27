@@ -140,6 +140,11 @@ def cycle_position(event, from_ts=None):
 
     Returns: "DURING_EVENT", "PRE_EVENT", "POST_EVENT", "MID_CYCLE",
              or "MAYOR_DEPENDENT"
+
+    PRE/POST windows are 2 SB months (~20.7 real hours). Events repeat every
+    SB year (124 real hours), so this covers roughly the last/first 17% of the
+    cycle — the period where prices are already being affected by proximity to
+    the event.
     """
     if not event.get("schedule"):
         return "MAYOR_DEPENDENT"
@@ -154,7 +159,9 @@ def cycle_position(event, from_ts=None):
     if ev_start <= now < ev_end:
         return "DURING_EVENT"
 
-    if 0 < ev_start - now <= SB_MONTH_SECONDS:
+    proximity_window = SB_MONTH_SECONDS * 2  # 2 SB months ≈ 20.7 hours
+
+    if 0 < ev_start - now <= proximity_window:
         return "PRE_EVENT"
 
     # Check previous occurrence for post-event
@@ -163,7 +170,7 @@ def cycle_position(event, from_ts=None):
         year_start = sb_to_real(year, 0, 1)
         for month_idx, start_day, end_day in event["schedule"]:
             prev_end = year_start + sb_month_day_to_year_offset(month_idx, end_day) + SB_DAY_SECONDS
-            if 0 < now - prev_end <= SB_MONTH_SECONDS:
+            if 0 < now - prev_end <= proximity_window:
                 return "POST_EVENT"
 
     return "MID_CYCLE"
