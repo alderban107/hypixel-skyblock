@@ -15,7 +15,9 @@ from pathlib import Path
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError
 
-from pricing import PriceCache, _fmt as fmt_price_num
+from pricing import PriceCache, _fmt as fmt_price_num, display_name
+
+DATA_DIR = Path(__file__).parent.parent / "data"
 
 # Load .env from project root
 env_path = Path(__file__).parent.parent / ".env"
@@ -182,9 +184,11 @@ def format_number(n):
     if n >= 1_000_000_000:
         return f"{n / 1_000_000_000:.1f}B"
     if n >= 1_000_000:
-        return f"{n / 1_000_000:.1f}M"
+        val = n / 1_000_000
+        return f"{val:.1f}B" if val >= 999.95 else f"{val:.1f}M"  # avoid "1000.0M"
     if n >= 1_000:
-        return f"{n / 1_000:.1f}K"
+        val = n / 1_000
+        return f"{val:.1f}M" if val >= 999.95 else f"{val:.1f}K"  # avoid "1000.0K"
     return str(int(n))
 
 
@@ -418,6 +422,38 @@ def print_dungeons(member):
             print(f"    {cls_name.capitalize():10s} Level {cls_level:3d}/50  ({format_number(cls_xp)} XP){marker}")
 
 
+
+# HotM / HotF XP thresholds (cumulative XP required for each level)
+# Source: wiki.hypixel.net — Heart of the Mountain / Heart of the Forest
+HOTM_XP_THRESHOLDS = [0, 3_000, 12_000, 37_000, 97_000, 197_000, 347_000, 557_000, 847_000, 1_247_000]
+# Index 0 = level 1 (0 XP), index 1 = level 2 (3K cumulative), etc.
+# Both HotM and HotF share the same XP table (HotF caps at level 7)
+
+HOTM_TOKENS_PER_LEVEL = [1, 2, 2, 2, 2, 2, 3, 2, 2, 2]  # levels 1-10
+
+
+def calc_hotx_level(xp, max_level=10):
+    """Calculate HotM or HotF level from cumulative XP."""
+    level = 1
+    for i, threshold in enumerate(HOTM_XP_THRESHOLDS):
+        if i + 1 > max_level:
+            break
+        if xp >= threshold:
+            level = i + 1
+        else:
+            break
+    # Progress toward next level
+    if level >= max_level or level >= len(HOTM_XP_THRESHOLDS):
+        return level, 1.0, 0  # maxed
+    current_threshold = HOTM_XP_THRESHOLDS[level - 1]
+    next_threshold = HOTM_XP_THRESHOLDS[level]
+    xp_into_level = xp - current_threshold
+    xp_needed = next_threshold - current_threshold
+    progress = xp_into_level / xp_needed if xp_needed > 0 else 1.0
+    xp_remaining = next_threshold - xp
+    return level, progress, xp_remaining
+
+
 def print_hotm(member):
     print_section("HEART OF THE MOUNTAIN")
     mining_core = member.get("mining_core", {})
@@ -437,26 +473,39 @@ def print_hotm(member):
     mining_tokens = tokens_data.get("mountain", 0) if isinstance(tokens_data, dict) else 0
     foraging_tokens = tokens_data.get("forest", 0) if isinstance(tokens_data, dict) else 0
 
-    if mining_xp:
-        print(f"  Mining XP:      {format_number(mining_xp)}")
-    if mining_tokens:
+    # Calculate and display HotM level
+    if mining_xp is not None:
+        hotm_level, hotm_progress, hotm_remaining = calc_hotx_level(mining_xp, max_level=10)
+        if hotm_level >= 10:
+            print(f"  HotM Level:     {hotm_level}/10 (MAX)")
+        else:
+            print(f"  HotM Level:     {hotm_level}/10  ({hotm_progress:.0%} to {hotm_level + 1}, {format_number(hotm_remaining)} XP needed)")
         print(f"  Mining Tokens:  {mining_tokens} spent")
-    if foraging_xp:
-        print(f"  Foraging XP:    {format_number(foraging_xp)}")
-    if foraging_tokens:
+
+    if foraging_xp is not None:
+        hotf_level, hotf_progress, hotf_remaining = calc_hotx_level(foraging_xp, max_level=7)
+        if hotf_level >= 7:
+            print(f"  HotF Level:     {hotf_level}/7 (MAX)")
+        else:
+            print(f"  HotF Level:     {hotf_level}/7  ({hotf_progress:.0%} to {hotf_level + 1}, {format_number(hotf_remaining)} XP needed)")
         print(f"  Forest Tokens:  {foraging_tokens} spent")
 
     # Powder (under mining_core)
-    powder_mithril = mining_core.get("powder_mithril_total", mining_core.get("powder_mithril", 0))
+    # API fields: powder_mithril = available (unspent), powder_spent_mithril = spent.
+    # NOTE: powder_mithril_total is misleadingly named — it equals powder_mithril, NOT the
+    # lifetime total. Compute lifetime as available + spent.
+    powder_mithril_avail = mining_core.get("powder_mithril", 0)
     powder_spent_mithril = mining_core.get("powder_spent_mithril", 0)
-    powder_gemstone = mining_core.get("powder_gemstone_total", mining_core.get("powder_gemstone", 0))
+    powder_gem_avail = mining_core.get("powder_gemstone", 0)
     powder_spent_gemstone = mining_core.get("powder_spent_gemstone", 0)
-    if powder_mithril or powder_spent_mithril:
-        total_m = powder_mithril + powder_spent_mithril
-        print(f"  Mithril Powder: {format_number(powder_mithril)} available ({format_number(total_m)} lifetime)")
-    if powder_gemstone or powder_spent_gemstone:
-        total_g = powder_gemstone + powder_spent_gemstone
-        print(f"  Gemstone Powder:{format_number(powder_gemstone)} available ({format_number(total_g)} lifetime)")
+    powder_glacite_avail = mining_core.get("powder_glacite", 0)
+    powder_spent_glacite = mining_core.get("powder_spent_glacite", 0)
+    if powder_mithril_avail or powder_spent_mithril:
+        print(f"  Mithril Powder: {format_number(powder_mithril_avail)} available ({format_number(powder_mithril_avail + powder_spent_mithril)} lifetime)")
+    if powder_gem_avail or powder_spent_gemstone:
+        print(f"  Gemstone Powder: {format_number(powder_gem_avail)} available ({format_number(powder_gem_avail + powder_spent_gemstone)} lifetime)")
+    if powder_glacite_avail or powder_spent_glacite:
+        print(f"  Glacite Powder: {format_number(powder_glacite_avail)} available ({format_number(powder_glacite_avail + powder_spent_glacite)} lifetime)")
 
     # Selected abilities
     if isinstance(abilities, dict):
@@ -526,12 +575,39 @@ def _roman(n):
     return numerals[n]
 
 
+def _load_pet_levels():
+    """Load pet leveling tables from NEU repo."""
+    pet_json = DATA_DIR / "neu-repo" / "constants" / "pets.json"
+    if not pet_json.exists():
+        return [], {}
+    try:
+        data = json.loads(pet_json.read_text())
+        return data.get("pet_levels", []), data.get("pet_rarity_offset", {})
+    except (json.JSONDecodeError, OSError):
+        return [], {}
+
+
+def _calc_pet_level(xp, rarity, pet_levels, rarity_offsets):
+    """Calculate pet level from XP and rarity."""
+    if not pet_levels:
+        return None
+    offset = rarity_offsets.get(rarity, 0)
+    remaining = xp
+    for i in range(offset, min(offset + 99, len(pet_levels))):
+        if remaining < pet_levels[i]:
+            return i - offset + 1
+        remaining -= pet_levels[i]
+    return 100
+
+
 def print_pets(member):
     print_section("PETS")
     pets = member.get("pets_data", {}).get("pets", member.get("pets", []))
     if not pets:
         print("  No pets")
         return
+
+    pet_levels, rarity_offsets = _load_pet_levels()
 
     # Sort by rarity then XP
     rarity_order = {"COMMON": 0, "UNCOMMON": 1, "RARE": 2, "EPIC": 3, "LEGENDARY": 4, "MYTHIC": 5}
@@ -540,14 +616,18 @@ def print_pets(member):
     active = [p for p in pets_sorted if p.get("active")]
     if active:
         p = active[0]
-        print(f"  Active: [{p.get('tier', '?')}] {p.get('type', '?')} ({format_number(p.get('exp', 0))} XP)")
+        lvl = _calc_pet_level(p.get("exp", 0), p.get("tier", ""), pet_levels, rarity_offsets)
+        lvl_str = f" Lvl {lvl}" if lvl else ""
+        print(f"  Active: [{p.get('tier', '?')}] {p.get('type', '?')}{lvl_str}")
         print()
 
     for p in pets_sorted[:20]:  # Show top 20
         marker = " (active)" if p.get("active") else ""
         held = p.get("heldItem")
         held_str = f" [{held}]" if held else ""
-        print(f"  [{p.get('tier', '?'):9s}] {p.get('type', '?')}{held_str}{marker}")
+        lvl = _calc_pet_level(p.get("exp", 0), p.get("tier", ""), pet_levels, rarity_offsets)
+        lvl_str = f" Lvl {lvl}" if lvl else ""
+        print(f"  [{p.get('tier', '?'):9s}] {p.get('type', '?')}{lvl_str}{held_str}{marker}")
 
     if len(pets_sorted) > 20:
         print(f"  ... and {len(pets_sorted) - 20} more")
@@ -581,7 +661,7 @@ def print_misc(member, profile):
     fairy_unspent = fairy_data.get("unspent_souls", 0)
     fairy_exchanges = fairy_data.get("fairy_exchanges", 0)
     unspent_str = f"  ({fairy_unspent} unspent)" if fairy_unspent else ""
-    print(f"  Fairy Souls:    {fairy}/242{unspent_str}")
+    print(f"  Fairy Souls:    {fairy}/253{unspent_str}")
 
     # Purse (v2: nested under currencies)
     purse = member.get("currencies", {}).get("coin_purse", member.get("coin_purse", 0))
@@ -786,7 +866,7 @@ def print_rift(member):
     unlocked_pet = dead_cats.get("unlocked_pet", False)
     if found_cats or has_detector:
         pet_str = " (Montezuma unlocked)" if unlocked_pet else ""
-        print(f"  Dead Cats:      {len(found_cats)}/30 found{pet_str}")
+        print(f"  Dead Cats:      {len(found_cats)}/9 found{pet_str}")
 
     # Wyld Woods
     wyld = rift.get("wyld_woods", {})
@@ -916,10 +996,20 @@ class NBTReader:
             self.read_string()  # tag name
             self.skip_tag_value(tag_type)
 
+    def _read_string_list(self):
+        """Read a TAG_List of TAG_String and return as a Python list."""
+        elem_type = self.read_byte()
+        count = self.read_int()
+        if elem_type != 8:  # Not strings — skip
+            for _ in range(count):
+                self.skip_tag_value(elem_type)
+            return []
+        return [self.read_string() for _ in range(count)]
+
     def read_compound_find_id(self):
         """Read a TAG_Compound and find the SkyBlock item 'id' at any nesting depth.
 
-        Returns a dict with: id, reforge, enchants, stars, hpb.
+        Returns a dict with: id, reforge, enchants, stars, hpb, lore.
         """
         item_info = {}
         while True:
@@ -941,9 +1031,11 @@ class NBTReader:
                 item_info["hpb"] = self.read_int()
             elif tag_type == 10 and name == "enchantments":
                 item_info["enchants"] = self._read_compound_as_dict()
+            elif tag_type == 9 and name == "Lore":
+                item_info["lore"] = self._read_string_list()
             elif tag_type == 10:
                 nested = self.read_compound_find_id()
-                if nested.get("id"):
+                if nested:
                     # Merge nested results, but don't overwrite existing
                     for k, v in nested.items():
                         if k not in item_info:
@@ -1041,6 +1133,16 @@ def decode_wardrobe_slots(b64_data):
     return wardrobe_sets
 
 
+def parse_rarity_from_lore(lore):
+    """Extract the rarity tag string from item lore (last line, strip §-codes)."""
+    if not lore:
+        return None
+    last = lore[-1]
+    # Strip Minecraft color/formatting codes (§ followed by any character)
+    cleaned = re.sub(r"§.", "", last).strip()
+    return cleaned if cleaned else None
+
+
 def format_item(item_info, detailed=True):
     """Format an item dict into a display string.
 
@@ -1050,6 +1152,10 @@ def format_item(item_info, detailed=True):
     if not item_info or not item_info.get("id"):
         return None
     parts = [item_info["id"]]
+
+    rarity = parse_rarity_from_lore(item_info.get("lore"))
+    if rarity:
+        parts.append(f"[{rarity.title()}]")
 
     reforge = item_info.get("reforge")
     if reforge:
@@ -1102,6 +1208,21 @@ def print_inventories(member):
         bp_data = backpacks[slot].get("data", "") if isinstance(backpacks[slot], dict) else ""
         if bp_data:
             detail_sections.append((f"Backpack {slot}", bp_data))
+
+    # Personal vault
+    vault_data = inv.get("personal_vault_contents", {}).get("data", "")
+    if vault_data:
+        detail_sections.append(("Personal Vault", vault_data))
+
+    # Fishing bag
+    fishing_data = inv.get("bag_contents", {}).get("fishing_bag", {}).get("data", "")
+    if fishing_data:
+        detail_sections.append(("Fishing Bag", fishing_data))
+
+    # Quiver
+    quiver_data = inv.get("bag_contents", {}).get("quiver", {}).get("data", "")
+    if quiver_data:
+        detail_sections.append(("Quiver", quiver_data))
 
     # Detailed sections — one item per line with full info
     for label, data in detail_sections:
@@ -1286,7 +1407,7 @@ def print_bestiary(member):
 
 
 def print_player_stats(member):
-    print_section("PLAYER STATS")
+    print_section("PLAYER STATS (LIFETIME)")
     ps = member.get("player_stats", {})
     pd = member.get("player_data", {})
 
@@ -1366,6 +1487,15 @@ def print_player_stats(member):
         print(f"  Mushrooms:       {format_number(int(glowing))} glowing mushrooms broken")
     if sc_kills:
         print(f"  Sea Creatures:   {int(sc_kills)} killed")
+
+    # Spooky candy (lifetime counter from player_stats.candy_collected)
+    candy = ps.get("candy_collected", {})
+    if candy:
+        total = int(candy.get("total", 0))
+        green = int(candy.get("green_candy", 0))
+        purple = int(candy.get("purple_candy", 0))
+        if total:
+            print(f"  Spooky Candy:    {total} ({green} green, {purple} purple)")
 
     # Races
     races = ps.get("races", {})
@@ -1511,38 +1641,66 @@ def print_misc_extras(member):
             names = list(contacts.keys())
             print(f"  Abiphone:        {len(names)} contacts ({', '.join(names)})")
 
-    # Kuudra
-    kuudra = member.get("nether_island_player_data", {}).get("kuudra_completed_tiers", {})
+    # Crimson Isle / Kuudra
+    nether = member.get("nether_island_player_data", {})
+    faction = nether.get("selected_faction")
+    if faction:
+        rep = nether.get("mages_reputation", 0) if faction == "mages" else nether.get("barbarians_reputation", 0)
+        print(f"  Faction:         {faction.title()} (rep: {format_number(rep)})")
+    kuudra = nether.get("kuudra_completed_tiers", {})
     if kuudra:
-        parts = [f"T{k}: {v}" for k, v in sorted(kuudra.items())]
-        print(f"  Kuudra:          {', '.join(parts)}")
-
-    # Spooky candy
-    candy = ps.get("candy_collected", {})
-    if candy:
-        total = int(candy.get("total", 0))
-        green = int(candy.get("green_candy", 0))
-        purple = int(candy.get("purple_candy", 0))
-        if total:
-            print(f"  Spooky Candy:    {total} ({green} green, {purple} purple)")
+        tier_names = {"none": "Basic", "hot": "Hot", "burning": "Burning",
+                      "fiery": "Fiery", "infernal": "Infernal"}
+        parts = []
+        for k, v in kuudra.items():
+            if v and v > 0:
+                name = tier_names.get(k, k.title())
+                parts.append(f"{name}: {v}")
+        if parts:
+            print(f"  Kuudra:          {', '.join(parts)}")
+    dojo = nether.get("dojo", {})
+    if dojo:
+        # Dojo stores scores as dojo_points_<test> and dojo_time_<test>
+        tests = set()
+        for key in dojo:
+            if key.startswith("dojo_points_"):
+                tests.add(key.replace("dojo_points_", ""))
+        if tests:
+            parts = []
+            for test in sorted(tests):
+                pts = dojo.get(f"dojo_points_{test}", 0)
+                if pts > 0:
+                    parts.append(f"{test.title()}: {pts}")
+            if parts:
+                print(f"  Dojo:            {', '.join(parts)}")
 
     # Shards
     shards = member.get("shards", {})
     if shards:
         owned = shards.get("owned", [])
-        fused = shards.get("fused", [])
+        fused = shards.get("fused", 0)
+        fused_count = fused if isinstance(fused, int) else len(fused)
         if owned:
             types = [s.get("type", "?").replace("_", " ").title() for s in owned]
-            print(f"  Shards:          {len(owned)} types ({', '.join(types)}), {fused} fused")
+            print(f"  Shards:          {len(owned)} types ({', '.join(types)}), {fused_count} fused")
 
-    # Experimentation
+    # Experimentation (3 table types: Superpairs, Chronomatron, Ultrasequencer)
     exp = member.get("experimentation", {})
     if exp:
         pairings = exp.get("pairings", {})
-        claims = pairings.get("claims_0", 0)
-        best = pairings.get("best_score_0", 0)
-        if claims:
-            print(f"  Experimentation: {claims} claims, best score {best}")
+        exp_names = {0: "Superpairs", 1: "Chronomatron", 2: "Ultrasequencer"}
+        exp_parts = []
+        total_claims = 0
+        for i in range(3):
+            c = pairings.get(f"claims_{i}", 0)
+            if c:
+                total_claims += c
+                best = pairings.get(f"best_score_{i}", 0)
+                exp_parts.append(f"{exp_names[i]}: {c} claims (best {best})")
+        if total_claims:
+            print(f"  Experimentation: {total_claims} total claims")
+            for part in exp_parts:
+                print(f"    {part}")
 
     # Perks
     perks = pd.get("perks", {})
@@ -1622,6 +1780,14 @@ def collect_gear_ids(member):
 
 # Common upgrade targets by progression stage
 UPGRADE_TARGETS = {
+    "pre_dungeon": [
+        # Dragon armor
+        "YOUNG_DRAGON_CHESTPLATE", "YOUNG_DRAGON_LEGGINGS", "YOUNG_DRAGON_BOOTS",
+        "STRONG_DRAGON_CHESTPLATE", "STRONG_DRAGON_LEGGINGS", "STRONG_DRAGON_BOOTS",
+        "UNSTABLE_DRAGON_CHESTPLATE", "UNSTABLE_DRAGON_LEGGINGS", "UNSTABLE_DRAGON_BOOTS",
+        # Weapons
+        "ASPECT_OF_THE_DRAGON", "JUJU_SHORTBOW",
+    ],
     "early_dungeon": [
         "SHADOW_ASSASSIN_CHESTPLATE", "SHADOW_ASSASSIN_LEGGINGS",
         "SHADOW_ASSASSIN_BOOTS", "BONZO_MASK",
@@ -1629,10 +1795,30 @@ UPGRADE_TARGETS = {
         "SHADOW_FURY", "SPIRIT_BOOTS",
     ],
     "mid_dungeon": [
-        "NECRON_CHESTPLATE", "NECRON_LEGGINGS", "NECRON_BOOTS",
-        "GOLDOR_CHESTPLATE", "GOLDOR_LEGGINGS", "GOLDOR_BOOTS",
-        "STORM_CHESTPLATE", "STORM_LEGGINGS", "STORM_BOOTS",
+        "POWER_WITHER_CHESTPLATE", "POWER_WITHER_LEGGINGS", "POWER_WITHER_BOOTS",
+        "TANK_WITHER_CHESTPLATE", "TANK_WITHER_LEGGINGS", "TANK_WITHER_BOOTS",
+        "WISE_WITHER_CHESTPLATE", "WISE_WITHER_LEGGINGS", "WISE_WITHER_BOOTS",
         "WITHER_CLOAK", "HYPERION", "SCYLLA", "ASTRAEA", "VALKYRIE",
+    ],
+    "slayer": [
+        "REVENANT_CHESTPLATE", "REVENANT_LEGGINGS", "REVENANT_BOOTS",
+        "TARANTULA_HELMET", "TARANTULA_CHESTPLATE", "TARANTULA_LEGGINGS", "TARANTULA_BOOTS",
+        "FINAL_DESTINATION_HELMET", "FINAL_DESTINATION_CHESTPLATE",
+        "FINAL_DESTINATION_LEGGINGS", "FINAL_DESTINATION_BOOTS",
+    ],
+    "mining": [
+        "SORROW_HELMET", "SORROW_CHESTPLATE", "SORROW_LEGGINGS", "SORROW_BOOTS",
+        "DIVAN_HELMET", "DIVAN_CHESTPLATE", "DIVAN_LEGGINGS", "DIVAN_BOOTS",
+    ],
+    "equipment": [
+        # Necklaces
+        "LAVA_SHELL_NECKLACE", "MOLTEN_NECKLACE",
+        # Cloaks
+        "MOLTEN_CLOAK",
+        # Belts
+        "IMPLOSION_BELT", "MOLTEN_BELT",
+        # Gloves
+        "GAUNTLET_OF_CONTAGION", "SOULWEAVER_GLOVES", "MOLTEN_BRACELET",
     ],
 }
 
@@ -1677,7 +1863,7 @@ def print_market_prices(member, price_cache):
     if show_ids:
         print("  Current Gear:")
         for item_id in show_ids:
-            display = item_id.replace("_", " ").title()
+            display = display_name(item_id)
             price_str = price_cache.format_price(item_id)
             print(f"    {display:40s} {price_str}")
 
@@ -1702,30 +1888,51 @@ def print_market_prices(member, price_cache):
 
         print(f"\n  Accessories ({len(acc_ids)} items, ~{fmt_price_num(total_value)} total):")
         for iid, val, p in valued[:5]:
-            display = iid.replace("_", " ").title()
+            display = display_name(iid)
             price_str = price_cache.format_price(iid)
             print(f"    {display:40s} {price_str}")
         if len(valued) > 5:
             print(f"    ... and {len(valued) - 5} more")
 
-    # Upgrade targets
-    # Determine stage based on what they have
-    has_sa = any("SHADOW_ASSASSIN" in i for i in equipped_ids)
-    has_necron = any("NECRON" in i or "STORM" in i or "GOLDOR" in i for i in equipped_ids)
+    # Upgrade targets — show relevant next-tier gear across multiple paths
+    has_sa = any("SHADOW_ASSASSIN" in i for i in gear_ids)
+    has_necron = any("POWER_WITHER" in i or "WISE_WITHER" in i or "TANK_WITHER" in i
+                     or "SPEED_WITHER" in i for i in gear_ids)
+    has_dragon = any("DRAGON" in i for i in gear_ids)
+    has_slayer_gear = any(k in i for i in gear_ids for k in ("REVENANT", "TARANTULA", "FINAL_DESTINATION"))
+    has_mining_gear = any(k in i for i in gear_ids for k in ("SORROW", "DIVAN"))
 
+    target_groups = []
+    # Dungeon progression
     if has_necron:
-        targets = []  # already late-game
+        pass  # already endgame dungeon gear
     elif has_sa:
-        targets = UPGRADE_TARGETS["mid_dungeon"]
+        target_groups.append(("Dungeon Upgrades", UPGRADE_TARGETS["mid_dungeon"]))
+    elif has_dragon:
+        target_groups.append(("Dungeon Gear", UPGRADE_TARGETS["early_dungeon"]))
     else:
-        targets = UPGRADE_TARGETS["early_dungeon"]
+        target_groups.append(("Combat Gear", UPGRADE_TARGETS["pre_dungeon"]))
 
-    # Filter out items the player already owns
-    targets = [t for t in targets if t not in gear_ids]
-    if targets:
-        print(f"\n  Upgrade Targets:")
+    # Slayer gear — always show if they don't have it
+    if not has_slayer_gear:
+        target_groups.append(("Slayer Gear", UPGRADE_TARGETS["slayer"]))
+
+    # Mining gear — always show if they don't have it
+    if not has_mining_gear:
+        target_groups.append(("Mining Gear", UPGRADE_TARGETS["mining"]))
+
+    # Equipment upgrades — show if not already wearing Molten set
+    has_molten_equip = any("MOLTEN" in i for i in equipped_ids)
+    if not has_molten_equip:
+        target_groups.append(("Equipment Upgrades", UPGRADE_TARGETS["equipment"]))
+
+    for group_name, group_targets in target_groups:
+        targets = [t for t in group_targets if t not in gear_ids]
+        if not targets:
+            continue
+        print(f"\n  {group_name}:")
         for item_id in targets:
-            display = item_id.replace("_", " ").title()
+            display = display_name(item_id)
             price_str = price_cache.format_price(item_id)
             print(f"    {display:40s} {price_str}")
 
@@ -1841,6 +2048,7 @@ def main():
     # --- Market prices (always shown) ---
     price_cache = PriceCache()
     print_market_prices(member, price_cache)
+    price_cache.flush()
 
     if not args.full and active_sections == set(CORE_SECTIONS):
         print(f"\n  (Showing core sections only. Use --full for all, or -s section1,section2)")
