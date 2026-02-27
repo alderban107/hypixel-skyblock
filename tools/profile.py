@@ -271,19 +271,22 @@ def print_daily_checklist(member):
         print(f"  Foraging:        Not yet{ago_str}")
 
     # Experiments
+    # Superpairs is the main experiment; Chronomatron/Ultrasequencer are add-ons
+    # that earn extra clicks on the next Superpairs round.
     exp = member.get("experimentation", {})
-    pairings_claimed = exp.get("pairings", {}).get("claimed", False)
-    simon_claimed = exp.get("simon", {}).get("claimed", False)
-    parts = []
-    if pairings_claimed:
-        parts.append("Superpairs claimed")
+    pairings = exp.get("pairings", {})
+    simon = exp.get("simon", {})
+    superpairs_done = pairings.get("claimed", False)
+    addon_done = simon.get("claimed", False)
+    bonus_clicks = simon.get("bonus_clicks", 0)
+    line = "Superpairs done" if superpairs_done else "Superpairs not done"
+    if addon_done:
+        line += f", add-ons claimed"
+    elif bonus_clicks:
+        line += f", add-on: {bonus_clicks} bonus clicks (not claimed)"
     else:
-        parts.append("Superpairs not claimed")
-    if simon_claimed:
-        parts.append("Chronomatron claimed")
-    else:
-        parts.append("Chronomatron not claimed")
-    print(f"  Experiments:     {', '.join(parts)}")
+        line += ", add-ons not done"
+    print(f"  Experiments:     {line}")
 
     # Rift entries
     rift_charge_ts = member.get("rift", {}).get("access", {}).get("charge_track_timestamp")
@@ -765,33 +768,23 @@ def print_collections(member):
         print(f"    {dn:30s} {format_number(count):>10s}")
 
     # Close to next tier
+    # Tiers auto-unlock based on count, so calculate current tier directly
+    # from the collection count + tier thresholds (don't rely on unlocked_coll_tiers).
     if COLLECTION_TIERS:
-        unlocked_tiers_raw = member.get("player_data", {}).get("unlocked_coll_tiers", [])
-        # Parse highest unlocked tier per item
-        highest_unlocked = {}
-        for entry in unlocked_tiers_raw:
-            last_underscore = entry.rfind("_")
-            if last_underscore < 0:
-                continue
-            item_id = entry[:last_underscore]
-            tier_str = entry[last_underscore + 1:]
-            try:
-                tier_num = int(tier_str)
-            except ValueError:
-                continue
-            if tier_num < 0:
-                highest_unlocked[item_id] = 999  # maxed
-            else:
-                highest_unlocked[item_id] = max(highest_unlocked.get(item_id, 0), tier_num)
-
         close_to_next = []
         for item_id, count in collections.items():
             tier_data = COLLECTION_TIERS.get(item_id, {})
             tiers = tier_data.get("tiers", [])
             if not tiers:
                 continue
-            current_tier = highest_unlocked.get(item_id, 0)
-            # Find next tier
+            # Find highest tier where count >= amountRequired
+            current_tier = 0
+            for t in tiers:
+                if count >= t["amountRequired"]:
+                    current_tier = t["tier"]
+                else:
+                    break
+            # Find next tier after current
             next_tier = None
             for t in tiers:
                 if t["tier"] > current_tier:
