@@ -556,18 +556,110 @@ def compute_item_stats(points, event):
     return result
 
 
+def _sell_timing_str(event, pattern, position, now=None):
+    """Generate a specific sell timing string for a recommendation.
+
+    For bazaar items with high-res data, gives precise windows (e.g. "first
+    15 min of event"). For AH items with daily resolution, gives broader
+    windows (e.g. "2-3 days after event").
+    """
+    now = now or time.time()
+    times = next_event_real_times(event, now)
+    market_note = ""
+
+    if pattern == "demand_during":
+        # Sell during event — bazaar items have precise timing
+        # Data shows: peak is first 15-30 min of event, then declines
+        if times:
+            ev_start = times[0]
+            days = (ev_start - now) / 86400
+            market_note = f"sell first 15 min of event (in {days:.1f}d)"
+        else:
+            market_note = "sell at event start"
+    elif pattern == "demand_before":
+        # Sell pre-event when demand peaks
+        if times:
+            days = (times[0] - now) / 86400
+            market_note = f"sell 0-1d before event (in ~{max(0, days - 0.5):.1f}d)"
+        else:
+            market_note = "sell before event"
+    else:
+        # flood_during — sell between events
+        # AH items: prices recover over 2-3 days, peak mid-cycle
+        # Bazaar items: recovery faster but same idea
+        if times:
+            ev_start = times[0]
+            days_to_event = (ev_start - now) / 86400
+
+            if position in ("DURING_EVENT", "POST_EVENT"):
+                # Just bought — sell in 2-3 days
+                market_note = f"sell in 2-3d (before next event in {days_to_event:.1f}d)"
+            else:
+                # Mid-cycle — sell before next event
+                sell_by = max(0, days_to_event - 1)
+                market_note = f"sell within {sell_by:.1f}d (before next event)"
+        else:
+            market_note = "sell between events"
+
+    return market_note
+
+
+def _buy_timing_str(event, pattern, position, now=None):
+    """Generate a specific buy timing string for a recommendation."""
+    now = now or time.time()
+    times = next_event_real_times(event, now)
+
+    if pattern == "demand_during":
+        # Buy 1-6h after event (post-event crash)
+        if position == "POST_EVENT":
+            return "now (post-event crash)"
+        elif times:
+            ev_start = times[0]
+            # Event duration
+            ev_end = times[1]
+            buy_at = ev_end + 3600  # 1h after event ends
+            days = (buy_at - now) / 86400
+            if days > 0:
+                return f"1-6h after event ends (in {days:.1f}d)"
+        return "1-6h after event ends"
+    elif pattern == "demand_before":
+        if position == "POST_EVENT":
+            return "now (post-event, demand fading)"
+        return "off-event when demand is low"
+    else:
+        # flood_during — buy during event or shortly after
+        if position == "DURING_EVENT":
+            return "now (event active, prices low)"
+        elif position == "POST_EVENT":
+            return "now (post-event, still near lows)"
+        elif position == "PRE_EVENT" and times:
+            ev_start = times[0]
+            days = (ev_start - now) / 86400
+            return f"during event (starts in {days:.1f}d)"
+        elif times:
+            ev_start = times[0]
+            days = (ev_start - now) / 86400
+            return f"during next event (in {days:.1f}d)"
+        return "during event"
+
+
 def recommend(item_id, event, current_price, stats, position):
-    """Generate a BUY/SELL/HOLD/WATCH recommendation."""
+    """Generate a BUY/SELL/HOLD/WATCH recommendation.
+
+    Returns (action, reason, profit_pct, timing) where timing is a specific
+    buy or sell window string.
+    """
     pattern = event["items"][item_id].get("pattern", "flood_during")
+    now = time.time()
 
     if not stats or (stats.get("event_count", 0) + stats.get("off_event_count", 0)) < 3:
-        return ("WATCH", "Insufficient data", None)
+        return ("WATCH", "Insufficient data", None, "")
 
     event_avg = stats.get("event_avg")
     off_event_avg = stats.get("off_event_avg")
 
     if not event_avg or not off_event_avg:
-        return ("WATCH", "Need both event and off-event data", None)
+        return ("WATCH", "Need both event and off-event data", None, "")
 
     buy_target = min(event_avg, off_event_avg)
     sell_target = max(event_avg, off_event_avg)
@@ -578,60 +670,64 @@ def recommend(item_id, event, current_price, stats, position):
         pct = ((sell_target / from_price) - 1) * 100
         return f"+{pct:.0f}%" if pct > 0 else None
 
+    sell_timing = _sell_timing_str(event, pattern, position, now)
+    buy_timing = _buy_timing_str(event, pattern, position, now)
+
     if pattern == "demand_during":
         # Demand spikes DURING event (e.g. candy — people buy to use in event).
-        # Prices peak during event, crash after when leftovers are dumped.
-        # Buy: off-event / post-event crash. Sell: during event.
+        # Prices peak first 15 min, crash 1-6h after. Buy post-crash, sell at peak.
         if position == "DURING_EVENT":
             if current_price >= event_avg * 0.9:
-                return ("SELL", "Event active, demand peak", None)
-            return ("HOLD", "Event active but price below avg", None)
+                return ("SELL", "Event active, demand peak", None, sell_timing)
+            return ("HOLD", "Event active but price below avg", None, sell_timing)
         elif position == "PRE_EVENT":
             if current_price <= off_event_avg * 1.1:
-                return ("BUY", "Pre-event, still near off-event price", profit_pct(current_price))
-            return ("HOLD", "Pre-event, price already rising", None)
+                return ("BUY", "Pre-event, still near off-event price", profit_pct(current_price), sell_timing)
+            return ("HOLD", "Pre-event, price already rising", None, sell_timing)
         elif position == "POST_EVENT":
-            return ("BUY", "Post-event crash, prices at lows", profit_pct(current_price))
+            return ("BUY", "Post-event crash, prices at lows", profit_pct(current_price), sell_timing)
         else:
             if current_price <= off_event_avg * 1.1:
-                return ("BUY", "Off-event lows, buy for next event", profit_pct(current_price))
-            return ("HOLD", "Mid-cycle, price above off-event avg", None)
+                return ("BUY", "Off-event lows, buy for next event", profit_pct(current_price), sell_timing)
+            return ("HOLD", "Mid-cycle, price above off-event avg", None, "")
     elif pattern == "demand_before":
         # Demand rises BEFORE event (e.g. pet materials before Traveling Zoo).
         # Prices peak pre-event, fall off-event. Buy off-event, sell pre/during.
         if position == "DURING_EVENT":
             if current_price >= event_avg * 0.9:
-                return ("SELL", "Event active, demand price peak", None)
-            return ("HOLD", "Event active but price below avg", None)
+                return ("SELL", "Event active, demand price peak", None, sell_timing)
+            return ("HOLD", "Event active but price below avg", None, "")
         elif position == "PRE_EVENT":
             if current_price >= event_avg * 0.9:
-                return ("SELL", "Demand peaks before event", None)
-            return ("BUY", "Pre-event but price still low", profit_pct(current_price))
+                return ("SELL", "Demand peaks before event", None, sell_timing)
+            return ("BUY", "Pre-event but price still low", profit_pct(current_price), sell_timing)
         elif position == "POST_EVENT":
-            return ("BUY", "Post-event, demand fading", profit_pct(current_price))
+            if current_price <= off_event_avg * 1.1:
+                return ("BUY", "Post-event, demand fading", profit_pct(current_price), sell_timing)
+            return ("HOLD", "Post-event, price still elevated", None, "")
         else:
             if current_price <= off_event_avg * 1.1:
-                return ("BUY", "Off-event lows, buy for next event", profit_pct(current_price))
-            return ("HOLD", "Mid-cycle, price above off-event avg", None)
+                return ("BUY", "Off-event lows, buy for next event", profit_pct(current_price), sell_timing)
+            return ("HOLD", "Mid-cycle, price above off-event avg", None, "")
     else:
         # flood_during: Supply floods during event (e.g. armor drops).
-        # Prices drop during event. Buy during, sell off-event.
+        # Prices drop during event. Buy during, sell 2-3d later.
         if position == "DURING_EVENT":
             if current_price <= event_avg * 1.1:
-                return ("BUY", "Event active, price near event low", profit_pct(current_price))
-            return ("HOLD", "Event active but price above event avg", None)
+                return ("BUY", "Event active, price near event low", profit_pct(current_price), sell_timing)
+            return ("HOLD", "Event active but price above event avg", None, "")
         elif position == "PRE_EVENT":
-            return ("HOLD", "Event approaching, prices should drop soon", None)
+            return ("HOLD", "Event approaching, prices should drop soon", None, buy_timing)
         elif position == "POST_EVENT":
             if current_price <= event_avg * 1.2:
-                return ("BUY", "Post-event, price still near lows", profit_pct(current_price))
-            return ("HOLD", "Post-event, price already recovering", None)
+                return ("BUY", "Post-event, price still near lows", profit_pct(current_price), sell_timing)
+            return ("HOLD", "Post-event, price already recovering", None, "")
         else:
             if current_price >= off_event_avg * 0.9:
-                return ("SELL", "Price near off-event highs", None)
+                return ("SELL", "Price near off-event highs", None, sell_timing)
             elif current_price <= buy_target * 1.3:
-                return ("BUY", "Price below event avg mid-cycle", profit_pct(current_price))
-            return ("HOLD", "Mid-cycle, between averages", None)
+                return ("BUY", "Price below event avg mid-cycle", profit_pct(current_price), sell_timing)
+            return ("HOLD", "Mid-cycle, between averages", None, "")
 
 
 # ─── Display: Calendar ───────────────────────────────────────────────
@@ -908,7 +1004,7 @@ def show_recommendations():
 
             points = history.get(item_id, [])
             stats = compute_item_stats(points, event)
-            action, reason, profit_pct = recommend(item_id, event, current, stats, pos)
+            action, reason, profit_pct, timing = recommend(item_id, event, current, stats, pos)
 
             recs.append({
                 "item_id": item_id,
@@ -918,6 +1014,7 @@ def show_recommendations():
                 "action": action,
                 "reason": reason,
                 "profit_pct": profit_pct,
+                "timing": timing,
                 "event_avg": stats.get("event_avg") if stats else None,
                 "off_event_avg": stats.get("off_event_avg") if stats else None,
             })
@@ -926,44 +1023,46 @@ def show_recommendations():
     action_order = {"BUY": 0, "SELL": 1, "HOLD": 2, "WATCH": 3}
     recs.sort(key=lambda r: (action_order.get(r["action"], 4), -(r.get("current") or 0)))
 
-    buys = [r for r in recs if r["action"] == "BUY"]
+    buys = [r for r in recs if r["action"] == "BUY" and r["profit_pct"]]
     sells = [r for r in recs if r["action"] == "SELL"]
-    holds = [r for r in recs if r["action"] == "HOLD"]
+    holds = [r for r in recs if r["action"] == "HOLD"] + [r for r in recs if r["action"] == "BUY" and not r["profit_pct"]]
     watches = [r for r in recs if r["action"] == "WATCH"]
 
     if buys:
         print(f"\n  BUY RECOMMENDATIONS")
-        print(f"  {'Item':<26s} {'Event':<18s} {'Current':>10s}  {'Event Avg':>10s}  {'Off-Event':>10s}  {'Profit':>7s}  Reason")
-        print(f"  {'-'*26} {'-'*18} {'-'*10}  {'-'*10}  {'-'*10}  {'-'*7}  {'-'*30}")
+        print(f"  {'Item':<26s} {'Current':>10s}  {'Sell Target':>11s}  {'Profit':>7s}  Timing")
+        print(f"  {'-'*26} {'-'*10}  {'-'*11}  {'-'*7}  {'-'*40}")
         for r in buys:
             name = display_name(r["item_id"])
             if len(name) > 26:
                 name = name[:23] + "..."
-            ev_name = r["event"][:18]
-            ev_str = _fmt(r["event_avg"]) if r["event_avg"] else "---"
-            off_str = _fmt(r["off_event_avg"]) if r["off_event_avg"] else "---"
             pct_str = r["profit_pct"] or ""
-            print(f"  {name:<26s} {ev_name:<18s} {_fmt(r['current']):>10s}  {ev_str:>10s}  {off_str:>10s}  {pct_str:>7s}  {r['reason']}")
+            sell_target = max(r["event_avg"] or 0, r["off_event_avg"] or 0)
+            timing = r.get("timing", "")
+            print(f"  {name:<26s} {_fmt(r['current']):>10s}  {_fmt(sell_target):>11s}  {pct_str:>7s}  {timing}")
 
     if sells:
         print(f"\n  SELL RECOMMENDATIONS")
-        print(f"  {'Item':<26s} {'Event':<18s} {'Current':>10s}  Reason")
-        print(f"  {'-'*26} {'-'*18} {'-'*10}  {'-'*30}")
+        print(f"  {'Item':<26s} {'Current':>10s}  Timing")
+        print(f"  {'-'*26} {'-'*10}  {'-'*40}")
         for r in sells:
             name = display_name(r["item_id"])
             if len(name) > 26:
                 name = name[:23] + "..."
-            print(f"  {name:<26s} {r['event'][:18]:<18s} {_fmt(r['current']):>10s}  {r['reason']}")
+            timing = r.get("timing", r["reason"])
+            print(f"  {name:<26s} {_fmt(r['current']):>10s}  {timing}")
 
     if holds:
         print(f"\n  HOLD")
-        print(f"  {'Item':<26s} {'Event':<18s} {'Current':>10s}  Reason")
-        print(f"  {'-'*26} {'-'*18} {'-'*10}  {'-'*30}")
+        print(f"  {'Item':<26s} {'Current':>10s}  Timing / Reason")
+        print(f"  {'-'*26} {'-'*10}  {'-'*50}")
         for r in holds:
             name = display_name(r["item_id"])
             if len(name) > 26:
                 name = name[:23] + "..."
-            print(f"  {name:<26s} {r['event'][:18]:<18s} {_fmt(r['current']):>10s}  {r['reason']}")
+            timing = r.get("timing", "")
+            detail = timing if timing else r["reason"]
+            print(f"  {name:<26s} {_fmt(r['current']):>10s}  {detail}")
 
     if watches:
         print(f"\n  WATCH (insufficient history)")
