@@ -98,7 +98,7 @@ Also used as a library — `profile.py` imports craft scanning functions for the
 
 All historical price data is fetched on-demand from [Coflnet](https://sky.coflnet.com/) — no background jobs, cron, or local data accumulation needed. For bazaar items, Coflnet's resolution scales with the requested time range (5-minute data for short windows, 2-hour for 7 days, daily for 30 days). The script automatically fetches high-resolution windows around short events (like the 1-hour Spooky Festival) so that price spikes are captured, while using the broad 30-day range for overall trends. AH items use the monthly price aggregation endpoint (daily min/max/avg/volume). Current prices come from the Hypixel Bazaar API and Moulberry's lowest BIN data.
 
-Includes a SkyBlock calendar system that converts real-world time to in-game dates (epoch: June 11, 2019; 1 SB year = 124 real hours) to determine event timing and cycle position. For each tracked item, the script compares current price against historical event-period and off-event averages, then generates BUY/SELL/HOLD/WATCH recommendations with expected profit percentages.
+Includes a SkyBlock calendar system that converts real-world time to in-game dates (epoch: June 11, 2019; 1 SB year = 124 real hours) to determine event timing and cycle position. For each tracked item, the script compares current price against historical event-period and off-event averages, then generates BUY/SELL/HOLD/WATCH recommendations with expected profit percentages and specific timing windows (e.g. "sell first 15 min of event (in 4.6d)", "sell in 2-3d (before next event)", "during event (starts in 0.8d)"). Uses median pricing with IQR outlier filtering to resist troll listings on the auction house.
 
 Tracks 46 items across 6 events:
 
