@@ -7,8 +7,9 @@ Tools and resources for Hypixel SkyBlock gameplay.
 ```
 guide/          Static HTML beginner guide (index.html, script.js, style.css)
 tools/          Python scripts (run from this dir or project root)
+  items.py      Hypixel API resource data (items, skills, collections)
   profile.py    Fetch & display SkyBlock profile data
-  pricing.py    Live Bazaar + Coflnet BIN pricing
+  pricing.py    Live Bazaar + Moulberry BIN pricing
   crafts.py     Craft flip scanner (bazaar mats → AH items)
   investments.py Event investment tracker (buy low during events, sell high between)
   converter.py  NEU-repo items + wiki pages → Obsidian vault
@@ -52,6 +53,7 @@ python3 wiki_dump.py --update --parse       # update + re-parse changed pages
 - **Grep `data/wiki/parsed/` first** for data lookups (costs, stats, recipes) — templates are expanded there. Fall back to `data/wiki/` for structural/wikitext queries. If a parsed file doesn't exist for a page, check the raw wikitext.
 - **ALWAYS grep the local wiki** before making game mechanics claims or recommendations. Don't rely on training data for SkyBlock specifics — it may be outdated.
 - **Only use the official wiki** (wiki.hypixel.net). Do NOT use the fandom wiki.
+- **For collection tier data, use the Hypixel API** (`https://api.hypixel.net/v2/resources/skyblock/collections`, no key needed) — NOT the wiki. The wiki's Collections page is stale (e.g. still shows pre-PETv2 recipe unlock tiers). The API is authoritative. Cached locally at `data/collections_resource.json`.
 - **Bazaar purchases don't count** toward collections — materials must be gathered manually.
 - **Don't push expensive upgrades** without context on the player's budget.
 - **Always verify claims** against the local wiki or beginner guide before stating them as fact. If unsure about a mechanic, grep the wiki first.

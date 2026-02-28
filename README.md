@@ -28,7 +28,24 @@ Interactive features: localStorage-backed checkboxes with per-section progress t
 
 ### `tools/` — Python Scripts
 
-Six standalone scripts. No dependencies beyond the standard library. Run from the `tools/` directory (scripts import from each other via relative imports).
+Seven standalone scripts. No dependencies beyond the standard library. Run from the `tools/` directory (scripts import from each other via relative imports).
+
+---
+
+**`items.py`** — Shared module that fetches and caches data from the three free [Hypixel API resource endpoints](https://api.hypixel.net/) (no API key needed):
+
+- **Items** (`/v2/resources/skyblock/items`) — 5,361 items with structured stats, requirements, upgrade costs, prestige paths, categories, gemstone slots, and NPC sell prices
+- **Skills** (`/v2/resources/skyblock/skills`) — skill XP tables with correct max levels
+- **Collections** (`/v2/resources/skyblock/collections`) — collection tiers and amount thresholds
+
+All data is lazy-loaded on first access and cached to disk with a 1-day TTL. Other tools import from this module for display names, item metadata, and requirement lookups instead of each maintaining their own fetch/parse logic.
+
+```bash
+python3 items.py                       # summary stats
+python3 items.py shadow assassin       # search items by name
+```
+
+Also used as a library — all other tools import `display_name()` from here, and `crafts.py` uses it for structured requirement lookups and centralized collections data.
 
 ---
 
@@ -67,7 +84,7 @@ Items are looked up on the Bazaar first; if not found there, falls back to Moulb
 python3 pricing.py SHADOW_ASSASSIN_CHESTPLATE ENCHANTED_DIAMOND
 ```
 
-Also used as a library — `profile.py` imports `PriceCache` directly for inline market valuations.
+Also used as a library — `profile.py` imports `PriceCache` directly for inline market valuations. Display names are provided by `items.py`.
 
 ---
 
@@ -75,7 +92,7 @@ Also used as a library — `profile.py` imports `PriceCache` directly for inline
 
 Filters to items where all ingredients are available on the Bazaar and the output is sold on the AH (not the Bazaar). Uses current lowest BIN for profit calculation (what you'd undercut to sell), real sales data for volume filtering, and shows 3-day averaged lowest BIN for reference. Calculates profit after the 1% AH tax. Minimum thresholds: 10K profit and 1 sale/day.
 
-Each item's unlock requirement (collection tier, slayer level, HotM level) is parsed from the NEU-REPO data and resolved against the Hypixel collections API for actual tier thresholds.
+Each item's unlock requirement is resolved from two sources: NEU-REPO data (crafttext, slayer_req fields) and the Hypixel items API (structured `requirements` field with types like SKILL, SLAYER, COLLECTION, DUNGEON_TIER). The API is preferred when available since it's authoritative and structured. Collection tier thresholds come from the centralized collections data in `items.py`.
 
 ```bash
 python3 crafts.py              # full scan — all profitable crafts (~5 sec)
@@ -167,11 +184,12 @@ Large and/or generated files that don't belong in version control. Everything he
 | `wiki/parsed/` | ~50 MB | `wiki_dump.py --parse` | Template-expanded `.txt` files for grep-friendly data lookups |
 | `neu-repo/` | ~82 MB | [git clone](https://github.com/NotEnoughUpdates/NotEnoughUpdates-REPO) | Item JSONs, constants, recipes |
 | `vault/` | ~53 MB | `converter.py` | ~12,000 interlinked `.md` files for Obsidian |
-| `collections_resource.json` | ~180 KB | [Hypixel API](https://api.hypixel.net/v2/resources/skyblock/collections) | Collection tier thresholds (no key needed) |
+| `items_resource.json` | ~5.1 MB | [Hypixel API](https://api.hypixel.net/v2/resources/skyblock/items) | 5,361 items with stats, requirements, upgrade costs (no key needed) |
+| `skills_resource.json` | ~120 KB | [Hypixel API](https://api.hypixel.net/v2/resources/skyblock/skills) | Skill XP tables + max levels (no key needed) |
+| `collections_resource.json` | ~84 KB | [Hypixel API](https://api.hypixel.net/v2/resources/skyblock/collections) | Collection tier thresholds (no key needed) |
 | `last_profile.json` | ~400 KB | `profile.py` | Latest API fetch (profile, garden, museum, prices) |
 | `price_cache.json` | ~300 KB | `pricing.py` | Bazaar + auction price cache with TTL timestamps |
-| `craft_cache.json` | ~240 KB | `crafts.py` | Moulberry bulk price data + collection data cache |
-| `display_names.json` | ~244 KB | `pricing.py` | Item ID → display name mapping from NEU-REPO |
+| `craft_cache.json` | ~240 KB | `crafts.py` | Moulberry bulk price data cache |
 
 ## Setup
 

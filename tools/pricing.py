@@ -6,18 +6,16 @@ Standalone CLI: python3 pricing.py SHADOW_ASSASSIN_CHESTPLATE ENCHANTED_DIAMOND
 """
 
 import json
-import os
-import re
 import sys
 import time
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
+from items import display_name  # noqa: F401 — re-exported for backwards compat
+
 DATA_DIR = Path(__file__).parent.parent / "data"
 CACHE_PATH = DATA_DIR / "price_cache.json"
-NAME_CACHE_PATH = DATA_DIR / "display_names.json"
-NEU_ITEMS_DIR = DATA_DIR / "neu-repo" / "items"
 
 BAZAAR_URL = "https://api.hypixel.net/v2/skyblock/bazaar"
 MOULBERRY_LBIN_URL = "https://moulberry.codes/lowestbin.json"
@@ -27,12 +25,6 @@ MOULBERRY_AVG_URL = "https://moulberry.codes/auction_averages/3day.json"
 BAZAAR_TTL = 300       # 5 minutes
 MOULBERRY_TTL = 300    # 5 minutes
 MOULBERRY_EVICT = 3600 # 1 hour — drop stale bulk data on load
-
-# Matches Minecraft color codes like §6, §a, §l, etc.
-_COLOR_CODE_RE = re.compile(r"§[0-9a-fk-or]")
-
-# Loaded lazily on first use
-_display_names = None
 
 
 def _fmt(n):
@@ -48,63 +40,6 @@ def _fmt(n):
         val = n / 1_000
         return f"{val:.1f}M" if val >= 999.95 else f"{val:.1f}K"
     return f"{n:,.0f}"
-
-
-def _build_display_names():
-    """Build display name cache from NEU repo items."""
-    names = {}
-    if not NEU_ITEMS_DIR.exists():
-        return names
-    for path in NEU_ITEMS_DIR.glob("*.json"):
-        try:
-            data = json.loads(path.read_text())
-            raw_name = data.get("displayname", "")
-            if raw_name:
-                clean = _COLOR_CODE_RE.sub("", raw_name).strip()
-                item_id = path.stem
-                # Only store if the clean name differs from the default formatting
-                default = item_id.replace("_", " ").title()
-                if clean and clean != default:
-                    names[item_id] = clean
-        except (json.JSONDecodeError, OSError):
-            continue
-    return names
-
-
-def _load_display_names():
-    """Load display names, building cache if needed."""
-    global _display_names
-    if _display_names is not None:
-        return _display_names
-
-    # Try loading from cache
-    if NAME_CACHE_PATH.exists():
-        try:
-            # Rebuild if NEU repo is newer than cache
-            neu_mtime = max(
-                (f.stat().st_mtime for f in NEU_ITEMS_DIR.glob("*.json")),
-                default=0,
-            ) if NEU_ITEMS_DIR.exists() else 0
-            cache_mtime = NAME_CACHE_PATH.stat().st_mtime
-            if cache_mtime >= neu_mtime:
-                _display_names = json.loads(NAME_CACHE_PATH.read_text())
-                return _display_names
-        except (json.JSONDecodeError, OSError):
-            pass
-
-    # Build from NEU repo
-    _display_names = _build_display_names()
-    try:
-        NAME_CACHE_PATH.write_text(json.dumps(_display_names, indent=2, sort_keys=True))
-    except OSError:
-        pass
-    return _display_names
-
-
-def display_name(item_id):
-    """Get the human-readable display name for an item ID."""
-    names = _load_display_names()
-    return names.get(item_id, item_id.replace("_", " ").title())
 
 
 class PriceCache:

@@ -22,12 +22,12 @@ from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-from pricing import PriceCache, _fmt, display_name
+from items import display_name, get_collections_data, get_requirements as get_api_requirements
+from pricing import PriceCache, _fmt
 
 DATA_DIR = Path(__file__).parent.parent / "data"
 NEU_ITEMS_DIR = DATA_DIR / "neu-repo" / "items"
 CRAFT_CACHE_PATH = DATA_DIR / "craft_cache.json"
-COLLECTIONS_PATH = DATA_DIR / "collections_resource.json"
 LEVELING_PATH = DATA_DIR / "neu-repo" / "constants" / "leveling.json"
 LAST_PROFILE_PATH = DATA_DIR / "last_profile.json"
 
@@ -36,7 +36,6 @@ MOULBERRY_AVG_LBIN_URL = "https://moulberry.codes/auction_averages_lbin/3day.jso
 MOULBERRY_AVG_URL = "https://moulberry.codes/auction_averages/3day.json"
 MOULBERRY_TTL = 300          # 5 minutes
 MOULBERRY_EVICT = 3600       # 1 hour
-COLLECTIONS_TTL = 86400      # 1 day
 
 MIN_PROFIT = 10_000
 MIN_VOLUME = 1
@@ -121,8 +120,14 @@ def parse_recipes():
         # Use overrideOutputId if present
         output_id = recipe_data.get("overrideOutputId", item_id)
 
-        # Parse unlock requirement
+        # Parse unlock requirement — NEU first, then API cross-check
         requirement = parse_requirement(data)
+
+        # If NEU parsing found nothing or got a generic "other", try the API
+        if requirement is None or requirement.get("type") == "other":
+            api_req = get_api_requirement(output_id)
+            if api_req:
+                requirement = api_req
 
         recipes.append({
             "item_id": output_id,
@@ -213,45 +218,95 @@ def parse_requirement(data):
     return {"type": "other", "text": req_text}
 
 
+def get_api_requirement(item_id):
+    """Get a structured requirement from the Hypixel API for an item.
+
+    Converts API requirement format to crafts.py's format. Returns the first
+    requirement that maps to a type we can check, or None.
+    """
+    api_reqs = get_api_requirements(item_id)
+    if not api_reqs:
+        return None
+
+    for req in api_reqs:
+        rtype = req.get("type")
+
+        if rtype == "COLLECTION":
+            return {
+                "type": "collection",
+                "display_name": req.get("collection", "").replace("_", " ").title(),
+                "tier": req.get("tier", 0),
+                "key": req.get("collection"),
+                "text": f"{req.get('collection', '').replace('_', ' ').title()} {req.get('tier', '')}",
+                "source": "api",
+            }
+
+        if rtype == "SLAYER":
+            boss = req.get("slayer_boss_type", "")
+            level = req.get("level", 0)
+            boss_display = boss.title()
+            return {
+                "type": "slayer",
+                "boss": boss,
+                "boss_display": boss_display,
+                "level": level,
+                "text": f"{boss_display} Slayer {level}",
+                "source": "api",
+            }
+
+        if rtype == "SKILL":
+            skill = req.get("skill", "")
+            level = req.get("level", 0)
+            return {
+                "type": "skill",
+                "skill": skill.lower(),
+                "level": level,
+                "text": f"{skill.title()} {level}",
+                "source": "api",
+            }
+
+        if rtype == "HEART_OF_THE_MOUNTAIN":
+            return {
+                "type": "hotm",
+                "level": req.get("tier", 0),
+                "text": f"HotM {req.get('tier', '')}",
+                "source": "api",
+            }
+
+        if rtype == "DUNGEON_TIER":
+            tier = req.get("tier", 0)
+            dtype = req.get("dungeon_type", "CATACOMBS")
+            return {
+                "type": "dungeon_tier",
+                "dungeon_type": dtype,
+                "tier": tier,
+                "text": f"{dtype.title()} Floor {tier}",
+                "source": "api",
+            }
+
+        if rtype == "DUNGEON_SKILL":
+            level = req.get("level", 0)
+            dtype = req.get("dungeon_type", "CATACOMBS")
+            return {
+                "type": "dungeon_skill",
+                "dungeon_type": dtype,
+                "level": level,
+                "text": f"{dtype.title()} Level {level}",
+                "source": "api",
+            }
+
+    return None
+
+
 # ─── Collections Data ─────────────────────────────────────────────────
 
 def load_collections_data(cache):
-    """Load collections data from cache or file. Returns (collections_dict, name_to_key)."""
-    # Check cache first
-    now = time.time()
-    cached_colls = cache.get("collections")
-    cached_ts = cache.get("collections_ts", 0)
-    if cached_colls and now - cached_ts < COLLECTIONS_TTL:
-        colls = cached_colls
-    else:
-        # Load from file
-        if not COLLECTIONS_PATH.exists():
-            print("  collections_resource.json not found", file=sys.stderr)
-            return {}, {}
-        try:
-            raw = json.loads(COLLECTIONS_PATH.read_text())
-            colls = raw.get("collections", {})
-            cache["collections"] = colls
-            cache["collections_ts"] = now
-        except (json.JSONDecodeError, OSError):
-            return {}, {}
+    """Load collections data. Returns (collections_dict, name_to_key).
 
-    # Build reverse lookup: display name (lowercase) → {api_key, tiers}
-    name_to_key = {}
-    all_items = {}
-    for category_data in colls.values():
-        items = category_data.get("items", {})
-        for api_key, item_data in items.items():
-            display = item_data.get("name", "")
-            tiers = {}
-            for t in item_data.get("tiers", []):
-                tiers[t["tier"]] = t["amountRequired"]
-            entry = {"api_key": api_key, "tiers": tiers}
-            all_items[api_key] = entry
-            if display:
-                name_to_key[display.lower()] = entry
-
-    return all_items, name_to_key
+    Delegates to items.get_collections_data() which handles fetch/cache.
+    The cache arg is accepted for backwards compat but no longer used.
+    """
+    return get_collections_data()
 
 
 def resolve_collection_requirement(req, name_to_key):

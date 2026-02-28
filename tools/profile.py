@@ -16,7 +16,8 @@ from pathlib import Path
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError
 
-from pricing import PriceCache, _fmt as fmt_price_num, display_name
+from items import display_name
+from pricing import PriceCache, _fmt as fmt_price_num
 from crafts import (parse_recipes, load_craft_cache, load_collections_data,
                     load_slayer_thresholds, resolve_collection_requirement,
                     resolve_slayer_requirement, filter_craft_flips,
@@ -2460,6 +2461,7 @@ def main():
         "player": display_name,
         "uuid": uuid,
         "profile_name": profile_name,
+        "member": member,
         "profile": active,
         "garden": garden_data,
         "museum": museum_data,
