@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Live pricing for Hypixel SkyBlock items.
 
-Fetches real-time prices from the Hypixel Bazaar API and Coflnet auction API.
+Fetches real-time prices from the Hypixel Bazaar API and Moulberry bulk auction APIs.
 Standalone CLI: python3 pricing.py SHADOW_ASSASSIN_CHESTPLATE ENCHANTED_DIAMOND
 """
 
@@ -20,12 +20,13 @@ NAME_CACHE_PATH = DATA_DIR / "display_names.json"
 NEU_ITEMS_DIR = DATA_DIR / "neu-repo" / "items"
 
 BAZAAR_URL = "https://api.hypixel.net/v2/skyblock/bazaar"
-COFLNET_BIN_URL = "https://sky.coflnet.com/api/item/price/{tag}/bin"
+MOULBERRY_LBIN_URL = "https://moulberry.codes/lowestbin.json"
+MOULBERRY_AVG_LBIN_URL = "https://moulberry.codes/auction_averages_lbin/3day.json"
+MOULBERRY_AVG_URL = "https://moulberry.codes/auction_averages/3day.json"
 
 BAZAAR_TTL = 300       # 5 minutes
-AUCTION_TTL = 600      # 10 minutes
-AUCTION_EVICT = 86400  # 24 hours — drop stale auction entries on load
-COFLNET_RATE_LIMIT = 0.6  # seconds between requests (100/min)
+MOULBERRY_TTL = 300    # 5 minutes
+MOULBERRY_EVICT = 3600 # 1 hour — drop stale bulk data on load
 
 # Matches Minecraft color codes like §6, §a, §l, etc.
 _COLOR_CODE_RE = re.compile(r"§[0-9a-fk-or]")
@@ -111,27 +112,32 @@ class PriceCache:
 
     def __init__(self):
         self._bazaar = {}       # item_id -> {buy, sell, buy_volume, sell_volume, ts}
-        self._auctions = {}     # item_id -> {lowest_bin, ts}
         self._bazaar_fetched = 0
-        self._last_coflnet = 0
+        # Moulberry bulk data
+        self._moulberry_lbin = {}       # item_id -> price
+        self._moulberry_avg_lbin = {}   # item_id -> price
+        self._moulberry_avg = {}        # item_id -> {price, count, sales, ...}
+        self._moulberry_fetched = 0
         self._dirty = False
         self._load_cache()
 
     def _load_cache(self):
-        """Load file-backed cache if it exists, evicting stale auction entries."""
+        """Load file-backed cache if it exists."""
         if not CACHE_PATH.exists():
             return
         try:
             data = json.loads(CACHE_PATH.read_text())
             self._bazaar = data.get("bazaar", {})
             self._bazaar_fetched = data.get("bazaar_fetched", 0)
-            # Evict auction entries older than 24h
+            # Load Moulberry data, evicting if stale
             now = time.time()
-            self._auctions = {
-                k: v for k, v in data.get("auctions", {}).items()
-                if now - v.get("ts", 0) < AUCTION_EVICT
-            }
-            if len(self._auctions) < len(data.get("auctions", {})):
+            mb = data.get("moulberry", {})
+            if mb and now - mb.get("ts", 0) < MOULBERRY_EVICT:
+                self._moulberry_lbin = mb.get("lowestbin", {})
+                self._moulberry_avg_lbin = mb.get("avg_lbin", {})
+                self._moulberry_avg = mb.get("auction_averages", {})
+                self._moulberry_fetched = mb.get("ts", 0)
+            elif mb:
                 self._dirty = True  # will save cleaned cache on next flush
         except (json.JSONDecodeError, KeyError):
             pass
@@ -146,8 +152,13 @@ class PriceCache:
         """Persist cache to disk."""
         data = {
             "bazaar": self._bazaar,
-            "auctions": self._auctions,
             "bazaar_fetched": self._bazaar_fetched,
+            "moulberry": {
+                "lowestbin": self._moulberry_lbin,
+                "avg_lbin": self._moulberry_avg_lbin,
+                "auction_averages": self._moulberry_avg,
+                "ts": self._moulberry_fetched,
+            },
         }
         try:
             CACHE_PATH.write_text(json.dumps(data, indent=2))
@@ -187,36 +198,34 @@ class PriceCache:
         self._bazaar_fetched = now
         self._dirty = True
 
-    def _fetch_auction(self, item_id):
-        """Fetch lowest BIN for a single item via Coflnet."""
+    def _fetch_moulberry(self):
+        """Fetch all three Moulberry bulk datasets (LBIN, avg LBIN, avg BIN)."""
         now = time.time()
+        if now - self._moulberry_fetched < MOULBERRY_TTL:
+            return  # still fresh
 
-        # Check cache freshness
-        cached = self._auctions.get(item_id)
-        if cached and now - cached.get("ts", 0) < AUCTION_TTL:
-            return
+        urls = {
+            "lowestbin": MOULBERRY_LBIN_URL,
+            "avg_lbin": MOULBERRY_AVG_LBIN_URL,
+            "auction_averages": MOULBERRY_AVG_URL,
+        }
 
-        # Rate limiting
-        wait = self._last_coflnet + COFLNET_RATE_LIMIT - now
-        if wait > 0:
-            time.sleep(wait)
+        for key, url in urls.items():
+            try:
+                req = Request(url, headers={"User-Agent": "SkyblockPricing/1.0"})
+                with urlopen(req, timeout=15) as resp:
+                    result = json.loads(resp.read())
+                if key == "lowestbin":
+                    self._moulberry_lbin = result
+                elif key == "avg_lbin":
+                    self._moulberry_avg_lbin = result
+                else:
+                    self._moulberry_avg = result
+            except (HTTPError, URLError, OSError) as e:
+                print(f"  [Moulberry {key} error: {e}]", file=sys.stderr)
+                # Keep stale data on failure
 
-        try:
-            url = COFLNET_BIN_URL.format(tag=item_id)
-            req = Request(url, headers={"User-Agent": "SkyblockProfile/1.0"})
-            with urlopen(req, timeout=10) as resp:
-                data = json.loads(resp.read())
-            self._last_coflnet = time.time()
-        except (HTTPError, URLError, OSError) as e:
-            self._last_coflnet = time.time()
-            # 404 means item not on AH — cache that too
-            if isinstance(e, HTTPError) and e.code == 404:
-                self._auctions[item_id] = {"lowest_bin": None, "ts": now}
-                self._dirty = True
-            return
-
-        lowest = data.get("lowest")
-        self._auctions[item_id] = {"lowest_bin": lowest, "ts": now}
+        self._moulberry_fetched = now
         self._dirty = True
 
     def get_price(self, item_id):
@@ -225,9 +234,11 @@ class PriceCache:
         Returns:
             {
                 "source": "bazaar" | "auction" | "unknown",
-                "buy": float | None,      # what you pay to instant-buy
-                "sell": float | None,      # what you receive from instant-sell
+                "buy": float | None,      # what you pay to instant-buy (bazaar)
+                "sell": float | None,      # what you receive from instant-sell (bazaar)
                 "lowest_bin": int | None,  # auction lowest BIN
+                "avg_bin": float | None,   # 3-day average lowest BIN
+                "sales_day": float | None, # estimated daily sales volume
                 "buy_volume": int | None,  # bazaar buy order volume
                 "sell_volume": int | None, # bazaar sell order volume
             }
@@ -242,25 +253,38 @@ class PriceCache:
                 "buy": bz["buy"],
                 "sell": bz["sell"],
                 "lowest_bin": None,
+                "avg_bin": None,
+                "sales_day": None,
                 "buy_volume": bz.get("buy_volume", 0),
                 "sell_volume": bz.get("sell_volume", 0),
             }
 
-        # Fall back to auction
-        self._fetch_auction(item_id)
-        ah = self._auctions.get(item_id)
-        if ah and ah.get("lowest_bin") is not None:
+        # Fall back to auction (Moulberry bulk data)
+        self._fetch_moulberry()
+        lbin = self._moulberry_lbin.get(item_id)
+        avg_lbin = self._moulberry_avg_lbin.get(item_id)
+        avg_data = self._moulberry_avg.get(item_id, {})
+
+        if lbin is not None:
+            # Moulberry avg data has "price" (avg BIN), "count" (auctions),
+            # "sales" (actual sales), "clean_price", "clean_sales"
+            sales = avg_data.get("clean_sales") or avg_data.get("sales")
+            # sales is total over 3 days, convert to daily
+            sales_day = sales / 3.0 if sales else None
             return {
                 "source": "auction",
                 "buy": None,
                 "sell": None,
-                "lowest_bin": ah["lowest_bin"],
+                "lowest_bin": int(lbin),
+                "avg_bin": avg_lbin,
+                "sales_day": sales_day,
                 "buy_volume": None,
                 "sell_volume": None,
             }
 
         return {"source": "unknown", "buy": None, "sell": None,
-                "lowest_bin": None, "buy_volume": None, "sell_volume": None}
+                "lowest_bin": None, "avg_bin": None, "sales_day": None,
+                "buy_volume": None, "sell_volume": None}
 
     def format_price(self, item_id):
         """Return a human-readable price string for an item."""
@@ -272,12 +296,18 @@ class PriceCache:
                 price += " (thin market)"
             return price
         if p["source"] == "auction":
-            return f"Lowest BIN: {_fmt(p['lowest_bin'])}"
+            parts = [f"Lowest BIN: {_fmt(p['lowest_bin'])}"]
+            if p.get("avg_bin") is not None:
+                parts.append(f"avg: {_fmt(p['avg_bin'])}")
+            if p.get("sales_day") is not None:
+                parts.append(f"{p['sales_day']:.0f}/day")
+            return "  ".join(parts)
         return "No price data"
 
     def get_prices_bulk(self, item_ids):
         """Get prices for multiple items. Returns {item_id: price_info}."""
         self._fetch_bazaar()  # single request for all bazaar items
+        self._fetch_moulberry()  # single bulk fetch for all auction items
         results = {}
         for item_id in item_ids:
             results[item_id] = self.get_price(item_id)
@@ -288,14 +318,14 @@ class PriceCache:
         """Export all cached price data for saving to last_profile.json."""
         return {
             "bazaar_products": len(self._bazaar),
-            "auction_items": len(self._auctions),
+            "auction_items": len(self._moulberry_lbin),
             "bazaar_fetched": self._bazaar_fetched,
+            "moulberry_fetched": self._moulberry_fetched,
             "bazaar": {k: {"buy": v["buy"], "sell": v["sell"]}
                        for k, v in self._bazaar.items()
                        if v.get("buy", 0) > 0 or v.get("sell", 0) > 0},
-            "auctions": {k: v.get("lowest_bin")
-                         for k, v in self._auctions.items()
-                         if v.get("lowest_bin") is not None},
+            "auctions": {k: int(v)
+                         for k, v in self._moulberry_lbin.items()},
         }
 
 
