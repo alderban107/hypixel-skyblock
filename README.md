@@ -59,9 +59,9 @@ python3 profile.py -s dungeons,collections  # specific sections
 **`pricing.py`** — Real-time item pricing with two sources and automatic fallback:
 
 1. **Bazaar API** (Hypixel) — bulk commodity prices with buy/sell spread and volume data. Fetched in a single API call for all items. Cached for 5 minutes.
-2. **Coflnet API** — lowest BIN (Buy It Now) auction prices for gear and rare items. Fetched per-item with rate limiting (1 request per 0.6s to stay under 100/min). Cached for 10 minutes.
+2. **Moulberry bulk APIs** — lowest BIN, 3-day averaged lowest BIN, and actual sales volume for auction house items. Three bulk requests fetch data for all items at once (~5 seconds total). Cached for 5 minutes.
 
-Items are looked up on the Bazaar first; if not found there, falls back to Coflnet auction data. Failed lookups (404s) are also cached to avoid repeated requests. Cache is stored in `data/price_cache.json`.
+Items are looked up on the Bazaar first; if not found there, falls back to Moulberry auction data. Cache is stored in `data/price_cache.json`.
 
 ```bash
 python3 pricing.py SHADOW_ASSASSIN_CHESTPLATE ENCHANTED_DIAMOND
@@ -121,15 +121,17 @@ python3 investments.py --history GREEN_CANDY # price history table for one item
 
 ---
 
-**`wiki_dump.py`** — Mirrors the [Hypixel SkyBlock Wiki](https://wiki.hypixel.net/) to local `.wiki` files via the MediaWiki API (GET-only — POST is blocked by Cloudflare). Saves each page as an individual wikitext file.
-
-Three modes:
+**`wiki_dump.py`** — Mirrors the [Hypixel SkyBlock Wiki](https://wiki.hypixel.net/) to local `.wiki` files via the MediaWiki API (GET-only — POST is blocked by Cloudflare). Saves each page as an individual wikitext file, with optional template-expanded plain text generation.
 
 ```bash
 python3 wiki_dump.py              # full dump (~4,800 content pages + ~42 data templates)
 python3 wiki_dump.py --update     # incremental (only pages changed since last dump)
 python3 wiki_dump.py --templates  # only Template:Data/* pages
+python3 wiki_dump.py --parse      # generate parsed text with templates expanded (~80 min)
+python3 wiki_dump.py --update --parse  # incremental update + re-parse changed pages
 ```
+
+The `--parse` flag uses the MediaWiki `action=parse` endpoint to fetch server-rendered HTML for each page, then converts it to clean searchable plain text via a custom HTML-to-text converter. Tables are preserved as pipe-separated rows for grep-friendly data lookups. This solves the problem of wiki pages hiding data behind template transclusions (e.g. `{{Kat_List}}`, `{{Recipe/...}}`, `{{Mob_Loot/...}}`) — the parsed output contains the actual numbers, costs, and stats. Parsed files are saved to `data/wiki/parsed/` as `.txt` files. Parsing is incremental (skips pages where the `.txt` is already newer than the `.wiki`), with `--force` to re-parse everything.
 
 Incremental updates check the wiki's `recentchanges` API for pages modified since the last sync timestamp (stored in `data/wiki/.dump_meta.json`). Requires a previous full dump. Requests are rate-limited to 1/second to respect the wiki's servers.
 
@@ -161,7 +163,8 @@ Large and/or generated files that don't belong in version control. Everything he
 
 | Path | Size | Source | Contains |
 |---|---|---|---|
-| `wiki/` | ~27 MB | `wiki_dump.py` | 4,800+ `.wiki` files + `.dump_meta.json` |
+| `wiki/` | ~27 MB | `wiki_dump.py` | 4,800+ `.wiki` files (raw wikitext) + `.dump_meta.json` |
+| `wiki/parsed/` | ~50 MB | `wiki_dump.py --parse` | Template-expanded `.txt` files for grep-friendly data lookups |
 | `neu-repo/` | ~82 MB | [git clone](https://github.com/NotEnoughUpdates/NotEnoughUpdates-REPO) | Item JSONs, constants, recipes |
 | `vault/` | ~53 MB | `converter.py` | ~12,000 interlinked `.md` files for Obsidian |
 | `collections_resource.json` | ~180 KB | [Hypixel API](https://api.hypixel.net/v2/resources/skyblock/collections) | Collection tier thresholds (no key needed) |
