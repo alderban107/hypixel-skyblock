@@ -9,9 +9,12 @@ Usage:
     python3 wiki_dump.py              # Full dump (content pages + data templates)
     python3 wiki_dump.py --update     # Incremental update (only changed pages)
     python3 wiki_dump.py --templates  # Only dump Template:Data/* pages
+    python3 wiki_dump.py --parse      # Generate parsed text (expands templates)
+    python3 wiki_dump.py --update --parse  # Update + re-parse changed pages
 """
 
 import argparse
+import html as html_module
 import json
 import os
 import re
@@ -19,12 +22,149 @@ import sys
 import time
 import urllib.parse
 import urllib.request
+from html.parser import HTMLParser
 
 WIKI_API = "https://wiki.hypixel.net/api.php"
 USER_AGENT = "SkyBlockProfileAnalyzer/1.0 (personal wiki cache; contact: none)"
 OUTPUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "wiki")
+PARSED_DIR = os.path.join(OUTPUT_DIR, "parsed")
 META_FILE = os.path.join(OUTPUT_DIR, ".dump_meta.json")
 DELAY = 1.0  # seconds between requests
+
+
+# ---------------------------------------------------------------------------
+#  HTML → plain text converter
+# ---------------------------------------------------------------------------
+
+class HTMLToText(HTMLParser):
+    """Convert parsed wiki HTML to clean searchable text.
+
+    Preserves table structure as pipe-separated rows so data lookups
+    (costs, stats, recipes) are greppable.
+    """
+
+    SKIP_TAGS = {"script", "style"}
+    BLOCK_TAGS = {"p", "div", "h1", "h2", "h3", "h4", "h5", "h6",
+                  "blockquote", "section", "article", "header", "footer"}
+
+    def __init__(self):
+        super().__init__()
+        self.pieces = []       # output buffer
+        self.skip_depth = 0    # depth inside skip tags
+        self.in_cell = False
+        self.cell_buf = []     # text within current <td>/<th>
+        self.row_cells = []    # finished cells for current <tr>
+
+    # -- tag handlers --
+
+    def handle_starttag(self, tag, attrs):
+        if tag in self.SKIP_TAGS:
+            self.skip_depth += 1
+            return
+        if self.skip_depth:
+            return
+
+        if tag == "br":
+            self._emit(" ")
+        elif tag == "table":
+            self._emit("\n")
+        elif tag == "tr":
+            self.row_cells = []
+        elif tag in ("td", "th"):
+            self.in_cell = True
+            self.cell_buf = []
+        elif tag == "li":
+            self._emit("\n  - ")
+        elif tag in self.BLOCK_TAGS:
+            self._emit("\n")
+        elif tag == "img":
+            pass  # skip images entirely
+
+    def handle_endtag(self, tag):
+        if tag in self.SKIP_TAGS:
+            self.skip_depth = max(0, self.skip_depth - 1)
+            return
+        if self.skip_depth:
+            return
+
+        if tag in ("td", "th"):
+            self.in_cell = False
+            self.row_cells.append("".join(self.cell_buf).strip())
+            self.cell_buf = []
+        elif tag == "tr":
+            if self.row_cells:
+                self._emit(" | ".join(self.row_cells) + "\n")
+            self.row_cells = []
+        elif tag == "table":
+            self._emit("\n")
+        elif tag in self.BLOCK_TAGS:
+            self._emit("\n")
+
+    def handle_data(self, data):
+        if self.skip_depth:
+            return
+        self._emit(data)
+
+    def handle_entityref(self, name):
+        if self.skip_depth:
+            return
+        self._emit(html_module.unescape(f"&{name};"))
+
+    def handle_charref(self, name):
+        if self.skip_depth:
+            return
+        self._emit(html_module.unescape(f"&#{name};"))
+
+    # -- helpers --
+
+    def _emit(self, text):
+        if self.in_cell:
+            self.cell_buf.append(text)
+        else:
+            self.pieces.append(text)
+
+    def get_text(self):
+        raw = "".join(self.pieces)
+        # Collapse runs of blank lines
+        raw = re.sub(r"\n{3,}", "\n\n", raw)
+        # Strip trailing whitespace per line
+        lines = [line.rstrip() for line in raw.split("\n")]
+        return "\n".join(lines).strip() + "\n"
+
+
+def html_to_text(html_content):
+    """Convert HTML string to searchable plain text."""
+    converter = HTMLToText()
+    converter.feed(html_content)
+    return converter.get_text()
+
+
+def filename_to_title(filename):
+    """Reverse sanitize_filename: .wiki filename → wiki page title."""
+    title = filename
+    if title.endswith(".wiki"):
+        title = title[:-5]
+    title = title.replace("_SLASH_", "/")
+    return title
+
+
+def parse_single_page(title):
+    """Fetch server-parsed HTML for a page and convert to plain text."""
+    params = {
+        "action": "parse",
+        "page": title,
+        "prop": "text",
+        "disabletoc": 1,
+        "disableeditsection": 1,
+    }
+    try:
+        data = api_get(params)
+        page_html = data.get("parse", {}).get("text", {}).get("*", "")
+        if not page_html:
+            return None
+        return html_to_text(page_html)
+    except Exception as e:
+        return None
 
 
 def api_get(params):
@@ -285,18 +425,113 @@ def do_templates_only():
     print("\nDone!")
 
 
+def do_parse(force=False, only_titles=None):
+    """Generate parsed plain-text files with all templates expanded.
+
+    Uses action=parse (one page at a time) to get server-rendered HTML,
+    then converts to clean searchable text.
+
+    Args:
+        force:       Re-parse even if .txt is up-to-date.
+        only_titles: If set, only parse these page titles.
+    """
+    os.makedirs(PARSED_DIR, exist_ok=True)
+
+    # Build list of pages to parse
+    if only_titles:
+        to_parse = [(t, sanitize_filename(t)) for t in only_titles
+                     if not t.startswith("Template:")]
+    else:
+        to_parse = []
+        for f in sorted(os.listdir(OUTPUT_DIR)):
+            if not f.endswith(".wiki"):
+                continue
+            wiki_path = os.path.join(OUTPUT_DIR, f)
+            txt_name = f[:-5] + ".txt"
+            txt_path = os.path.join(PARSED_DIR, txt_name)
+
+            if not force and os.path.exists(txt_path) and \
+               os.path.getmtime(txt_path) >= os.path.getmtime(wiki_path):
+                continue  # already up-to-date
+            to_parse.append((filename_to_title(f), f))
+
+    if not to_parse:
+        print("  All pages already parsed. Use --force to re-parse.")
+        return
+
+    total = len(to_parse)
+    print(f"  Parsing {total} pages (this takes ~{total} seconds)...\n")
+
+    parsed = 0
+    failed = 0
+    start = time.time()
+
+    for i, (title, wiki_fname) in enumerate(to_parse):
+        text = parse_single_page(title)
+        if text:
+            txt_name = wiki_fname[:-5] + ".txt" if wiki_fname.endswith(".wiki") \
+                else sanitize_filename(title)[:-5] + ".txt"
+            txt_path = os.path.join(PARSED_DIR, txt_name)
+            with open(txt_path, "w", encoding="utf-8") as f:
+                f.write(text)
+            parsed += 1
+        else:
+            failed += 1
+
+        elapsed = time.time() - start
+        rate = (i + 1) / elapsed if elapsed > 0 else 0
+        remaining = (total - i - 1) / rate if rate > 0 else 0
+        mins, secs = divmod(int(remaining), 60)
+        sys.stdout.write(
+            f"\r  [{parsed}/{total}] {parsed} parsed, {failed} failed"
+            f"  ({mins}m {secs}s remaining)   "
+        )
+        sys.stdout.flush()
+
+        if i < total - 1:
+            time.sleep(DELAY)
+
+    elapsed = time.time() - start
+    mins, secs = divmod(int(elapsed), 60)
+    print(f"\n\n  Done: {parsed} parsed, {failed} failed in {mins}m {secs}s")
+    print(f"  Saved to {PARSED_DIR}/")
+
+    # Update metadata
+    meta = load_meta()
+    meta["last_parse"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    meta["parsed_pages"] = parsed
+    save_meta(meta)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Dump the Hypixel SkyBlock Wiki locally.")
     parser.add_argument("--update", action="store_true", help="Incremental update only")
     parser.add_argument("--templates", action="store_true", help="Only dump Data templates")
+    parser.add_argument("--parse", action="store_true",
+                        help="Generate parsed text files (expands all templates)")
+    parser.add_argument("--force", action="store_true",
+                        help="Force re-parse even if files are up-to-date")
     args = parser.parse_args()
 
     if args.update:
         do_update()
+        if args.parse:
+            # Re-parse pages that were just updated
+            meta = load_meta()
+            # Parse any pages needing it (the update touched .wiki files,
+            # so timestamp comparison will catch them)
+            print("\nParsing updated pages...")
+            do_parse(force=args.force)
     elif args.templates:
         do_templates_only()
+    elif args.parse:
+        print("=== Parse Wiki Pages ===\n")
+        do_parse(force=args.force)
     else:
         do_full_dump()
+        if args.parse:
+            print("\nParsing all pages...")
+            do_parse(force=True)
 
 
 if __name__ == "__main__":
