@@ -2,7 +2,11 @@
 """Live pricing for Hypixel SkyBlock items.
 
 Fetches real-time prices from the Hypixel Bazaar API and Moulberry bulk auction APIs.
-Standalone CLI: python3 pricing.py SHADOW_ASSASSIN_CHESTPLATE ENCHANTED_DIAMOND
+Standalone CLI:
+    python3 pricing.py SHADOW_ASSASSIN_CHESTPLATE ENCHANTED_DIAMOND
+    python3 pricing.py "RABBIT;4"              # Pet by ID
+    python3 pricing.py "rabbit legendary"       # Pet by name + rarity
+    python3 pricing.py rabbit                   # Show all pet rarities
 """
 
 import json
@@ -25,6 +29,13 @@ MOULBERRY_AVG_URL = "https://moulberry.codes/auction_averages/3day.json"
 BAZAAR_TTL = 300       # 5 minutes
 MOULBERRY_TTL = 300    # 5 minutes
 MOULBERRY_EVICT = 3600 # 1 hour — drop stale bulk data on load
+
+# Pet rarity name → numeric ID used in pet item IDs (e.g., RABBIT;4 = legendary)
+RARITY_NUM = {
+    "common": 0, "uncommon": 1, "rare": 2,
+    "epic": 3, "legendary": 4, "mythic": 5,
+}
+RARITY_NAME = {v: k.upper() for k, v in RARITY_NUM.items()}
 
 
 def _fmt(n):
@@ -166,6 +177,8 @@ class PriceCache:
     def get_price(self, item_id):
         """Get price info for an item. Returns dict with source and prices.
 
+        Pet IDs (containing ";") skip bazaar and go straight to auction data.
+
         Returns:
             {
                 "source": "bazaar" | "auction" | "unknown",
@@ -178,21 +191,24 @@ class PriceCache:
                 "sell_volume": int | None, # bazaar sell order volume
             }
         """
-        self._fetch_bazaar()
+        is_pet = ";" in item_id
 
-        # Try bazaar first
-        bz = self._bazaar.get(item_id)
-        if bz and (bz.get("buy", 0) > 0 or bz.get("sell", 0) > 0):
-            return {
-                "source": "bazaar",
-                "buy": bz["buy"],
-                "sell": bz["sell"],
-                "lowest_bin": None,
-                "avg_bin": None,
-                "sales_day": None,
-                "buy_volume": bz.get("buy_volume", 0),
-                "sell_volume": bz.get("sell_volume", 0),
-            }
+        if not is_pet:
+            self._fetch_bazaar()
+
+            # Try bazaar first
+            bz = self._bazaar.get(item_id)
+            if bz and (bz.get("buy", 0) > 0 or bz.get("sell", 0) > 0):
+                return {
+                    "source": "bazaar",
+                    "buy": bz["buy"],
+                    "sell": bz["sell"],
+                    "lowest_bin": None,
+                    "avg_bin": None,
+                    "sales_day": None,
+                    "buy_volume": bz.get("buy_volume", 0),
+                    "sell_volume": bz.get("sell_volume", 0),
+                }
 
         # Fall back to auction (Moulberry bulk data)
         self._fetch_moulberry()
@@ -264,17 +280,77 @@ class PriceCache:
         }
 
 
+def resolve_pet_input(raw):
+    """Resolve pet-friendly input to a pet item ID.
+
+    Returns:
+        (item_id, show_all_rarities) — if show_all_rarities is True,
+        item_id is just the pet type (e.g., "RABBIT") and caller should
+        show all rarities.
+    """
+    raw = raw.strip()
+
+    # Already a pet ID like "RABBIT;4"
+    if ";" in raw:
+        return raw.upper(), False
+
+    # Try "rabbit legendary" or "RABBIT LEGENDARY" format
+    parts = raw.split()
+    if len(parts) >= 2:
+        rarity_word = parts[-1].lower()
+        if rarity_word in RARITY_NUM:
+            pet_type = "_".join(parts[:-1]).upper()
+            return f"{pet_type};{RARITY_NUM[rarity_word]}", False
+
+    # Bare name — might be a pet, might be a regular item
+    return raw.upper(), True
+
+
+def _is_pet_type(pet_type, cache):
+    """Check if a pet type exists in Moulberry data (any rarity)."""
+    cache._fetch_moulberry()
+    for rarity_num in range(6):
+        pet_id = f"{pet_type};{rarity_num}"
+        if pet_id in cache._moulberry_lbin:
+            return True
+    return False
+
+
+def _show_all_pet_rarities(pet_type, cache):
+    """Show prices for all available rarities of a pet."""
+    cache._fetch_moulberry()
+    found_any = False
+    for rarity_num in range(6):
+        pet_id = f"{pet_type};{rarity_num}"
+        p = cache.get_price(pet_id)
+        if p["source"] != "unknown":
+            name = display_name(pet_id)
+            price_str = cache.format_price(pet_id)
+            print(f"  {name:40s} {price_str}")
+            found_any = True
+    if not found_any:
+        print(f"  No auction data for pet: {pet_type}")
+
+
 def main():
     if len(sys.argv) < 2:
         print("Usage: python3 pricing.py ITEM_ID [ITEM_ID ...]")
-        print("Example: python3 pricing.py SHADOW_ASSASSIN_CHESTPLATE ENCHANTED_DIAMOND")
+        print("       python3 pricing.py \"RABBIT;4\"              # Pet by ID")
+        print("       python3 pricing.py \"rabbit legendary\"       # Pet by name + rarity")
+        print("       python3 pricing.py rabbit                   # All pet rarities")
         sys.exit(1)
 
     cache = PriceCache()
-    for item_id in sys.argv[1:]:
-        item_id = item_id.upper()
-        price_str = cache.format_price(item_id)
-        print(f"  {display_name(item_id):40s} {price_str}")
+
+    for raw_arg in sys.argv[1:]:
+        item_id, show_all = resolve_pet_input(raw_arg)
+
+        if show_all and _is_pet_type(item_id, cache):
+            _show_all_pet_rarities(item_id, cache)
+        else:
+            price_str = cache.format_price(item_id)
+            print(f"  {display_name(item_id):40s} {price_str}")
+
     cache.flush()
 
 

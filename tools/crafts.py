@@ -11,6 +11,8 @@ Usage:
     python3 crafts.py --profile    # Filter by player's unlocked recipes
     python3 crafts.py --cached     # Use cached prices only (skip API calls)
     python3 crafts.py --fresh      # Ignore cache, fetch all prices fresh
+    python3 crafts.py --item MINING_2_TRAVEL_SCROLL         # Single item breakdown
+    python3 crafts.py --item MINING_2_TRAVEL_SCROLL --check # + requirement check
 """
 
 import json
@@ -22,7 +24,10 @@ from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-from items import display_name, get_collections_data, get_requirements as get_api_requirements
+from items import (display_name, get_collections_data,
+                   get_requirements as get_api_requirements,
+                   get_all_requirements, check_requirements,
+                   _load_profile_member)
 from pricing import PriceCache, _fmt
 
 DATA_DIR = Path(__file__).parent.parent / "data"
@@ -638,20 +643,44 @@ def print_flips(flips, title="CRAFT FLIPS"):
     print()
 
 
-def print_profile_flips(flips, member, slayer_thresholds):
-    """Print flips filtered by player unlocks."""
+def print_profile_flips(flips, member):
+    """Print flips filtered by player unlocks.
+
+    Uses the requirement aggregator from items.py to check ALL requirement
+    types (collection, slayer, skill, dungeon_tier, dungeon_skill, HotM,
+    museum). Previously only checked collection and slayer, silently hiding
+    items gated behind skill levels or dungeon completions.
+    """
     unlocked = []
     almost = []
 
     for flip in flips:
-        req = flip["requirement"]
-        is_unlocked, progress, needed = check_unlocked(req, member, slayer_thresholds)
+        item_id = flip["item_id"]
+        checked = check_requirements(item_id, member)
 
-        if is_unlocked:
+        if not checked:
+            # No requirements — unlocked by default
             unlocked.append(flip)
-        elif progress is not None and needed and needed > 0:
-            pct = progress / needed
-            almost.append({**flip, "progress": progress, "needed": needed, "pct": pct})
+            continue
+
+        all_met = all(r.get("met", False) for r in checked)
+        if all_met:
+            unlocked.append(flip)
+        else:
+            # Find the closest unmet requirement for "almost" display
+            for r in checked:
+                if not r.get("met", False) and r.get("needed") and r["needed"] > 0:
+                    progress = r.get("progress", 0) or 0
+                    pct = progress / r["needed"] if r["needed"] > 0 else 0
+                    almost.append({
+                        **flip,
+                        "progress": progress,
+                        "needed": r["needed"],
+                        "pct": pct,
+                        "req_text": r.get("text", ""),
+                        "req_type": r.get("type", ""),
+                    })
+                    break  # only show the blocking requirement
 
     # Print unlocked
     print(f"\nUNLOCKED CRAFT FLIPS")
@@ -684,15 +713,195 @@ def print_profile_flips(flips, member, slayer_thresholds):
             name = display_name(flip["item_id"])
             if len(name) > 26:
                 name = name[:23] + "..."
-            req_text = flip["requirement"]["text"] if flip["requirement"] else ""
+            req_text = flip.get("req_text", "")
             if len(req_text) > 22:
                 req_text = req_text[:19] + "..."
             prog_str = f"{_fmt(flip['progress'])} / {_fmt(flip['needed'])}"
-            if flip["requirement"]["type"] == "slayer":
+            if flip.get("req_type") == "SLAYER":
                 prog_str += " XP"
             pct_str = f"({flip['pct']*100:.0f}%)"
             print(f"  {name:<26s} {_fmt(flip['profit']):>8s}  {req_text:<22s} {prog_str} {pct_str}")
         print()
+
+
+# ─── Single Item Breakdown ────────────────────────────────────────────
+
+def find_recipe(item_id, recipes=None):
+    """Find a recipe for an item. Searches parsed recipes, then NEU repo directly."""
+    if recipes:
+        for r in recipes:
+            if r["item_id"] == item_id:
+                return r
+
+    # Direct NEU lookup
+    neu_path = NEU_ITEMS_DIR / f"{item_id}.json"
+    if not neu_path.exists():
+        return None
+
+    try:
+        data = json.loads(neu_path.read_text())
+    except (json.JSONDecodeError, OSError):
+        return None
+
+    # Find crafting recipe
+    recipe_data = None
+    if "recipes" in data and isinstance(data["recipes"], list):
+        for r in data["recipes"]:
+            if r.get("type", "crafting") == "crafting":
+                recipe_data = r
+                break
+    elif "recipe" in data and isinstance(data["recipe"], dict):
+        recipe_data = data["recipe"]
+
+    if not recipe_data:
+        return None
+
+    ingredients = {}
+    for row in "ABC":
+        for col in "123":
+            slot = recipe_data.get(f"{row}{col}", "")
+            if not slot:
+                continue
+            parts = slot.split(":")
+            if len(parts) == 2:
+                ing_id, qty = parts[0], int(parts[1])
+            elif len(parts) == 1:
+                ing_id, qty = parts[0], 1
+            else:
+                continue
+            if not ing_id:
+                continue
+            ingredients[ing_id] = ingredients.get(ing_id, 0) + qty
+
+    if not ingredients:
+        return None
+
+    output_count = recipe_data.get("count", 1)
+    if isinstance(output_count, str):
+        try:
+            output_count = int(output_count)
+        except ValueError:
+            output_count = 1
+
+    output_id = recipe_data.get("overrideOutputId", item_id)
+    requirement = parse_requirement(data)
+    if requirement is None or requirement.get("type") == "other":
+        api_req = get_api_requirement(output_id)
+        if api_req:
+            requirement = api_req
+
+    return {
+        "item_id": output_id,
+        "ingredients": ingredients,
+        "output_count": max(output_count, 1),
+        "requirement": requirement,
+    }
+
+
+def show_item_breakdown(item_id, price_cache, do_check=False):
+    """Show a full recipe breakdown for a single item with costs and profit."""
+    item_id = item_id.upper()
+    name = display_name(item_id)
+
+    # Find the recipe
+    recipe = find_recipe(item_id)
+    if not recipe:
+        print(f"\n  No crafting recipe found for {name} ({item_id})")
+        return
+
+    print(f"\n  Recipe: {name}")
+
+    # Show requirements (using the new aggregator)
+    reqs = get_all_requirements(item_id)
+    if reqs:
+        for r in reqs:
+            source_tag = f" [{r['source']}]" if r.get("source") else ""
+            print(f"  Requirement: {r['text']}{source_tag}")
+
+    # Check requirements against profile if requested
+    if do_check:
+        checked = check_requirements(item_id)
+        if checked:
+            for r in checked:
+                status = "\u2713" if r["met"] else "\u2717"
+                if r["type"] == "COLLECTION":
+                    prog_str = f"{_fmt(r['progress'])} / {_fmt(r['needed'])}"
+                elif r["type"] == "SLAYER":
+                    prog_str = f"{_fmt(r['progress'])} / {_fmt(r['needed'])} XP"
+                else:
+                    prog_str = f"{r['progress']} / {r['needed']}"
+                print(f"    {status} {r['text']} -- {prog_str}")
+        elif reqs:
+            print("    (no profile data -- run profile.py first)")
+
+    # Ingredient breakdown
+    print()
+    print(f"  {'Ingredient':<30s} {'Qty':>6s} {'Price':>10s} {'Total':>12s}")
+    print(f"  {'─' * 30} {'─' * 6} {'─' * 10} {'─' * 12}")
+
+    total_cost = 0
+    for ing_id, qty in sorted(recipe["ingredients"].items()):
+        p = price_cache.get_price(ing_id)
+        ing_name = display_name(ing_id)
+        if len(ing_name) > 30:
+            ing_name = ing_name[:27] + "..."
+
+        if p["source"] == "bazaar" and p.get("buy"):
+            unit_price = p["buy"]
+            line_total = unit_price * qty
+            total_cost += line_total
+            print(f"  {ing_name:<30s} {qty:>6,d} {_fmt(unit_price):>10s} {_fmt(line_total):>12s}")
+        elif p["source"] == "auction" and p.get("lowest_bin"):
+            unit_price = p["lowest_bin"]
+            line_total = unit_price * qty
+            total_cost += line_total
+            print(f"  {ing_name:<30s} {qty:>6,d} {_fmt(unit_price):>10s} {_fmt(line_total):>12s}  (AH)")
+        else:
+            print(f"  {ing_name:<30s} {qty:>6,d} {'?':>10s} {'?':>12s}")
+
+    # Output count adjustment
+    if recipe["output_count"] > 1:
+        total_cost_per = total_cost / recipe["output_count"]
+        print(f"  {'':>30s} {'':>6s} {'':>10s} {'─' * 12}")
+        print(f"  {'Total craft cost':>30s} {'':>6s} {'':>10s} {_fmt(total_cost):>12s}")
+        print(f"  {'Per item (' + str(recipe['output_count']) + 'x output)':>30s} {'':>6s} {'':>10s} {_fmt(total_cost_per):>12s}")
+    else:
+        total_cost_per = total_cost
+        print(f"  {'':>30s} {'':>6s} {'':>10s} {'─' * 12}")
+        print(f"  {'Craft Cost':>30s} {'':>6s} {'':>10s} {_fmt(total_cost):>12s}")
+
+    # AH sell price
+    sell_price = price_cache.get_price(item_id)
+    print()
+    if sell_price["source"] == "auction":
+        lbin = sell_price.get("lowest_bin")
+        avg = sell_price.get("avg_bin")
+        sales = sell_price.get("sales_day")
+        parts = []
+        if lbin:
+            parts.append(f"LBIN {_fmt(lbin)}")
+        if avg:
+            parts.append(f"avg {_fmt(avg)}")
+        if sales:
+            parts.append(f"({sales:.1f}/day)")
+        print(f"  AH Sell:  {' '.join(parts)}")
+
+        # Profit calc using avg * 0.99 (AH tax) - cost
+        if avg and total_cost_per > 0:
+            profit = avg * 0.99 - total_cost_per
+            print(f"  Profit:   {_fmt(profit)} (avg×0.99 - cost)")
+        elif lbin and total_cost_per > 0:
+            profit = lbin * 0.99 - total_cost_per
+            print(f"  Profit:   {_fmt(profit)} (LBIN×0.99 - cost)")
+    elif sell_price["source"] == "bazaar":
+        print(f"  Bazaar Sell:  {_fmt(sell_price['sell'])} instant-sell / {_fmt(sell_price['buy'])} instant-buy")
+        if sell_price.get("sell") and total_cost_per > 0:
+            profit = sell_price["sell"] - total_cost_per
+            print(f"  Profit:   {_fmt(profit)} (sell - cost)")
+    else:
+        print(f"  Sell:  No price data")
+
+    print()
 
 
 # ─── Main ─────────────────────────────────────────────────────────────
@@ -706,7 +915,18 @@ def main():
                         help="Use cached prices only (skip API calls)")
     parser.add_argument("--fresh", action="store_true",
                         help="Ignore cache, fetch all prices fresh")
+    parser.add_argument("--item", type=str, metavar="ITEM_ID",
+                        help="Show recipe breakdown for a single item")
+    parser.add_argument("--check", action="store_true",
+                        help="Check requirements against player profile (with --item)")
     args = parser.parse_args()
+
+    # Single item mode
+    if args.item:
+        price_cache = PriceCache()
+        show_item_breakdown(args.item, price_cache, do_check=args.check)
+        price_cache.flush()
+        return
 
     # Load cache
     craft_cache = load_craft_cache()
@@ -750,14 +970,14 @@ def main():
 
     # Display results
     if args.profile:
-        member = load_player_data()
+        member = _load_profile_member()
         if not member:
             print("  Error: last_profile.json not found or invalid.", file=sys.stderr)
             print("  Run 'python3 profile.py' first to fetch profile data.", file=sys.stderr)
             # Fall back to full list
             print_flips(flips)
         else:
-            print_profile_flips(flips, member, slayer_thresholds)
+            print_profile_flips(flips, member)
     else:
         print_flips(flips)
 

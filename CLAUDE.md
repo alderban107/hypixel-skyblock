@@ -7,10 +7,11 @@ Tools and resources for Hypixel SkyBlock gameplay.
 ```
 guide/          Static HTML beginner guide (index.html, script.js, style.css)
 tools/          Python scripts (run from this dir or project root)
-  items.py      Hypixel API resource data (items, skills, collections)
+  items.py      Hypixel API resource data (items, skills, collections, requirements)
   profile.py    Fetch & display SkyBlock profile data
-  pricing.py    Live Bazaar + Moulberry BIN pricing
-  crafts.py     Craft flip scanner (bazaar mats → AH items)
+  pricing.py    Live Bazaar + Moulberry BIN pricing (supports pet IDs)
+  crafts.py     Craft flip scanner + single-item recipe breakdown
+  kat.py        Kat upgrade calculator (materials, coins, time, profit)
   investments.py Event investment tracker (buy low during events, sell high between)
   converter.py  NEU-repo items + wiki pages → Obsidian vault
   wiki_dump.py  Dump wiki.hypixel.net to local .wiki files + parse to text
@@ -35,10 +36,19 @@ python3 profile.py                          # core sections
 python3 profile.py --full                   # all sections
 python3 profile.py -s dungeons,collections  # specific sections
 python3 pricing.py SHADOW_ASSASSIN_CHESTPLATE ENCHANTED_DIAMOND
+python3 pricing.py "RABBIT;4"              # pet by ID
+python3 pricing.py "rabbit legendary"       # pet by name + rarity
+python3 pricing.py rabbit                   # all pet rarities
 python3 crafts.py                           # scan all craft flips (~5 sec, Moulberry bulk APIs)
 python3 crafts.py --profile                 # filter by player's unlocked recipes
 python3 crafts.py --cached                  # use cached prices only (no API calls)
 python3 crafts.py --fresh                   # ignore cache, fetch all prices fresh
+python3 crafts.py --item MINING_2_TRAVEL_SCROLL         # single item recipe breakdown
+python3 crafts.py --item MINING_2_TRAVEL_SCROLL --check # + requirement check vs profile
+python3 items.py TARANTULA_TALISMAN        # show requirements from API + NEU
+python3 kat.py RABBIT                       # all Kat upgrade paths + costs
+python3 kat.py RABBIT --from uncommon --to legendary           # specific range
+python3 kat.py RABBIT --from common --to legendary --profit    # include profit analysis
 python3 investments.py                      # event investment recommendations (Coflnet history)
 python3 investments.py --calendar           # SkyBlock calendar + upcoming events
 python3 investments.py --event spooky       # detail view for one event

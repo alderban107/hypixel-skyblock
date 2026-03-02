@@ -21,7 +21,8 @@ from pricing import PriceCache, _fmt as fmt_price_num
 from crafts import (parse_recipes, load_craft_cache, load_collections_data,
                     load_slayer_thresholds, resolve_collection_requirement,
                     resolve_slayer_requirement, filter_craft_flips,
-                    calculate_craft_cost, check_unlocked, CRAFT_CACHE_PATH)
+                    calculate_craft_cost, CRAFT_CACHE_PATH)
+from items import check_requirements
 
 DATA_DIR = Path(__file__).parent.parent / "data"
 
@@ -2172,16 +2173,32 @@ def print_craft_flips(member, price_cache):
 
     flips.sort(key=lambda x: x["profit"], reverse=True)
 
-    # Split into unlocked and almost-unlocked
+    # Split into unlocked and almost-unlocked using requirement aggregator
+    # (checks ALL types: collection, slayer, skill, dungeon, HotM, museum)
     unlocked = []
     almost = []
     for flip in flips:
-        is_ok, progress, needed = check_unlocked(flip["requirement"], member, slayer_thresholds)
-        if is_ok:
+        checked = check_requirements(flip["item_id"], member)
+        if not checked:
             unlocked.append(flip)
-        elif progress is not None and needed and needed > 0:
-            pct = progress / needed
-            almost.append({**flip, "progress": progress, "needed": needed, "pct": pct})
+            continue
+        all_met = all(r.get("met", False) for r in checked)
+        if all_met:
+            unlocked.append(flip)
+        else:
+            for r in checked:
+                if not r.get("met", False) and r.get("needed") and r["needed"] > 0:
+                    progress = r.get("progress", 0) or 0
+                    pct = progress / r["needed"] if r["needed"] > 0 else 0
+                    almost.append({
+                        **flip,
+                        "progress": progress,
+                        "needed": r["needed"],
+                        "pct": pct,
+                        "req_text": r.get("text", ""),
+                        "req_type": r.get("type", ""),
+                    })
+                    break
 
     # Top 10 unlocked
     print(f"  Unlocked ({len(unlocked)} total, showing top 10):")
@@ -2206,9 +2223,9 @@ def print_craft_flips(member, price_cache):
             name = display_name(flip["item_id"])
             if len(name) > 24:
                 name = name[:21] + "..."
-            req_text = flip["requirement"]["text"] if flip["requirement"] else ""
+            req_text = flip.get("req_text", "")
             prog_str = f"{format_number(flip['progress'])}/{format_number(flip['needed'])}"
-            if flip["requirement"]["type"] == "slayer":
+            if flip.get("req_type") == "SLAYER":
                 prog_str += " XP"
             print(f"    {name:<24s} {fmt_price_num(flip['profit']):>8s} profit  "
                   f"{req_text:<22s} {prog_str} ({flip['pct']*100:.0f}%)")
