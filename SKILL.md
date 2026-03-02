@@ -35,7 +35,7 @@ When this skill is invoked:
    ```
    grep -ri "search term" data/wiki/
    ```
-   The wiki is a local dump of wiki.hypixel.net (~4,800 pages of wikitext). Always check it before stating specifics about drop rates, recipe requirements, collection unlock thresholds, slayer mechanics, or dungeon requirements. Training data may be outdated — the wiki is kept current with `tools/wiki_dump.py --update`.
+   The wiki is a local dump of the fandom wiki (hypixel-skyblock.fandom.com, ~6,200 pages of wikitext), actively maintained by community volunteers. Always check it before stating specifics about drop rates, recipe requirements, collection unlock thresholds, slayer mechanics, or dungeon requirements. Training data may be outdated — the wiki is kept current with `tools/wiki_dump.py --update`.
 
    **If `data/wiki/` is empty or doesn't exist**, tell the user to run the wiki dump first (`cd tools && python3 wiki_dump.py`) before you can verify game mechanics. Do not guess at specifics without wiki verification.
 
@@ -71,7 +71,7 @@ Cover ALL of these areas, not just one or two. The user invokes this skill when 
 
 - Fairy souls only give SkyBlock XP now, NOT stats. They must be exchanged in chunks of 5 — don't recommend spending them unless the user has 5+ unspent.
 - **Do NOT recommend money farming or flag low purse/bank balance.** The Banking API often doesn't return data, so the purse value shown may be misleading — many players keep most coins in the bank. Treat money as a non-issue unless the user specifically asks about it.
-- Don't recommend the fandom wiki — use the official wiki (wiki.hypixel.net) or the local wiki dump
+- The local wiki dump is sourced from the fandom wiki (hypixel-skyblock.fandom.com) — always prefer grepping the local dump over web lookups
 - If the API key has expired, check the dev key expiry or personal key approval status in `.env`
 - **Check the INVENTORIES section carefully before recommending items.** Don't recommend talismans/gear the user already owns — they may be in the ender chest, backpack, or accessory bag.
 - Don't push expensive consumables (like HPBs) on transitional gear that will be replaced soon

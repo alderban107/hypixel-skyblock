@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Dump the Hypixel SkyBlock Wiki (wiki.hypixel.net) to local files.
+Dump the Hypixel SkyBlock Fandom Wiki to local files.
 
-Uses the MediaWiki API with GET-only requests (POST is blocked by Cloudflare).
-Fetches wikitext in batches of 50 pages and saves each as an individual .wiki file.
+Uses the MediaWiki API with GET-only requests. Fetches wikitext in batches
+of 500 pages and saves each as an individual .wiki file.
 
 Usage:
     python3 wiki_dump.py              # Full dump (content pages + data templates)
@@ -18,13 +18,14 @@ import html as html_module
 import json
 import os
 import re
+import shutil
 import sys
 import time
 import urllib.parse
 import urllib.request
 from html.parser import HTMLParser
 
-WIKI_API = "https://wiki.hypixel.net/api.php"
+WIKI_API = "https://hypixel-skyblock.fandom.com/api.php"
 USER_AGENT = "SkyBlockProfileAnalyzer/1.0 (personal wiki cache; contact: none)"
 OUTPUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "wiki")
 PARSED_DIR = os.path.join(OUTPUT_DIR, "parsed")
@@ -40,28 +41,52 @@ class HTMLToText(HTMLParser):
     """Convert parsed wiki HTML to clean searchable text.
 
     Preserves table structure as pipe-separated rows so data lookups
-    (costs, stats, recipes) are greppable.
+    (costs, stats, recipes) are greppable.  Strips fandom cruft (navboxes,
+    portable infoboxes, category links, empty spacer divs).
     """
 
-    SKIP_TAGS = {"script", "style"}
+    SKIP_TAGS = {"script", "style", "aside"}
+    SKIP_CLASSES = {"navbox", "portable-infobox", "mw-empty-elt", "categories"}
+    SKIP_IDS = {"catlinks"}
+    VOID_TAGS = {"area", "base", "br", "col", "embed", "hr", "img", "input",
+                 "link", "meta", "param", "source", "track", "wbr"}
     BLOCK_TAGS = {"p", "div", "h1", "h2", "h3", "h4", "h5", "h6",
                   "blockquote", "section", "article", "header", "footer"}
 
     def __init__(self):
         super().__init__()
         self.pieces = []       # output buffer
-        self.skip_depth = 0    # depth inside skip tags
+        self.skip_depth = 0    # depth inside skip zones (tags, classes, ids)
         self.in_cell = False
         self.cell_buf = []     # text within current <td>/<th>
         self.row_cells = []    # finished cells for current <tr>
 
+    # -- helpers --
+
+    def _should_skip(self, tag, attrs):
+        """Check if this element should start a skip zone."""
+        if tag in self.SKIP_TAGS:
+            return True
+        attr_dict = dict(attrs)
+        classes = set(attr_dict.get("class", "").split())
+        if classes & self.SKIP_CLASSES:
+            return True
+        if attr_dict.get("id") in self.SKIP_IDS:
+            return True
+        return False
+
     # -- tag handlers --
 
     def handle_starttag(self, tag, attrs):
-        if tag in self.SKIP_TAGS:
-            self.skip_depth += 1
-            return
         if self.skip_depth:
+            # Count nested elements so we pop correctly, but not void tags
+            if tag not in self.VOID_TAGS:
+                self.skip_depth += 1
+            return
+
+        if self._should_skip(tag, attrs):
+            if tag not in self.VOID_TAGS:
+                self.skip_depth = 1
             return
 
         if tag == "br":
@@ -81,10 +106,9 @@ class HTMLToText(HTMLParser):
             pass  # skip images entirely
 
     def handle_endtag(self, tag):
-        if tag in self.SKIP_TAGS:
-            self.skip_depth = max(0, self.skip_depth - 1)
-            return
         if self.skip_depth:
+            if tag not in self.VOID_TAGS:
+                self.skip_depth = max(0, self.skip_depth - 1)
             return
 
         if tag in ("td", "th"):
@@ -191,7 +215,7 @@ def fetch_all_pages(namespace=0, filter_redirects="nonredirects", prefix=None):
         "action": "query",
         "generator": "allpages",
         "gapnamespace": namespace,
-        "gaplimit": 50,
+        "gaplimit": 500,
         "gapfilterredir": filter_redirects,
         "prop": "revisions",
         "rvprop": "content|timestamp",
@@ -332,7 +356,20 @@ def save_meta(meta):
 
 def do_full_dump():
     """Perform a full wiki dump."""
-    print("=== Hypixel SkyBlock Wiki Full Dump ===\n")
+    print("=== Hypixel SkyBlock Fandom Wiki Full Dump ===\n")
+
+    # Back up old official wiki data if it exists and hasn't been backed up yet
+    backup_dir = os.path.join(os.path.dirname(OUTPUT_DIR), "wiki-official")
+    if os.path.exists(OUTPUT_DIR) and os.listdir(OUTPUT_DIR):
+        if not os.path.exists(backup_dir):
+            print("Backing up existing wiki dump to data/wiki-official/...")
+            shutil.move(OUTPUT_DIR, backup_dir)
+            os.makedirs(OUTPUT_DIR, exist_ok=True)
+        else:
+            # Backup already exists — just clear wiki/ for fresh fandom dump
+            print("Clearing existing wiki dump (backup already at data/wiki-official/)...")
+            shutil.rmtree(OUTPUT_DIR)
+            os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     # Content pages (namespace 0)
     print("Fetching content pages (namespace 0)...")

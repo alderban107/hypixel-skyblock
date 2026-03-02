@@ -1,6 +1,6 @@
 # Hypixel SkyBlock Toolkit
 
-A collection of tools and resources for playing [Hypixel SkyBlock](https://wiki.hypixel.net/).
+A collection of tools and resources for playing [Hypixel SkyBlock](https://hypixel-skyblock.fandom.com/).
 
 [Hypixel SkyBlock](https://hypixel.net/) is an MMORPG-style game mode on Minecraft's largest multiplayer server. Players progress through skills, gear, dungeons, bosses, and a player-driven economy with two distinct markets: the **Bazaar** (bulk commodity exchange with instant buy/sell orders) and **Auctions** (player-to-player item sales, typically using "Buy It Now" fixed prices). Equipment in SkyBlock has hidden properties — reforges, enchantments, star upgrades, hot potato books — stored as compressed [NBT](https://minecraft.wiki/w/NBT_format) data in the API, which the tools here decode and display.
 
@@ -157,19 +157,19 @@ python3 investments.py --history GREEN_CANDY # price history table for one item
 
 ---
 
-**`wiki_dump.py`** — Mirrors the [Hypixel SkyBlock Wiki](https://wiki.hypixel.net/) to local `.wiki` files via the MediaWiki API (GET-only — POST is blocked by Cloudflare). Saves each page as an individual wikitext file, with optional template-expanded plain text generation.
+**`wiki_dump.py`** — Mirrors the [Hypixel SkyBlock Fandom Wiki](https://hypixel-skyblock.fandom.com/) to local `.wiki` files via the MediaWiki API. Saves each page as an individual wikitext file, with optional template-expanded plain text generation. Fandom HTML cruft (navboxes, portable infoboxes, category links) is stripped during parsing to keep output lean and greppable.
 
 ```bash
-python3 wiki_dump.py              # full dump (~4,800 content pages + ~42 data templates)
+python3 wiki_dump.py              # full dump (~6,200 content pages + data templates)
 python3 wiki_dump.py --update     # incremental (only pages changed since last dump)
 python3 wiki_dump.py --templates  # only Template:Data/* pages
-python3 wiki_dump.py --parse      # generate parsed text with templates expanded (~80 min)
+python3 wiki_dump.py --parse      # generate parsed text with templates expanded (~100 min)
 python3 wiki_dump.py --update --parse  # incremental update + re-parse changed pages
 ```
 
 The `--parse` flag uses the MediaWiki `action=parse` endpoint to fetch server-rendered HTML for each page, then converts it to clean searchable plain text via a custom HTML-to-text converter. Tables are preserved as pipe-separated rows for grep-friendly data lookups. This solves the problem of wiki pages hiding data behind template transclusions (e.g. `{{Kat_List}}`, `{{Recipe/...}}`, `{{Mob_Loot/...}}`) — the parsed output contains the actual numbers, costs, and stats. Parsed files are saved to `data/wiki/parsed/` as `.txt` files. Parsing is incremental (skips pages where the `.txt` is already newer than the `.wiki`), with `--force` to re-parse everything.
 
-Incremental updates check the wiki's `recentchanges` API for pages modified since the last sync timestamp (stored in `data/wiki/.dump_meta.json`). Requires a previous full dump. Requests are rate-limited to 1/second to respect the wiki's servers.
+Incremental updates check the wiki's `recentchanges` API for pages modified since the last sync timestamp (stored in `data/wiki/.dump_meta.json`). Requires a previous full dump. Requests are rate-limited to 1/second to be polite to the wiki's servers.
 
 Page titles with special characters are sanitized for the filesystem (slashes become `_SLASH_`, etc.). Content pages come from namespace 0 (excluding redirects), templates from namespace 10 with prefix `Data/`.
 
@@ -178,7 +178,7 @@ Page titles with special characters are sanitized for the filesystem (slashes be
 **`converter.py`** — Converts two data sources into an interconnected [Obsidian](https://obsidian.md/) vault:
 
 - [**NEU-REPO**](https://github.com/NotEnoughUpdates/NotEnoughUpdates-REPO) — a community-maintained database of every SkyBlock item as individual JSON files, plus constant files for essence costs, reforges, enchantments, pets, and leveling XP tables. One markdown file is generated per item (~10,000+).
-- **Local wiki dump** — the wikitext pages from `wiki_dump.py`. Each page is converted from MediaWiki markup to markdown (~4,800 files). Handles bold/italic, headings, internal/external links, HTML tags, MediaWiki table syntax (`{| |}` to markdown tables), Minecraft color codes, and categories (extracted to YAML frontmatter tags).
+- **Local wiki dump** — the wikitext pages from `wiki_dump.py`. Each page is converted from MediaWiki markup to markdown (~6,200 files). Handles bold/italic, headings, internal/external links, HTML tags, MediaWiki table syntax (`{| |}` to markdown tables), Minecraft color codes, and categories (extracted to YAML frontmatter tags).
 
 Cross-linking uses a three-tier ID resolution system (NEU display names < wiki secondary params < wiki `|item=` params) to convert internal IDs like `SHADOW_ASSASSIN_CHESTPLATE` into `[[Shadow Assassin Chestplate]]` wikilinks that Obsidian can follow.
 
@@ -199,7 +199,7 @@ Large and/or generated files that don't belong in version control. Everything he
 
 | Path | Size | Source | Contains |
 |---|---|---|---|
-| `wiki/` | ~27 MB | `wiki_dump.py` | 4,800+ `.wiki` files (raw wikitext) + `.dump_meta.json` |
+| `wiki/` | ~27 MB | `wiki_dump.py` | 6,200+ `.wiki` files (raw wikitext from fandom wiki) + `.dump_meta.json` |
 | `wiki/parsed/` | ~50 MB | `wiki_dump.py --parse` | Template-expanded `.txt` files for grep-friendly data lookups |
 | `neu-repo/` | ~82 MB | [git clone](https://github.com/NotEnoughUpdates/NotEnoughUpdates-REPO) | Item JSONs, constants, recipes |
 | `vault/` | ~53 MB | `converter.py` | ~12,000 interlinked `.md` files for Obsidian |
