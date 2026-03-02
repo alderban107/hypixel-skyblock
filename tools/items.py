@@ -106,6 +106,12 @@ def get_item(item_id):
     return _items_by_id.get(item_id)
 
 
+def get_items_data():
+    """Return all items as a list of dicts (each has 'id', 'name', etc.)."""
+    _ensure_items()
+    return list(_items_by_id.values())
+
+
 def display_name(item_id):
     """Get the human-readable display name for an item ID.
 

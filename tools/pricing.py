@@ -16,7 +16,7 @@ from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-from items import display_name  # noqa: F401 — re-exported for backwards compat
+from items import display_name, get_items_data  # noqa: F401 — re-exported for backwards compat
 
 DATA_DIR = Path(__file__).parent.parent / "data"
 CACHE_PATH = DATA_DIR / "price_cache.json"
@@ -65,6 +65,7 @@ class PriceCache:
         self._moulberry_avg = {}        # item_id -> {price, count, sales, ...}
         self._moulberry_fetched = 0
         self._dirty = False
+        self._name_to_bz_id = None  # lazy: display name -> bazaar product ID
         self._load_cache()
 
     def _load_cache(self):
@@ -174,10 +175,40 @@ class PriceCache:
         self._moulberry_fetched = now
         self._dirty = True
 
+    def _resolve_bazaar_id(self, item_id):
+        """Resolve an item ID to its Bazaar product ID.
+
+        Some items use different internal IDs on the Bazaar vs the item/NEU repo.
+        E.g., "Drill Motor" is DRILL_MOTOR in common usage but DRILL_ENGINE on
+        Bazaar; "Fuel Canister" is FUEL_CANISTER but FUEL_TANK on Bazaar.
+
+        Falls back to display-name matching against Bazaar product names.
+        """
+        if item_id in self._bazaar:
+            return item_id
+        # Build reverse lookup: display name -> bazaar product ID (once)
+        if self._name_to_bz_id is None:
+            self._name_to_bz_id = {}
+            try:
+                items_data = get_items_data()
+                for item in items_data:
+                    iid = item.get("id", "")
+                    if iid in self._bazaar:
+                        name = item.get("name", "").lower().strip()
+                        if name:
+                            self._name_to_bz_id[name] = iid
+            except Exception:
+                pass
+        # Look up the display name of the requested ID and find the bazaar equivalent
+        name = display_name(item_id).lower().strip()
+        return self._name_to_bz_id.get(name, item_id)
+
     def get_price(self, item_id):
         """Get price info for an item. Returns dict with source and prices.
 
         Pet IDs (containing ";") skip bazaar and go straight to auction data.
+        If the exact ID isn't found on the Bazaar, resolves via display name
+        to handle ID mismatches (e.g., DRILL_MOTOR -> DRILL_ENGINE).
 
         Returns:
             {
@@ -196,8 +227,11 @@ class PriceCache:
         if not is_pet:
             self._fetch_bazaar()
 
+            # Resolve ID mismatches (e.g., DRILL_MOTOR -> DRILL_ENGINE)
+            bz_id = self._resolve_bazaar_id(item_id)
+
             # Try bazaar first
-            bz = self._bazaar.get(item_id)
+            bz = self._bazaar.get(bz_id)
             if bz and (bz.get("buy", 0) > 0 or bz.get("sell", 0) > 0):
                 return {
                     "source": "bazaar",
