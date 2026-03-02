@@ -2,11 +2,16 @@
 """SkyBlock event investment tracker.
 
 Analyzes event-driven price cycles using Coflnet historical data and recommends
-when to buy/sell. Three price patterns:
+when to buy/sell. Tracks both Bazaar and AH items across all major events.
 
+Three price patterns:
   flood_during  — event creates supply (drops/rewards), prices drop during event
   demand_during — event creates demand (consumables), prices spike during event
   demand_before — anticipation drives demand, prices rise before event
+
+Calendar events (Spooky, Jerry, Hoppity, Zoo) use SB calendar scheduling.
+Mayor-dependent events (Carnival/Foxy, Fishing/Marina, Mining/Cole) detect
+the current mayor via the Hypixel API and give live recommendations.
 
 For bazaar items on short events (< 6h), fetches high-resolution windows (5-min
 data) around event times to capture spikes that 2-hour broad data would miss.
@@ -17,8 +22,8 @@ local snapshots needed.
 Usage:
     python3 investments.py              # Recommendations + current prices + event timing
     python3 investments.py --calendar   # SkyBlock calendar + upcoming events
-    python3 investments.py --event spooky  # Detail view for one event
-    python3 investments.py --history GREEN_CANDY  # Price history for one item
+    python3 investments.py --event carnival  # Detail view for one event
+    python3 investments.py --history SALMON_MASK  # Price history for one item
 """
 
 import json
@@ -147,6 +152,8 @@ def cycle_position(event, from_ts=None):
     the event.
     """
     if not event.get("schedule"):
+        if is_mayor_active(event):
+            return "DURING_EVENT"
         return "MAYOR_DEPENDENT"
 
     now = from_ts or time.time()
@@ -257,6 +264,7 @@ EVENTS = {
         "schedule": [],
         "mayor_dependent": True,
         "mayors": ["Marina"],
+        "mayor_key": "fishing",
         "items": {
             "SHARK_FIN":                {"market": "bazaar",  "pattern": "flood_during"},
             "ENCHANTED_SHARK_FIN":      {"market": "bazaar",  "pattern": "flood_during"},
@@ -271,12 +279,75 @@ EVENTS = {
         "schedule": [],
         "mayor_dependent": True,
         "mayors": ["Cole"],
+        "mayor_key": "mining",
         "items": {
             "REFINED_MINERAL":          {"market": "bazaar",  "pattern": "flood_during"},
             "GLOSSY_GEMSTONE":          {"market": "bazaar",  "pattern": "flood_during"},
         },
     },
+    "carnival": {
+        "name": "Carnival",
+        "schedule": [],
+        "mayor_dependent": True,
+        "mayors": ["Foxy"],
+        "mayor_key": "events",  # Foxy's API key is "events", not "carnival"
+        "items": {
+            "ZOMBIE_MASK":              {"market": "auction", "pattern": "flood_during", "token_cost": 500},
+            "SALMON_MASK":              {"market": "auction", "pattern": "flood_during", "token_cost": 500},
+            "SNOWMAN_MASK":             {"market": "auction", "pattern": "flood_during", "token_cost": 500},
+            "ARMADILLO_MASK":           {"market": "auction", "pattern": "flood_during", "token_cost": 1000},
+            "PARROT_MASK":              {"market": "auction", "pattern": "flood_during", "token_cost": 1000},
+            "BEE_MASK":                 {"market": "auction", "pattern": "flood_during", "token_cost": 2000},
+            "FROG_MASK":                {"market": "auction", "pattern": "flood_during", "token_cost": 2000},
+            "CARNIVAL_MASK_BAG":        {"market": "auction", "pattern": "flood_during", "token_cost": 250},
+        },
+    },
 }
+
+
+# ─── Mayor Detection ──────────────────────────────────────────────
+
+_mayor_cache = None
+
+
+def fetch_current_mayor():
+    """Fetch the current mayor from the Hypixel API (no key needed).
+
+    Returns dict with "key" (API key like "events"), "name" (display name
+    like "Foxy"), and "perks" list. Cached for the session.
+    """
+    global _mayor_cache
+    if _mayor_cache is not None:
+        return _mayor_cache
+
+    url = "https://api.hypixel.net/v2/resources/skyblock/election"
+    try:
+        req = Request(url, headers={"User-Agent": "SkyblockInvestments/1.0"})
+        with urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read())
+        if data.get("success") and data.get("mayor"):
+            _mayor_cache = data["mayor"]
+            return _mayor_cache
+    except (HTTPError, URLError, OSError, KeyError, ValueError):
+        pass
+
+    _mayor_cache = {}
+    return _mayor_cache
+
+
+def is_mayor_active(event):
+    """Check if a mayor-dependent event's mayor is currently in office."""
+    if not event.get("mayor_dependent"):
+        return False
+    mayor = fetch_current_mayor()
+    if not mayor:
+        return False
+    mayor_key = mayor.get("key", "")
+    mayor_name = mayor.get("name", "")
+    # Match by API key if event specifies one, otherwise by display name
+    if event.get("mayor_key"):
+        return mayor_key == event["mayor_key"]
+    return mayor_name in event.get("mayors", [])
 
 
 # ─── Coflnet Historical Data ────────────────────────────────────────
@@ -643,6 +714,71 @@ def _buy_timing_str(event, pattern, position, now=None):
         return "during event"
 
 
+def _recommend_mayor_dependent(item_id, event, current_price, stats, position, pattern, now):
+    """Recommendations for mayor-dependent events (no calendar schedule).
+
+    Since we can't split history into event/off-event periods, we compare
+    current price to the overall historical range. If the mayor is active
+    and price is below median, it's likely depressed by event supply.
+    """
+    median = stats.get("off_event_avg", 0)  # all data is in off_event
+    low = stats.get("off_event_min", 0)
+    high = stats.get("off_event_max", 0)
+
+    if not median or not current_price:
+        return ("WATCH", "Insufficient data", None, "")
+
+    # Estimate where current price sits in the historical range
+    if high > low:
+        percentile = (current_price - low) / (high - low)
+    else:
+        percentile = 0.5
+
+    def profit_str(from_price, to_price):
+        if from_price <= 0:
+            return None
+        pct = ((to_price / from_price) - 1) * 100
+        return f"+{pct:.0f}%" if pct > 0 else None
+
+    if pattern == "flood_during":
+        # Supply floods during event → prices drop. Buy during, sell between.
+        if position == "DURING_EVENT":
+            if current_price <= median * 0.85:
+                return ("BUY", "Mayor active, price well below median",
+                        profit_str(current_price, median),
+                        "sell after mayor leaves office")
+            elif current_price <= median:
+                return ("BUY", "Mayor active, price below median",
+                        profit_str(current_price, median),
+                        "sell after mayor leaves office")
+            else:
+                return ("HOLD", "Mayor active but price above median", None, "")
+        else:
+            # Mayor not active
+            if current_price >= median:
+                return ("SELL", "Price at/above median, no event supply", None,
+                        "sell now while supply is low")
+            elif percentile < 0.3:
+                return ("BUY", "Price low even between events",
+                        profit_str(current_price, median),
+                        f"sell when price recovers to ~{_fmt(median)}")
+            return ("HOLD", "Between events, price mid-range", None, "")
+    elif pattern == "demand_during":
+        if position == "DURING_EVENT":
+            if current_price >= median:
+                return ("SELL", "Mayor active, demand elevating price", None,
+                        "sell now during demand peak")
+            return ("HOLD", "Mayor active but price below median", None, "")
+        else:
+            if current_price <= median * 0.85:
+                return ("BUY", "Off-event, price below median",
+                        profit_str(current_price, median),
+                        "sell when mayor returns")
+            return ("HOLD", "Off-event, price near median", None, "")
+    else:
+        return ("WATCH", "Unknown pattern for mayor event", None, "")
+
+
 def recommend(item_id, event, current_price, stats, position):
     """Generate a BUY/SELL/HOLD/WATCH recommendation.
 
@@ -658,8 +794,11 @@ def recommend(item_id, event, current_price, stats, position):
     event_avg = stats.get("event_avg")
     off_event_avg = stats.get("off_event_avg")
 
-    if not event_avg or not off_event_avg:
-        return ("WATCH", "Need both event and off-event data", None, "")
+    # Mayor-dependent events can't split event/off-event in history,
+    # so all data ends up in off_event. Use percentile-based logic instead.
+    if event.get("mayor_dependent") and not event_avg and off_event_avg:
+        return _recommend_mayor_dependent(
+            item_id, event, current_price, stats, position, pattern, now)
 
     buy_target = min(event_avg, off_event_avg)
     sell_target = max(event_avg, off_event_avg)
@@ -765,7 +904,10 @@ def show_calendar():
 
         if not event.get("schedule"):
             schedule_str = "Mayor-dependent"
-            status = f"({', '.join(event.get('mayors', []))})"
+            if pos == "DURING_EVENT":
+                status = "ACTIVE NOW"
+            else:
+                status = f"({', '.join(event.get('mayors', []))})"
             dur = "varies"
         else:
             parts = []
@@ -823,7 +965,11 @@ def show_event_detail(event_key):
             else:
                 print(f"  Next:      in {time_until_str(start, now)}")
     else:
-        print(f"  Schedule:  Mayor-dependent ({', '.join(event.get('mayors', []))})")
+        mayor_names = ', '.join(event.get('mayors', []))
+        if pos == "DURING_EVENT":
+            print(f"  Schedule:  Mayor-dependent ({mayor_names}) — ACTIVE NOW")
+        else:
+            print(f"  Schedule:  Mayor-dependent ({mayor_names})")
 
     print(f"  Cycle:     {pos.replace('_', ' ').title()}")
 
@@ -835,13 +981,18 @@ def show_event_detail(event_key):
     # Current prices
     prices = fetch_current_prices()
 
-    print(f"\n  {'Item':<28s} {'Market':<8s} {'Current':>10s}  {'Event Avg':>10s}  {'Off-Event':>10s}  {'Pts':>4s}  Pattern")
-    print(f"  {'-'*28} {'-'*8} {'-'*10}  {'-'*10}  {'-'*10}  {'-'*4}  {'-'*14}")
+    # Check if any items have token costs (for carnival-style events)
+    has_tokens = any(info.get("token_cost") for info in event["items"].values())
+
+    if has_tokens:
+        print(f"\n  {'Item':<24s} {'Current':>10s}  {'Median':>10s}  {'Tokens':>6s}  {'Coins/Tok':>9s}  {'Pts':>4s}")
+        print(f"  {'-'*24} {'-'*10}  {'-'*10}  {'-'*6}  {'-'*9}  {'-'*4}")
+    else:
+        print(f"\n  {'Item':<28s} {'Market':<8s} {'Current':>10s}  {'Event Avg':>10s}  {'Off-Event':>10s}  {'Pts':>4s}  Pattern")
+        print(f"  {'-'*28} {'-'*8} {'-'*10}  {'-'*10}  {'-'*10}  {'-'*4}  {'-'*14}")
 
     for item_id, info in event["items"].items():
         name = display_name(item_id)
-        if len(name) > 28:
-            name = name[:25] + "..."
 
         p = prices.get(item_id, {})
         current = p.get("price", 0)
@@ -849,11 +1000,26 @@ def show_event_detail(event_key):
 
         points = history.get(item_id, [])
         stats = compute_item_stats(points, event)
-        ev_str = _fmt(stats["event_avg"]) if stats and stats.get("event_avg") else "---"
-        off_str = _fmt(stats["off_event_avg"]) if stats and stats.get("off_event_avg") else "---"
         pts = str(len(points)) if points else "0"
 
-        print(f"  {name:<28s} {info['market']:<8s} {current_str:>10s}  {ev_str:>10s}  {off_str:>10s}  {pts:>4s}  {info['pattern']}")
+        if has_tokens:
+            if len(name) > 24:
+                name = name[:21] + "..."
+            median_str = _fmt(stats["off_event_avg"]) if stats and stats.get("off_event_avg") else "---"
+            token_cost = info.get("token_cost", 0)
+            token_str = str(token_cost) if token_cost else "---"
+            if current and token_cost:
+                cpt = int(current / token_cost)
+                cpt_str = _fmt(cpt)
+            else:
+                cpt_str = "---"
+            print(f"  {name:<24s} {current_str:>10s}  {median_str:>10s}  {token_str:>6s}  {cpt_str:>9s}  {pts:>4s}")
+        else:
+            if len(name) > 28:
+                name = name[:25] + "..."
+            ev_str = _fmt(stats["event_avg"]) if stats and stats.get("event_avg") else "---"
+            off_str = _fmt(stats["off_event_avg"]) if stats and stats.get("off_event_avg") else "---"
+            print(f"  {name:<28s} {info['market']:<8s} {current_str:>10s}  {ev_str:>10s}  {off_str:>10s}  {pts:>4s}  {info['pattern']}")
 
     print()
 
@@ -971,6 +1137,11 @@ def show_recommendations():
         if pos == "DURING_EVENT" and times:
             _, end = times
             print(f"  {name:<24s}  ACTIVE (ends in {time_until_str(end, now)})")
+        elif pos == "DURING_EVENT":
+            # Mayor-dependent event, currently active
+            mayor = fetch_current_mayor()
+            mayor_name = mayor.get("name", "?") if mayor else "?"
+            print(f"  {name:<24s}  ACTIVE ({mayor_name} is mayor)")
         elif pos == "MAYOR_DEPENDENT":
             print(f"  {name:<24s}  Mayor-dependent ({', '.join(event.get('mayors', []))})")
         elif times:

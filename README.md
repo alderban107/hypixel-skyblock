@@ -28,7 +28,7 @@ Interactive features: localStorage-backed checkboxes with per-section progress t
 
 ### `tools/` — Python Scripts
 
-Seven standalone scripts. No dependencies beyond the standard library. Run from the `tools/` directory (scripts import from each other via relative imports).
+Eight standalone scripts. No dependencies beyond the standard library. Run from the `tools/` directory (scripts import from each other via relative imports).
 
 ---
 
@@ -104,6 +104,25 @@ python3 crafts.py --fresh      # ignore cache, fetch all prices fresh
 Price data is cached in `data/craft_cache.json` (5-minute TTL, 1-hour eviction). The `--profile` mode cross-references the player's collections and slayer XP to show which crafts are unlocked and which are closest to unlocking.
 
 Also used as a library — `profile.py` imports craft scanning functions for the `crafts` section.
+
+---
+
+**`minions.py`** — Calculates daily profit for **60 minion types** across all tiers using live Bazaar prices. Parses action speeds from the [NEU-REPO](https://github.com/NotEnoughUpdates/NotEnoughUpdates-REPO) item database and supports fuel types (11 options from Coal to Hyper Catalyst), Super Compactor 3000, Diamond Spreading, and NPC hopper pricing. Displays a ranked table of all minions or a detailed breakdown for a single type including per-drop revenue analysis.
+
+Includes full **setup cost and ROI calculation** — recursively prices every tier's crafting recipe from T1 through the target tier using Bazaar buy prices, adds upgrade costs (SC3000, Diamond Spreading, fuel), and calculates days-to-payback per minion.
+
+The **`--slots` flag** is a minion slot unlock guide that reads the player's crafted minion history from `last_profile.json`, scans all 60 generator types in the NEU repo for uncrafted tiers, prices each tier's recipe ingredients on the Bazaar (incremental cost only — skips the previous-tier minion in the center slot since the player reuses it), and shows the cheapest path to the next slot unlock with a running cost total.
+
+```bash
+python3 minions.py                    # ranked profit table, default setup (25× T11, E-Lava, SC3000)
+python3 minions.py --item snow --roi  # detailed breakdown + setup cost + ROI days
+python3 minions.py --tier 12 --top 10 # top 10 T12 minions by profit
+python3 minions.py --fuel plasma      # change fuel type
+python3 minions.py --no-sc3000 --npc  # raw NPC pricing, no compactor
+python3 minions.py --sort roi --top 15 # sort by ROI, show top 15
+python3 minions.py --list             # list all 60 minion types with max tiers
+python3 minions.py --slots            # cheapest crafts for next minion slot unlock
+```
 
 ---
 

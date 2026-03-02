@@ -12,6 +12,7 @@ tools/          Python scripts (run from this dir or project root)
   pricing.py    Live Bazaar + Moulberry BIN pricing (supports pet IDs)
   crafts.py     Craft flip scanner + single-item recipe breakdown
   kat.py        Kat upgrade calculator (materials, coins, time, profit)
+  minions.py    Minion profit calculator (live Bazaar pricing, 50+ minion types)
   investments.py Event investment tracker (buy low during events, sell high between)
   converter.py  NEU-repo items + wiki pages → Obsidian vault
   wiki_dump.py  Dump wiki.hypixel.net to local .wiki files + parse to text
@@ -43,8 +44,17 @@ python3 crafts.py                           # scan all craft flips (~5 sec, Moul
 python3 crafts.py --profile                 # filter by player's unlocked recipes
 python3 crafts.py --cached                  # use cached prices only (no API calls)
 python3 crafts.py --fresh                   # ignore cache, fetch all prices fresh
+python3 crafts.py --undercut 8              # set undercut % below LBIN (default: 5%)
 python3 crafts.py --item MINING_2_TRAVEL_SCROLL         # single item recipe breakdown
 python3 crafts.py --item MINING_2_TRAVEL_SCROLL --check # + requirement check vs profile
+python3 minions.py                          # ranked profit table, default setup (25× T11)
+python3 minions.py --item snow --roi        # detailed breakdown + setup cost + ROI
+python3 minions.py --tier 12 --top 10       # top 10 T12 minions
+python3 minions.py --fuel plasma            # change fuel type
+python3 minions.py --no-sc3000 --npc        # raw NPC pricing, no compactor
+python3 minions.py --sort roi --top 15      # sort by ROI, show top 15
+python3 minions.py --list                   # list all available minion types
+python3 minions.py --slots                  # cheapest crafts for next minion slot unlock
 python3 items.py TARANTULA_TALISMAN        # show requirements from API + NEU
 python3 kat.py RABBIT                       # all Kat upgrade paths + costs
 python3 kat.py RABBIT --from uncommon --to legendary           # specific range

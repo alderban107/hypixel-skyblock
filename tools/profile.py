@@ -940,7 +940,26 @@ def print_minions(member):
         minions[name].sort()
 
     sorted_minions = sorted(minions.items(), key=lambda x: max(x[1]), reverse=True)
-    print(f"  Unique minion crafts: {total_crafts} ({len(sorted_minions)} types)")
+
+    # Slot unlock status
+    slot_thresholds = [0, 5, 15, 30, 50, 75, 100, 125, 150, 175, 200,
+                       225, 250, 275, 300, 350, 400, 450, 500, 550, 600, 650]
+    current_bonus = 0
+    for i, threshold in enumerate(slot_thresholds):
+        if total_crafts >= threshold:
+            current_bonus = i
+        else:
+            break
+    current_slots = 5 + current_bonus
+    next_idx = current_bonus + 1
+    if next_idx < len(slot_thresholds):
+        next_threshold = slot_thresholds[next_idx]
+        crafts_needed = next_threshold - total_crafts
+        print(f"  Unique minion crafts: {total_crafts} ({len(sorted_minions)} types)"
+              f" → {current_slots} slots ({crafts_needed} crafts to slot {current_slots + 1})")
+    else:
+        print(f"  Unique minion crafts: {total_crafts} ({len(sorted_minions)} types)"
+              f" → {current_slots} slots (all unlocked)")
 
     for name, tiers in sorted_minions:
         display = name.replace("_", " ").title()

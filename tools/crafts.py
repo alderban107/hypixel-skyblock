@@ -11,6 +11,7 @@ Usage:
     python3 crafts.py --profile    # Filter by player's unlocked recipes
     python3 crafts.py --cached     # Use cached prices only (skip API calls)
     python3 crafts.py --fresh      # Ignore cache, fetch all prices fresh
+    python3 crafts.py --undercut 8 # Set undercut % below LBIN (default: 5%)
     python3 crafts.py --item MINING_2_TRAVEL_SCROLL         # Single item breakdown
     python3 crafts.py --item MINING_2_TRAVEL_SCROLL --check # + requirement check
 """
@@ -438,18 +439,25 @@ def filter_craft_flips(recipes, price_cache):
         if bz.get("buy", 0) > 0 or bz.get("sell", 0) > 0:
             bazaar_items.add(pid)
 
+    def _on_bazaar(item_id):
+        """Check if an item is on bazaar, resolving ID mismatches."""
+        if item_id in bazaar_items:
+            return True
+        resolved = price_cache._resolve_bazaar_id(item_id)
+        return resolved != item_id and resolved in bazaar_items
+
     valid = []
     for recipe in recipes:
         item_id = recipe["item_id"]
 
         # Output must NOT be on bazaar (it's an AH item)
-        if item_id in bazaar_items:
+        if _on_bazaar(item_id):
             continue
 
         # All ingredients must be on bazaar
         all_bz = True
         for ing_id in recipe["ingredients"]:
-            if ing_id not in bazaar_items:
+            if not _on_bazaar(ing_id):
                 all_bz = False
                 break
         if not all_bz:
@@ -472,11 +480,15 @@ def calculate_craft_cost(recipe, price_cache):
 
 
 def scan_craft_flips(recipes, price_cache, craft_cache, use_cached_only=False,
-                     force_refresh=False):
+                     force_refresh=False, undercut_pct=5):
     """Scan all recipes and return profitable craft flips.
 
     All price data is loaded in bulk from Moulberry APIs up front,
     then a single pass iterates recipes and looks up prices in memory.
+
+    undercut_pct: how far below LBIN to price (default 5%). Profit formula:
+        LBIN * (1 - undercut/100) * 0.99 - cost
+    The 0.99 accounts for the ~1% AH claim tax.
     """
     # Load bulk price data
     if use_cached_only:
@@ -521,8 +533,9 @@ def scan_craft_flips(recipes, price_cache, craft_cache, use_cached_only=False,
         if not current_lbin or current_lbin <= 0:
             continue
 
-        # Profit based on current lowest BIN (undercut price)
-        profit = current_lbin * 0.99 - cost
+        # Profit based on current lowest BIN minus undercut and AH tax
+        sell_mult = (1 - undercut_pct / 100) * 0.99
+        profit = current_lbin * sell_mult - cost
 
         if profit < MIN_PROFIT:
             continue
@@ -798,7 +811,7 @@ def find_recipe(item_id, recipes=None):
     }
 
 
-def show_item_breakdown(item_id, price_cache, do_check=False):
+def show_item_breakdown(item_id, price_cache, do_check=False, undercut_pct=5):
     """Show a full recipe breakdown for a single item with costs and profit."""
     item_id = item_id.upper()
     name = display_name(item_id)
@@ -886,13 +899,15 @@ def show_item_breakdown(item_id, price_cache, do_check=False):
             parts.append(f"({sales:.1f}/day)")
         print(f"  AH Sell:  {' '.join(parts)}")
 
-        # Profit calc using avg * 0.99 (AH tax) - cost
+        # Profit calc: price × (1 - undercut%) × 0.99 (AH tax) - cost
+        sell_mult = (1 - undercut_pct / 100) * 0.99
+        pct_label = f"-{undercut_pct:g}%"
         if avg and total_cost_per > 0:
-            profit = avg * 0.99 - total_cost_per
-            print(f"  Profit:   {_fmt(profit)} (avg×0.99 - cost)")
+            profit = avg * sell_mult - total_cost_per
+            print(f"  Profit:   {_fmt(profit)} (avg×{sell_mult:.3f} - cost, {pct_label} undercut)")
         elif lbin and total_cost_per > 0:
-            profit = lbin * 0.99 - total_cost_per
-            print(f"  Profit:   {_fmt(profit)} (LBIN×0.99 - cost)")
+            profit = lbin * sell_mult - total_cost_per
+            print(f"  Profit:   {_fmt(profit)} (LBIN×{sell_mult:.3f} - cost, {pct_label} undercut)")
     elif sell_price["source"] == "bazaar":
         print(f"  Bazaar Sell:  {_fmt(sell_price['sell'])} instant-sell / {_fmt(sell_price['buy'])} instant-buy")
         if sell_price.get("sell") and total_cost_per > 0:
@@ -919,12 +934,15 @@ def main():
                         help="Show recipe breakdown for a single item")
     parser.add_argument("--check", action="store_true",
                         help="Check requirements against player profile (with --item)")
+    parser.add_argument("--undercut", type=float, default=5, metavar="PCT",
+                        help="Undercut LBIN by this %% when calculating profit (default: 5)")
     args = parser.parse_args()
 
     # Single item mode
     if args.item:
         price_cache = PriceCache()
-        show_item_breakdown(args.item, price_cache, do_check=args.check)
+        show_item_breakdown(args.item, price_cache, do_check=args.check,
+                            undercut_pct=args.undercut)
         price_cache.flush()
         return
 
@@ -962,7 +980,8 @@ def main():
 
     # Scan for profitable flips
     flips = scan_craft_flips(valid, price_cache, craft_cache,
-                             use_cached_only=args.cached, force_refresh=args.fresh)
+                             use_cached_only=args.cached, force_refresh=args.fresh,
+                             undercut_pct=args.undercut)
 
     # Save caches
     save_craft_cache(craft_cache)
