@@ -247,10 +247,14 @@ def fetch_all_pages(namespace=0, filter_redirects="nonredirects", prefix=None):
         sys.stdout.write(f"\r  Fetched {count} pages (batch {batch})...")
         sys.stdout.flush()
 
-        # Check for continuation
+        # Check for continuation — must clean stale continue keys
+        # (API alternates between rvcontinue and gapcontinue)
         cont = data.get("continue")
         if not cont:
             break
+        for key in list(params):
+            if key.endswith("continue"):
+                del params[key]
         params.update(cont)
         time.sleep(DELAY)
 
