@@ -4,7 +4,7 @@ A collection of tools and resources for playing [Hypixel SkyBlock](https://hypix
 
 [Hypixel SkyBlock](https://hypixel.net/) is an MMORPG-style game mode on Minecraft's largest multiplayer server. Players progress through skills, gear, dungeons, bosses, and a player-driven economy with two distinct markets: the **Bazaar** (bulk commodity exchange with instant buy/sell orders) and **Auctions** (player-to-player item sales, typically using "Buy It Now" fixed prices). Equipment in SkyBlock has hidden properties — reforges, enchantments, star upgrades, hot potato books — stored as compressed [NBT](https://minecraft.wiki/w/NBT_format) data in the API, which the tools here decode and display.
 
-This repo includes a beginner guide, a CLI profile analyzer with live market pricing, a craft flip scanner, an event investment tracker, a local wiki mirror, and an Obsidian vault generator that cross-links game data for graph-view exploration.
+This repo includes a beginner guide, a CLI profile analyzer with live market pricing, a craft flip scanner, a Kat upgrade calculator, a minion profit analyzer, an event investment tracker, a local wiki mirror, and an Obsidian vault generator that cross-links game data for graph-view exploration.
 
 ## What's Here
 
@@ -28,7 +28,7 @@ Interactive features: localStorage-backed checkboxes with per-section progress t
 
 ### `tools/` — Python Scripts
 
-Eight standalone scripts. No dependencies beyond the standard library. Run from the `tools/` directory (scripts import from each other via relative imports).
+Nine standalone scripts. No dependencies beyond the standard library. Run from the `tools/` directory (scripts import from each other via relative imports).
 
 ---
 
@@ -104,6 +104,25 @@ python3 crafts.py --fresh      # ignore cache, fetch all prices fresh
 Price data is cached in `data/craft_cache.json` (5-minute TTL, 1-hour eviction). The `--profile` mode cross-references the player's collections and slayer XP to show which crafts are unlocked and which are closest to unlocking.
 
 Also used as a library — `profile.py` imports craft scanning functions for the `crafts` section.
+
+---
+
+**`kat.py`** — Calculates costs and profits for **Kat pet upgrades** (rarity upgrades via the NPC "Kat" in the Hub). Parses katgrade recipes from the NEU-REPO item database to build full upgrade chains across multiple rarity steps, aggregating coins, materials, time, and Bazaar costs. For each pet, compares the cost of buying vs crafting the starting pet and uses whichever is cheaper.
+
+Three modes of operation:
+
+- **Single pet** — Shows all available upgrade steps with per-step and full-chain cost breakdowns. With `--profit`, includes AH sell prices and profit calculation, showing both AH buy and craft cost for the starting pet.
+- **`--scan`** — Discovers all 39 pets with Kat upgrades by scanning NEU-REPO `*;0.json` files, calculates full-chain profit for each (lowest available rarity to highest), and outputs a ranked table sorted by profit. Flags pets where crafting the starting pet is cheaper than buying from AH.
+- **`--shopping`** — Outputs a consolidated shopping list that merges the pet's crafting recipe ingredients (if crafting is cheaper) with all Kat upgrade materials across the chain. Groups by item, sums quantities, prices everything from Bazaar, and shows totals with profit.
+
+```bash
+python3 kat.py RABBIT                                    # all upgrade paths + costs
+python3 kat.py RABBIT --from uncommon --to legendary     # specific range
+python3 kat.py RABBIT --from common --to legendary --profit  # include profit analysis
+python3 kat.py --scan                                    # scan all pets, rank by profit
+python3 kat.py SKELETON --shopping                       # consolidated shopping list
+python3 kat.py RABBIT --from common --to mythic --shopping   # shopping list with range
+```
 
 ---
 

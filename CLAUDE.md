@@ -59,6 +59,9 @@ python3 items.py TARANTULA_TALISMAN        # show requirements from API + NEU
 python3 kat.py RABBIT                       # all Kat upgrade paths + costs
 python3 kat.py RABBIT --from uncommon --to legendary           # specific range
 python3 kat.py RABBIT --from common --to legendary --profit    # include profit analysis
+python3 kat.py --scan                       # scan all pets, rank by full-chain profit
+python3 kat.py SKELETON --shopping          # consolidated shopping list (craft + Kat materials)
+python3 kat.py RABBIT --from common --to mythic --shopping     # shopping list with range
 python3 investments.py                      # event investment recommendations (Coflnet history)
 python3 investments.py --calendar           # SkyBlock calendar + upcoming events
 python3 investments.py --event spooky       # detail view for one event
