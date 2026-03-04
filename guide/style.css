@@ -481,6 +481,8 @@ code {
   flex: 1;
   padding: 40px 48px;
   max-width: calc(var(--content-max) + 96px);
+  width: 100%;
+  align-self: center;
 }
 
 /* --- Landing Page --- */
@@ -492,7 +494,6 @@ code {
   min-height: calc(100vh - 80px);
   text-align: center;
   padding: 48px 24px;
-  margin: 0 auto;
 }
 
 .landing-title {
