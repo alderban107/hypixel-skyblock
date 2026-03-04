@@ -831,9 +831,8 @@ li::marker {
 /* --- Progression path --- */
 .progression-path {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 12px;
   margin: 16px 0;
   padding: 16px;
   background: var(--bg-surface);
@@ -841,12 +840,10 @@ li::marker {
   border: 1px solid var(--border);
 }
 .progression-step {
-  padding: 6px 14px;
+  padding: 10px 16px;
   border-radius: 6px;
   font-size: 0.85rem;
-  font-weight: 500;
   background: var(--bg-elevated);
-  white-space: nowrap;
 }
 .progression-arrow {
   color: var(--text-muted);
