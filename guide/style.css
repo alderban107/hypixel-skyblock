@@ -492,6 +492,7 @@ code {
   min-height: calc(100vh - 80px);
   text-align: center;
   padding: 48px 24px;
+  margin: 0 auto;
 }
 
 .landing-title {
