@@ -16,13 +16,10 @@ from pathlib import Path
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError
 
-from items import display_name
-from pricing import PriceCache, _fmt as fmt_price_num
-from crafts import (parse_recipes, load_craft_cache, load_collections_data,
-                    load_slayer_thresholds, resolve_collection_requirement,
-                    resolve_slayer_requirement, filter_craft_flips,
-                    calculate_craft_cost, CRAFT_CACHE_PATH)
-from items import check_requirements
+from items import display_name, _roman, check_requirements
+from pricing import PriceCache, _fmt
+from crafts import (parse_recipes, load_craft_cache, filter_craft_flips,
+                    calculate_craft_cost)
 
 DATA_DIR = Path(__file__).parent.parent / "data"
 
@@ -217,18 +214,6 @@ def xp_to_level_progress(xp, thresholds, max_level=None):
     return level, 1.0
 
 
-def format_number(n):
-    if n >= 1_000_000_000:
-        return f"{n / 1_000_000_000:.1f}B"
-    if n >= 1_000_000:
-        val = n / 1_000_000
-        return f"{val:.1f}B" if val >= 999.95 else f"{val:.1f}M"  # avoid "1000.0M"
-    if n >= 1_000:
-        val = n / 1_000
-        return f"{val:.1f}M" if val >= 999.95 else f"{val:.1f}K"  # avoid "1000.0K"
-    return str(int(n))
-
-
 def format_progress_bar(progress, width=20):
     filled = int(progress * width)
     return f"[{'█' * filled}{'░' * (width - filled)}] {progress * 100:.1f}%"
@@ -339,7 +324,7 @@ def print_skills(member):
 
         level, progress = xp_to_level_progress(xp, thresholds, max_lvl)
         bar = format_progress_bar(progress)
-        print(f"  {name.capitalize():14s} {level:3d}/{max_lvl}  {bar}  ({format_number(xp)} XP)")
+        print(f"  {name.capitalize():14s} {level:3d}/{max_lvl}  {bar}  ({_fmt(xp)} XP)")
 
         if name not in excluded_from_avg:
             total_level += level
@@ -374,9 +359,9 @@ def print_slayers(member):
                 kills.append(f"T{tier + 1}:{k}")
         kills_str = ", ".join(kills) if kills else "none"
 
-        print(f"  {name.capitalize():12s} Level {level}/{max_lvl}  ({format_number(xp)} XP)  Kills: {kills_str}")
+        print(f"  {name.capitalize():12s} Level {level}/{max_lvl}  ({_fmt(xp)} XP)  Kills: {kills_str}")
 
-    print(f"\n  Total Slayer XP: {format_number(total_xp)}")
+    print(f"\n  Total Slayer XP: {_fmt(total_xp)}")
 
 
 def format_time_ms(ms):
@@ -399,7 +384,7 @@ def print_dungeons(member):
     cata_xp = cata.get("experience", 0)
     cata_level, cata_progress = xp_to_level_progress(cata_xp, DUNGEON_XP_THRESHOLDS, 50)
     bar = format_progress_bar(cata_progress)
-    print(f"  Catacombs     {cata_level:3d}/50  {bar}  ({format_number(cata_xp)} XP)")
+    print(f"  Catacombs     {cata_level:3d}/50  {bar}  ({_fmt(cata_xp)} XP)")
 
     # Global stats
     total_secrets = dungeons.get("secrets", 0)
@@ -471,11 +456,11 @@ def print_dungeons(member):
                 print(f"\n  Best Damage:")
                 has_damage = True
             floors_str = ", ".join(
-                f"{'Entrance' if f == '0' else 'F' + f}: {format_number(dmg_data[f])}"
+                f"{'Entrance' if f == '0' else 'F' + f}: {_fmt(dmg_data[f])}"
                 for f in sorted(floor_keys, key=int)
             )
             best = dmg_data.get("best", 0)
-            print(f"    {cls.capitalize():10s} {floors_str}  (best: {format_number(best)})")
+            print(f"    {cls.capitalize():10s} {floors_str}  (best: {_fmt(best)})")
 
     # Best runs per floor
     best_runs = cata.get("best_runs", {})
@@ -510,7 +495,7 @@ def print_dungeons(member):
 
             print(f"    {label} — Score {total} (E:{exploration} Sp:{speed} Sk:{skill} B:{bonus})  "
                   f"Time: {format_time_ms(elapsed)}  Class: {cls.capitalize()}")
-            print(f"         Damage: {format_number(damage)}  Mitigated: {format_number(mitigated)}  "
+            print(f"         Damage: {_fmt(damage)}  Mitigated: {_fmt(mitigated)}  "
                   f"Deaths: {deaths}  Mobs: {mobs}  Secrets: {secrets}"
                   + (f"  ({date_str})" if date_str else ""))
 
@@ -524,7 +509,7 @@ def print_dungeons(member):
             cls_xp = cls_data.get("experience", 0)
             cls_level, cls_progress = xp_to_level_progress(cls_xp, DUNGEON_XP_THRESHOLDS, 50)
             marker = " *" if cls_name == selected else ""
-            print(f"    {cls_name.capitalize():10s} Level {cls_level:3d}/50  ({format_number(cls_xp)} XP){marker}")
+            print(f"    {cls_name.capitalize():10s} Level {cls_level:3d}/50  ({_fmt(cls_xp)} XP){marker}")
 
 
 
@@ -584,7 +569,7 @@ def print_hotm(member):
         if hotm_level >= 10:
             print(f"  HotM Level:     {hotm_level}/10 (MAX)")
         else:
-            print(f"  HotM Level:     {hotm_level}/10  ({hotm_progress:.0%} to {hotm_level + 1}, {format_number(hotm_remaining)} XP needed)")
+            print(f"  HotM Level:     {hotm_level}/10  ({hotm_progress:.0%} to {hotm_level + 1}, {_fmt(hotm_remaining)} XP needed)")
         print(f"  Mining Tokens:  {mining_tokens} spent")
 
     if foraging_xp is not None:
@@ -592,7 +577,7 @@ def print_hotm(member):
         if hotf_level >= 7:
             print(f"  HotF Level:     {hotf_level}/7 (MAX)")
         else:
-            print(f"  HotF Level:     {hotf_level}/7  ({hotf_progress:.0%} to {hotf_level + 1}, {format_number(hotf_remaining)} XP needed)")
+            print(f"  HotF Level:     {hotf_level}/7  ({hotf_progress:.0%} to {hotf_level + 1}, {_fmt(hotf_remaining)} XP needed)")
         print(f"  Forest Tokens:  {foraging_tokens} spent")
 
     # Powder (under mining_core)
@@ -606,11 +591,11 @@ def print_hotm(member):
     powder_glacite_avail = mining_core.get("powder_glacite", 0)
     powder_spent_glacite = mining_core.get("powder_spent_glacite", 0)
     if powder_mithril_avail or powder_spent_mithril:
-        print(f"  Mithril Powder: {format_number(powder_mithril_avail)} available ({format_number(powder_mithril_avail + powder_spent_mithril)} lifetime)")
+        print(f"  Mithril Powder: {_fmt(powder_mithril_avail)} available ({_fmt(powder_mithril_avail + powder_spent_mithril)} lifetime)")
     if powder_gem_avail or powder_spent_gemstone:
-        print(f"  Gemstone Powder: {format_number(powder_gem_avail)} available ({format_number(powder_gem_avail + powder_spent_gemstone)} lifetime)")
+        print(f"  Gemstone Powder: {_fmt(powder_gem_avail)} available ({_fmt(powder_gem_avail + powder_spent_gemstone)} lifetime)")
     if powder_glacite_avail or powder_spent_glacite:
-        print(f"  Glacite Powder: {format_number(powder_glacite_avail)} available ({format_number(powder_glacite_avail + powder_spent_glacite)} lifetime)")
+        print(f"  Glacite Powder: {_fmt(powder_glacite_avail)} available ({_fmt(powder_glacite_avail + powder_spent_glacite)} lifetime)")
 
     # Last mining access
     last_access = mining_core.get("greater_mines_last_access", 0)
@@ -683,14 +668,6 @@ def print_effects(member):
             else:
                 time_str = f"{secs}s"
         print(f"  {name}{level_str} — {time_str}")
-
-
-def _roman(n):
-    """Convert small int to Roman numeral."""
-    if n <= 0 or n > 10:
-        return str(n)
-    numerals = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"]
-    return numerals[n]
 
 
 def _load_pet_levels():
@@ -767,7 +744,7 @@ def print_collections(member):
     print(f"\n  Top 20 collections:")
     for name, count in sorted_colls[:20]:
         dn = name.replace("_", " ").title()
-        print(f"    {dn:30s} {format_number(count):>10s}")
+        print(f"    {dn:30s} {_fmt(count):>10s}")
 
     # Close to next tier
     # Tiers auto-unlock based on count, so calculate current tier directly
@@ -816,8 +793,8 @@ def print_collections(member):
             for c in close_to_next[:10]:
                 name = c["name"]
                 tier = c["tier"]
-                count_str = format_number(c["count"])
-                req_str = format_number(c["required"])
+                count_str = _fmt(c["count"])
+                req_str = _fmt(c["required"])
                 pct = c["progress"] * 100
                 reward = c["reward"]
                 reward_str = f"  \u2192 {reward}" if reward else ""
@@ -845,18 +822,18 @@ def print_misc(member, profile):
     # Purse (v2: nested under currencies)
     currencies = member.get("currencies", {})
     purse = currencies.get("coin_purse", member.get("coin_purse", 0))
-    print(f"  Purse:          {format_number(purse)}")
+    print(f"  Purse:          {_fmt(purse)}")
 
     # Motes
     motes = currencies.get("motes_purse", 0)
     if motes:
-        print(f"  Motes:          {format_number(motes)}")
+        print(f"  Motes:          {_fmt(motes)}")
 
     # Bank
     banking = profile.get("banking", {})
     bank = banking.get("balance", None)
     if bank is not None:
-        print(f"  Bank:           {format_number(bank)}")
+        print(f"  Bank:           {_fmt(bank)}")
     else:
         print(f"  Bank:           (not in API — check Banking API setting in-game)")
 
@@ -867,7 +844,7 @@ def print_misc(member, profile):
         for etype in ["WITHER", "UNDEAD", "DRAGON", "GOLD", "DIAMOND", "ICE", "SPIDER", "CRIMSON"]:
             count = essence_data.get(etype, {}).get("current", 0)
             if count > 0:
-                essence_parts.append(f"{etype} {format_number(count)}")
+                essence_parts.append(f"{etype} {_fmt(count)}")
         if essence_parts:
             print(f"  Essence:        {', '.join(essence_parts)}")
 
@@ -875,7 +852,7 @@ def print_misc(member, profile):
     leveling = member.get("leveling", {})
     sb_xp = leveling.get("experience", 0)
     sb_level = int(sb_xp / 100)
-    print(f"  SkyBlock Level: {sb_level} ({format_number(sb_xp)} XP)")
+    print(f"  SkyBlock Level: {sb_level} ({_fmt(sb_xp)} XP)")
 
     # Cookie buff
     cookie_active = member.get("profile", {}).get("cookie_buff_active", False)
@@ -887,7 +864,7 @@ def print_misc(member, profile):
         bestiary_kills = bestiary.get("kills", {})
         total_kills = sum(int(v) for v in bestiary_kills.values() if str(v).isdigit()) if bestiary_kills else 0
         if total_kills:
-            print(f"  Bestiary Kills: {format_number(total_kills)}")
+            print(f"  Bestiary Kills: {_fmt(total_kills)}")
 
     # Accessory bag
     accessory_bag = member.get("accessory_bag_storage", {})
@@ -977,7 +954,7 @@ def print_garden(garden_data):
     print_section("GARDEN")
     garden_xp = garden.get("garden_experience", 0)
     # Garden level: 0-4 XP per level at low levels, scales up
-    print(f"  Garden XP:      {format_number(garden_xp)}")
+    print(f"  Garden XP:      {_fmt(garden_xp)}")
 
     plots = garden.get("unlocked_plots_ids", [])
     print(f"  Plots Unlocked: {len(plots)}")
@@ -988,7 +965,7 @@ def print_garden(garden_data):
         print(f"  Crops Collected:")
         for crop, count in sorted_crops[:10]:
             display = crop.replace("_", " ").title()
-            print(f"    {display:25s} {format_number(count):>10s}")
+            print(f"    {display:25s} {_fmt(count):>10s}")
 
     upgrades = garden.get("crop_upgrade_levels", {})
     if upgrades:
@@ -1002,7 +979,7 @@ def print_garden(garden_data):
         fuel = composter.get("fuel_units", 0)
         compost = composter.get("compost_units", 0)
         if organic or fuel or compost:
-            print(f"  Composter:      {format_number(organic)} organic, {format_number(fuel)} fuel, {format_number(compost)} compost")
+            print(f"  Composter:      {_fmt(organic)} organic, {_fmt(fuel)} fuel, {_fmt(compost)} compost")
 
     commissions = garden.get("commission_data", {})
     if commissions:
@@ -1029,7 +1006,7 @@ def print_museum(museum_data, uuid):
     value = member_museum.get("value", 0)
     items = member_museum.get("items", {})
     special = member_museum.get("special", [])
-    print(f"  Museum Value:   {format_number(value)}")
+    print(f"  Museum Value:   {_fmt(value)}")
     print(f"  Items Donated:  {len(items)}")
     if special:
         print(f"  Special Items:  {len(special)}")
@@ -1161,7 +1138,7 @@ def print_rift(member):
         if visits:
             parts.append(f"{visits} visits")
         if lifetime_motes:
-            parts.append(f"{format_number(lifetime_motes)} lifetime motes")
+            parts.append(f"{_fmt(lifetime_motes)} lifetime motes")
         if parts:
             print(f"  Rift Stats:     {', '.join(parts)}")
 
@@ -1169,7 +1146,7 @@ def print_rift(member):
     slayer_data = member.get("slayer", {}).get("slayer_bosses", {}).get("vampire", {})
     vamp_xp = slayer_data.get("xp", 0)
     if vamp_xp > 0:
-        print(f"  Vampire Slayer: {format_number(vamp_xp)} XP")
+        print(f"  Vampire Slayer: {_fmt(vamp_xp)} XP")
 
 
 def decode_nbt_inventory(b64_data):
@@ -1524,7 +1501,7 @@ def print_sacks(member):
 
     for item, count in sorted(non_zero.items(), key=lambda x: x[1], reverse=True):
         display = item.replace("_", " ").title()
-        print(f"  {display:30s} {format_number(count):>10s}")
+        print(f"  {display:30s} {_fmt(count):>10s}")
 
 
 def print_jacob(member):
@@ -1554,7 +1531,7 @@ def print_jacob(member):
         print(f"  Personal Bests:")
         for crop, score in sorted(bests.items(), key=lambda x: x[1], reverse=True):
             display = crop.replace("_", " ").replace(":", " ").title()
-            print(f"    {display:25s} {format_number(score)}")
+            print(f"    {display:25s} {_fmt(score)}")
 
 
 def print_crystals(member):
@@ -1668,9 +1645,9 @@ def print_player_stats(member):
     highest_crit = ps.get("highest_critical_damage", 0)
     death_count = pd.get("death_count", 0)
     if highest:
-        print(f"  Highest Damage:  {format_number(highest)}")
+        print(f"  Highest Damage:  {_fmt(highest)}")
     if highest_crit and highest_crit != highest:
-        print(f"  Highest Crit:    {format_number(highest_crit)}")
+        print(f"  Highest Crit:    {_fmt(highest_crit)}")
     if death_count:
         print(f"  Total Deaths:    {death_count}")
 
@@ -1698,8 +1675,8 @@ def print_player_stats(member):
         bought = int(auctions.get("won", 0))
         spent = auctions.get("gold_spent", 0)
         highest_bid = auctions.get("highest_bid", 0)
-        print(f"  Auctions:        {created} created, {sold} sold ({format_number(earned)} earned)")
-        print(f"                   {bought} bought ({format_number(spent)} spent), highest bid {format_number(highest_bid)}")
+        print(f"  Auctions:        {created} created, {sold} sold ({_fmt(earned)} earned)")
+        print(f"                   {bought} bought ({_fmt(spent)} spent), highest bid {_fmt(highest_bid)}")
 
     # End island
     end = ps.get("end_island", {})
@@ -1725,18 +1702,18 @@ def print_player_stats(member):
             ores = int(milestones.get("ores_mined", 0))
             sc = int(milestones.get("sea_creatures_killed", 0))
             if ores:
-                parts.append(f"Ores Mined {format_number(ores)}")
+                parts.append(f"Ores Mined {_fmt(ores)}")
             if sc:
                 parts.append(f"Sea Creatures {sc}")
             if total_pet_xp:
-                parts.append(f"Total XP {format_number(total_pet_xp)}")
+                parts.append(f"Total XP {_fmt(total_pet_xp)}")
             print(f"  Pet Milestones:  {', '.join(parts)}")
 
     # Misc numeric stats
     glowing = ps.get("glowing_mushrooms_broken", 0)
     sc_kills = ps.get("sea_creature_kills", 0)
     if glowing:
-        print(f"  Mushrooms:       {format_number(int(glowing))} glowing mushrooms broken")
+        print(f"  Mushrooms:       {_fmt(int(glowing))} glowing mushrooms broken")
     if sc_kills:
         print(f"  Sea Creatures:   {int(sc_kills)} killed")
 
@@ -1777,7 +1754,7 @@ def print_foraging_detail(member):
     whispers = fc.get("forests_whispers", 0)
     spent = fc.get("forests_whispers_spent", 0)
     if whispers or spent:
-        print(f"  Forest Whispers: {format_number(whispers)} available ({format_number(spent)} spent)")
+        print(f"  Forest Whispers: {_fmt(whispers)} available ({_fmt(spent)} spent)")
 
     # Tree gifts
     tree_gifts = fg.get("tree_gifts", {})
@@ -1795,7 +1772,7 @@ def print_foraging_detail(member):
     if starlyn:
         bests = starlyn.get("personal_bests", {})
         if bests:
-            parts = [f"{k.replace('_', ' ').title()} {format_number(v)}" for k, v in bests.items()]
+            parts = [f"{k.replace('_', ' ').title()} {_fmt(v)}" for k, v in bests.items()]
             print(f"  Starlyn Bests:   {', '.join(parts)}")
 
     # Hina tasks
@@ -1831,8 +1808,8 @@ def print_chocolate(member):
     level = easter.get("chocolate_level", 0)
     barn = easter.get("rabbit_barn_capacity_level", 0)
 
-    print(f"  Lifetime:        {format_number(total)}")
-    print(f"  Current:         {format_number(current)}")
+    print(f"  Lifetime:        {_fmt(total)}")
+    print(f"  Current:         {_fmt(current)}")
     print(f"  Level:           {level}")
     print(f"  Barn Capacity:   {barn}")
 
@@ -1848,7 +1825,7 @@ def print_chocolate(member):
     choc_since_prestige = easter.get("chocolate_since_prestige", 0)
     if total and choc_since_prestige:
         prestige_pct = choc_since_prestige / total * 100 if total else 0
-        print(f"  Since Prestige:  {format_number(choc_since_prestige)} ({prestige_pct:.1f}% of lifetime)")
+        print(f"  Since Prestige:  {_fmt(choc_since_prestige)} ({prestige_pct:.1f}% of lifetime)")
 
     # Time tower
     tt = easter.get("time_tower", {})
@@ -1936,7 +1913,7 @@ def print_misc_extras(member):
     faction = nether.get("selected_faction")
     if faction:
         rep = nether.get("mages_reputation", 0) if faction == "mages" else nether.get("barbarians_reputation", 0)
-        print(f"  Faction:         {faction.title()} (rep: {format_number(rep)})")
+        print(f"  Faction:         {faction.title()} (rep: {_fmt(rep)})")
     kuudra = nether.get("kuudra_completed_tiers", {})
     if kuudra:
         tier_names = {"none": "Basic", "hot": "Hot", "burning": "Burning",
@@ -2151,14 +2128,6 @@ def print_craft_flips(member, price_cache):
 
     # Parse recipes and filter
     all_recipes = parse_recipes()
-    all_items, name_to_key = load_collections_data(craft_cache)
-    slayer_thresholds = load_slayer_thresholds()
-
-    for recipe in all_recipes:
-        if recipe["requirement"]:
-            resolve_collection_requirement(recipe["requirement"], name_to_key)
-            resolve_slayer_requirement(recipe["requirement"], slayer_thresholds)
-
     valid = filter_craft_flips(all_recipes, price_cache)
 
     # Calculate profits using cached Moulberry data
@@ -2228,9 +2197,9 @@ def print_craft_flips(member, price_cache):
                 name = name[:25] + "..."
             spd = flip.get("sales_per_day", 0)
             spd_str = f"{spd:.0f}/d" if spd >= 10 else f"{spd:.1f}/d"
-            print(f"    {name:<28s} {fmt_price_num(flip['cost']):>8s} -> "
-                  f"{fmt_price_num(flip['avg_lbin']):>8s}  "
-                  f"profit {fmt_price_num(flip['profit']):>8s}  ({spd_str} sales)")
+            print(f"    {name:<28s} {_fmt(flip['cost']):>8s} -> "
+                  f"{_fmt(flip['avg_lbin']):>8s}  "
+                  f"profit {_fmt(flip['profit']):>8s}  ({spd_str} sales)")
     else:
         print("    No unlocked profitable crafts found.")
 
@@ -2243,10 +2212,10 @@ def print_craft_flips(member, price_cache):
             if len(name) > 24:
                 name = name[:21] + "..."
             req_text = flip.get("req_text", "")
-            prog_str = f"{format_number(flip['progress'])}/{format_number(flip['needed'])}"
+            prog_str = f"{_fmt(flip['progress'])}/{_fmt(flip['needed'])}"
             if flip.get("req_type") == "SLAYER":
                 prog_str += " XP"
-            print(f"    {name:<24s} {fmt_price_num(flip['profit']):>8s} profit  "
+            print(f"    {name:<24s} {_fmt(flip['profit']):>8s} profit  "
                   f"{req_text:<22s} {prog_str} ({flip['pct']*100:.0f}%)")
 
     hours_ago = cache_age / 3600 if cache_age else 0
@@ -2316,7 +2285,7 @@ def print_market_prices(member, price_cache):
         valued.sort(key=lambda x: x[1], reverse=True)
         total_value = sum(v for _, v, _ in valued)
 
-        print(f"\n  Accessories ({len(acc_ids)} items, ~{fmt_price_num(total_value)} total):")
+        print(f"\n  Accessories ({len(acc_ids)} items, ~{_fmt(total_value)} total):")
         for iid, val, p in valued[:5]:
             display = display_name(iid)
             price_str = price_cache.format_price(iid)

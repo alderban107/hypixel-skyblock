@@ -17,25 +17,19 @@ Usage:
 """
 
 import json
-import os
-import re
 import sys
 import time
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-from items import (display_name, get_collections_data,
-                   get_requirements as get_api_requirements,
-                   get_all_requirements, check_requirements,
-                   _load_profile_member)
+from items import (display_name, get_all_requirements, check_requirements,
+                   search_items, _load_profile_member)
 from pricing import PriceCache, _fmt
 
 DATA_DIR = Path(__file__).parent.parent / "data"
 NEU_ITEMS_DIR = DATA_DIR / "neu-repo" / "items"
 CRAFT_CACHE_PATH = DATA_DIR / "craft_cache.json"
-LEVELING_PATH = DATA_DIR / "neu-repo" / "constants" / "leveling.json"
-LAST_PROFILE_PATH = DATA_DIR / "last_profile.json"
 
 MOULBERRY_LBIN_URL = "https://moulberry.codes/lowestbin.json"
 MOULBERRY_AVG_LBIN_URL = "https://moulberry.codes/auction_averages_lbin/3day.json"
@@ -46,26 +40,29 @@ MOULBERRY_EVICT = 3600       # 1 hour
 MIN_PROFIT = 10_000
 MIN_VOLUME = 1
 
-# Roman numeral lookup
-_ROMAN = {
-    "I": 1, "II": 2, "III": 3, "IV": 4, "V": 5,
-    "VI": 6, "VII": 7, "VIII": 8, "IX": 9, "X": 10,
-    "XI": 11, "XII": 12, "XIII": 13, "XIV": 14, "XV": 15,
-}
-
-# Slayer req code → (boss_key in slayer_xp, display_name)
-_SLAYER_MAP = {
-    "ZOMBIE": ("zombie", "Zombie"),
-    "SPIDER": ("spider", "Spider"),
-    "WOLF": ("wolf", "Wolf"),
-    "EMAN": ("enderman", "Enderman"),
-    "BLAZE": ("blaze", "Blaze"),
-    "VAMP": ("vampire", "Vampire"),
-    "VAMPIRE": ("vampire", "Vampire"),
-}
-
 
 # ─── Recipe Parsing ───────────────────────────────────────────────────
+
+def _parse_recipe_grid(recipe_data):
+    """Parse a NEU recipe grid (A1-C3) into {item_id: qty} dict."""
+    ingredients = {}
+    for row in "ABC":
+        for col in "123":
+            slot = recipe_data.get(f"{row}{col}", "")
+            if not slot:
+                continue
+            parts = slot.split(":")
+            if len(parts) == 2:
+                ing_id, qty = parts[0], int(parts[1])
+            elif len(parts) == 1:
+                ing_id, qty = parts[0], 1
+            else:
+                continue
+            if not ing_id:
+                continue
+            ingredients[ing_id] = ingredients.get(ing_id, 0) + qty
+    return ingredients
+
 
 def parse_recipes():
     """Scan NEU repo for all craftable items. Returns list of recipe dicts."""
@@ -95,23 +92,7 @@ def parse_recipes():
         if not recipe_data:
             continue
 
-        # Parse grid slots A1-C3
-        ingredients = {}
-        for row in "ABC":
-            for col in "123":
-                slot = recipe_data.get(f"{row}{col}", "")
-                if not slot:
-                    continue
-                parts = slot.split(":")
-                if len(parts) == 2:
-                    ing_id, qty = parts[0], int(parts[1])
-                elif len(parts) == 1:
-                    ing_id, qty = parts[0], 1
-                else:
-                    continue
-                if not ing_id:
-                    continue
-                ingredients[ing_id] = ingredients.get(ing_id, 0) + qty
+        ingredients = _parse_recipe_grid(recipe_data)
 
         if not ingredients:
             continue
@@ -126,14 +107,9 @@ def parse_recipes():
         # Use overrideOutputId if present
         output_id = recipe_data.get("overrideOutputId", item_id)
 
-        # Parse unlock requirement — NEU first, then API cross-check
-        requirement = parse_requirement(data)
-
-        # If NEU parsing found nothing or got a generic "other", try the API
-        if requirement is None or requirement.get("type") == "other":
-            api_req = get_api_requirement(output_id)
-            if api_req:
-                requirement = api_req
+        # Get unlock requirement from items.py (merges NEU + API sources)
+        all_reqs = get_all_requirements(output_id)
+        requirement = all_reqs[0] if all_reqs else None
 
         recipes.append({
             "item_id": output_id,
@@ -143,220 +119,6 @@ def parse_recipes():
         })
 
     return recipes
-
-
-def parse_requirement(data):
-    """Parse crafttext and slayer_req fields into structured requirement."""
-    # Prefer slayer_req field (more reliable format: "EMAN_5", "WOLF_3")
-    slayer_req = data.get("slayer_req", "")
-    if slayer_req:
-        parts = slayer_req.rsplit("_", 1)
-        if len(parts) == 2:
-            code, level_str = parts
-            if code in _SLAYER_MAP:
-                boss_key, boss_display = _SLAYER_MAP[code]
-                try:
-                    level = int(level_str)
-                except ValueError:
-                    level = 0
-                return {
-                    "type": "slayer",
-                    "boss": boss_key,
-                    "boss_display": boss_display,
-                    "level": level,
-                    "text": f"{boss_display} Slayer {level}",
-                }
-
-    crafttext = data.get("crafttext", "")
-    if not crafttext or "Requires:" not in crafttext:
-        return None
-
-    req_text = crafttext.replace("Requires: ", "").replace("Requires:", "").strip()
-
-    # Check for slayer in crafttext: "Wolf Slayer 3", "Enderman Slayer 5"
-    slayer_match = re.match(r"(\w+)\s+Slayer\s+(\d+)", req_text)
-    if slayer_match:
-        boss_display = slayer_match.group(1)
-        level = int(slayer_match.group(2))
-        # Map display name to boss key
-        boss_key = boss_display.lower()
-        return {
-            "type": "slayer",
-            "boss": boss_key,
-            "boss_display": boss_display,
-            "level": level,
-            "text": f"{boss_display} Slayer {level}",
-        }
-
-    # Check for HotM: "HotM 5"
-    hotm_match = re.match(r"HotM\s+(\d+)", req_text)
-    if hotm_match:
-        return {
-            "type": "hotm",
-            "level": int(hotm_match.group(1)),
-            "text": f"HotM {hotm_match.group(1)}",
-        }
-
-    # Check for museum: "20 Museum Donations"
-    museum_match = re.match(r"(\d+)\s+Museum\s+Donations?", req_text)
-    if museum_match:
-        return {
-            "type": "museum",
-            "count": int(museum_match.group(1)),
-            "text": req_text,
-        }
-
-    # Collection requirement: "Iron Ingot VI", "Lily Pad II", "Mangrove Log III"
-    # Match: display name (possibly multi-word) + roman numeral
-    coll_match = re.match(r"(.+?)\s+([IVXL]+)$", req_text)
-    if coll_match:
-        coll_name = coll_match.group(1)
-        tier = _ROMAN.get(coll_match.group(2), 0)
-        if tier > 0:
-            return {
-                "type": "collection",
-                "display_name": coll_name,
-                "tier": tier,
-                "text": req_text,
-            }
-
-    # Unknown requirement
-    return {"type": "other", "text": req_text}
-
-
-def get_api_requirement(item_id):
-    """Get a structured requirement from the Hypixel API for an item.
-
-    Converts API requirement format to crafts.py's format. Returns the first
-    requirement that maps to a type we can check, or None.
-    """
-    api_reqs = get_api_requirements(item_id)
-    if not api_reqs:
-        return None
-
-    for req in api_reqs:
-        rtype = req.get("type")
-
-        if rtype == "COLLECTION":
-            return {
-                "type": "collection",
-                "display_name": req.get("collection", "").replace("_", " ").title(),
-                "tier": req.get("tier", 0),
-                "key": req.get("collection"),
-                "text": f"{req.get('collection', '').replace('_', ' ').title()} {req.get('tier', '')}",
-                "source": "api",
-            }
-
-        if rtype == "SLAYER":
-            boss = req.get("slayer_boss_type", "")
-            level = req.get("level", 0)
-            boss_display = boss.title()
-            return {
-                "type": "slayer",
-                "boss": boss,
-                "boss_display": boss_display,
-                "level": level,
-                "text": f"{boss_display} Slayer {level}",
-                "source": "api",
-            }
-
-        if rtype == "SKILL":
-            skill = req.get("skill", "")
-            level = req.get("level", 0)
-            return {
-                "type": "skill",
-                "skill": skill.lower(),
-                "level": level,
-                "text": f"{skill.title()} {level}",
-                "source": "api",
-            }
-
-        if rtype == "HEART_OF_THE_MOUNTAIN":
-            return {
-                "type": "hotm",
-                "level": req.get("tier", 0),
-                "text": f"HotM {req.get('tier', '')}",
-                "source": "api",
-            }
-
-        if rtype == "DUNGEON_TIER":
-            tier = req.get("tier", 0)
-            dtype = req.get("dungeon_type", "CATACOMBS")
-            return {
-                "type": "dungeon_tier",
-                "dungeon_type": dtype,
-                "tier": tier,
-                "text": f"{dtype.title()} Floor {tier}",
-                "source": "api",
-            }
-
-        if rtype == "DUNGEON_SKILL":
-            level = req.get("level", 0)
-            dtype = req.get("dungeon_type", "CATACOMBS")
-            return {
-                "type": "dungeon_skill",
-                "dungeon_type": dtype,
-                "level": level,
-                "text": f"{dtype.title()} Level {level}",
-                "source": "api",
-            }
-
-    return None
-
-
-# ─── Collections Data ─────────────────────────────────────────────────
-
-def load_collections_data(cache):
-    """Load collections data. Returns (collections_dict, name_to_key).
-
-    Delegates to items.get_collections_data() which handles fetch/cache.
-    The cache arg is accepted for backwards compat but no longer used.
-    """
-    return get_collections_data()
-
-
-def resolve_collection_requirement(req, name_to_key):
-    """Resolve a collection requirement to include the API key and threshold."""
-    if not req or req["type"] != "collection":
-        return req
-
-    display = req["display_name"]
-    entry = name_to_key.get(display.lower())
-    if not entry:
-        return req
-
-    tier = req["tier"]
-    threshold = entry["tiers"].get(tier, 0)
-    req["key"] = entry["api_key"]
-    req["threshold"] = threshold
-    return req
-
-
-# ─── Slayer XP Thresholds ─────────────────────────────────────────────
-
-def load_slayer_thresholds():
-    """Load slayer XP thresholds from NEU leveling.json."""
-    if not LEVELING_PATH.exists():
-        return {}
-    try:
-        data = json.loads(LEVELING_PATH.read_text())
-        return data.get("slayer_xp", {})
-    except (json.JSONDecodeError, OSError):
-        return {}
-
-
-def resolve_slayer_requirement(req, slayer_thresholds):
-    """Add XP threshold to slayer requirement."""
-    if not req or req["type"] != "slayer":
-        return req
-
-    boss = req["boss"]
-    level = req["level"]
-    thresholds = slayer_thresholds.get(boss, [])
-    # thresholds[0] = level 1, thresholds[1] = level 2, etc.
-    if 0 < level <= len(thresholds):
-        req["xp_needed"] = thresholds[level - 1]
-    return req
 
 
 # ─── Moulberry Bulk Price Data ───────────────────────────────────────
@@ -410,7 +172,7 @@ def fetch_moulberry_data(cache, force_refresh=False):
     results = {}
     for key, url in urls.items():
         try:
-            req = Request(url, headers={"User-Agent": "SkyblockCrafts/1.0"})
+            req = Request(url, headers={"User-Agent": "SkyblockTools/1.0"})
             with urlopen(req, timeout=15) as resp:
                 results[key] = json.loads(resp.read())
             print(f"  Fetched {key}: {len(results[key])} items", file=sys.stderr)
@@ -556,79 +318,6 @@ def scan_craft_flips(recipes, price_cache, craft_cache, use_cached_only=False,
 
 # ─── Profile Filtering ────────────────────────────────────────────────
 
-def load_player_data():
-    """Load player data from last_profile.json."""
-    if not LAST_PROFILE_PATH.exists():
-        return None
-    try:
-        data = json.loads(LAST_PROFILE_PATH.read_text())
-        profile = data.get("profile", {})
-        uuid = data.get("uuid", "")
-        # Find the member data
-        members = profile.get("members", {})
-        member = members.get(uuid)
-        if not member:
-            # Try with dashes
-            formatted = f"{uuid[:8]}-{uuid[8:12]}-{uuid[12:16]}-{uuid[16:20]}-{uuid[20:]}"
-            member = members.get(formatted)
-        if not member:
-            for key, val in members.items():
-                if key.replace("-", "") == uuid:
-                    member = val
-                    break
-        return member
-    except (json.JSONDecodeError, OSError, KeyError):
-        return None
-
-
-def check_unlocked(req, member, slayer_thresholds):
-    """Check if a player meets a requirement. Returns (unlocked, progress, needed)."""
-    if req is None:
-        return True, None, None
-
-    if req["type"] == "collection":
-        api_key = req.get("key")
-        threshold = req.get("threshold", 0)
-        if not api_key or not threshold:
-            return False, 0, 0
-        collections = member.get("collection", {})
-        progress = collections.get(api_key, 0)
-        return progress >= threshold, progress, threshold
-
-    if req["type"] == "slayer":
-        boss = req["boss"]
-        level = req["level"]
-        # Map boss key to API boss key format
-        boss_api_map = {
-            "zombie": "zombie",
-            "spider": "spider",
-            "wolf": "wolf",
-            "enderman": "enderman",
-            "blaze": "blaze",
-            "vampire": "vampire",
-        }
-        api_boss = boss_api_map.get(boss, boss)
-        slayer_data = member.get("slayer", {}).get("slayer_bosses", {})
-        boss_data = slayer_data.get(api_boss, {})
-        current_xp = boss_data.get("xp", 0)
-        thresholds = slayer_thresholds.get(boss, [])
-        needed = thresholds[level - 1] if 0 < level <= len(thresholds) else 0
-        return current_xp >= needed, current_xp, needed
-
-    if req["type"] == "hotm":
-        hotm = member.get("mining_core", {})
-        current_level = hotm.get("nodes", {}).get("special_0", 0)
-        # HotM level is stored differently — try experience
-        experience = hotm.get("experience", 0)
-        # Simple level calc from experience (approximate)
-        level = req["level"]
-        # Actually, HotM level is usually stored directly
-        # Try getting it from the tier
-        tier = hotm.get("tier", 1)
-        return tier >= level, tier, level
-
-    # Unknown types — assume not unlocked
-    return False, 0, 0
 
 
 # ─── Display ──────────────────────────────────────────────────────────
@@ -769,22 +458,7 @@ def find_recipe(item_id, recipes=None):
     if not recipe_data:
         return None
 
-    ingredients = {}
-    for row in "ABC":
-        for col in "123":
-            slot = recipe_data.get(f"{row}{col}", "")
-            if not slot:
-                continue
-            parts = slot.split(":")
-            if len(parts) == 2:
-                ing_id, qty = parts[0], int(parts[1])
-            elif len(parts) == 1:
-                ing_id, qty = parts[0], 1
-            else:
-                continue
-            if not ing_id:
-                continue
-            ingredients[ing_id] = ingredients.get(ing_id, 0) + qty
+    ingredients = _parse_recipe_grid(recipe_data)
 
     if not ingredients:
         return None
@@ -797,11 +471,8 @@ def find_recipe(item_id, recipes=None):
             output_count = 1
 
     output_id = recipe_data.get("overrideOutputId", item_id)
-    requirement = parse_requirement(data)
-    if requirement is None or requirement.get("type") == "other":
-        api_req = get_api_requirement(output_id)
-        if api_req:
-            requirement = api_req
+    all_reqs = get_all_requirements(output_id)
+    requirement = all_reqs[0] if all_reqs else None
 
     return {
         "item_id": output_id,
@@ -819,6 +490,20 @@ def show_item_breakdown(item_id, price_cache, do_check=False, undercut_pct=5):
     # Find the recipe
     recipe = find_recipe(item_id)
     if not recipe:
+        # Fuzzy search: find items whose ID or display name contains the query
+        matches = search_items(item_id)
+        craftable = []
+        for m in matches:
+            mid = m.get("id", "")
+            if mid and mid != item_id:
+                r = find_recipe(mid)
+                if r:
+                    craftable.append((mid, display_name(mid)))
+        if craftable:
+            print(f"\n  No exact recipe for '{item_id}'. Did you mean:")
+            for mid, mname in craftable[:8]:
+                print(f"    {mname:40s} --item {mid}")
+            return
         print(f"\n  No crafting recipe found for {name} ({item_id})")
         return
 
@@ -957,16 +642,6 @@ def main():
     print("  Parsing recipes from NEU repo...", file=sys.stderr)
     all_recipes = parse_recipes()
     print(f"  Found {len(all_recipes)} crafting recipes", file=sys.stderr)
-
-    # Load collections and slayer data for requirement resolution
-    all_items, name_to_key = load_collections_data(craft_cache)
-    slayer_thresholds = load_slayer_thresholds()
-
-    # Resolve requirements with actual thresholds
-    for recipe in all_recipes:
-        if recipe["requirement"]:
-            resolve_collection_requirement(recipe["requirement"], name_to_key)
-            resolve_slayer_requirement(recipe["requirement"], slayer_thresholds)
 
     # Filter to valid craft flips (all ingredients on bazaar, output on AH)
     price_cache = PriceCache()

@@ -16,26 +16,14 @@ Usage:
     python3 kat.py RABBIT --from common --to mythic --shopping   # Shopping list with range
 """
 
-import json
 import sys
 from pathlib import Path
 
-from items import display_name
+from items import display_name, _load_neu_item
 from pricing import PriceCache, RARITY_NUM, RARITY_NAME, _fmt
 
 DATA_DIR = Path(__file__).parent.parent / "data"
 NEU_ITEMS_DIR = DATA_DIR / "neu-repo" / "items"
-
-
-def _load_neu_item(item_id):
-    """Load a NEU repo item JSON. Returns dict or None."""
-    path = NEU_ITEMS_DIR / f"{item_id}.json"
-    if not path.exists():
-        return None
-    try:
-        return json.loads(path.read_text())
-    except (json.JSONDecodeError, OSError):
-        return None
 
 
 def _find_katgrade(pet_type, target_rarity):

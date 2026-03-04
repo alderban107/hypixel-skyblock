@@ -119,7 +119,7 @@ class PriceCache:
             return  # still fresh
 
         try:
-            req = Request(BAZAAR_URL, headers={"User-Agent": "SkyblockProfile/1.0"})
+            req = Request(BAZAAR_URL, headers={"User-Agent": "SkyblockTools/1.0"})
             with urlopen(req, timeout=10) as resp:
                 data = json.loads(resp.read())
         except (HTTPError, URLError, OSError) as e:
@@ -159,7 +159,7 @@ class PriceCache:
 
         for key, url in urls.items():
             try:
-                req = Request(url, headers={"User-Agent": "SkyblockPricing/1.0"})
+                req = Request(url, headers={"User-Agent": "SkyblockTools/1.0"})
                 with urlopen(req, timeout=15) as resp:
                     result = json.loads(resp.read())
                 if key == "lowestbin":

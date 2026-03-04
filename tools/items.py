@@ -267,6 +267,13 @@ _ROMAN = {
     "XI": 11, "XII": 12, "XIII": 13, "XIV": 14, "XV": 15,
 }
 
+def _roman(n):
+    """Convert small int to Roman numeral."""
+    if n <= 0 or n > 10:
+        return str(n)
+    numerals = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"]
+    return numerals[n]
+
 _SLAYER_MAP = {
     "ZOMBIE": "zombie", "SPIDER": "spider", "WOLF": "wolf",
     "EMAN": "enderman", "BLAZE": "blaze", "VAMP": "vampire",
