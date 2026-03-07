@@ -499,6 +499,24 @@
     });
   }
 
+  // --- Forge checklists (localStorage persistence) ---
+  function initForgeChecklists() {
+    const saved = JSON.parse(localStorage.getItem('forge-checklists') || '{}');
+    document.querySelectorAll('.forge-checklist').forEach((checklist, ci) => {
+      checklist.querySelectorAll('input[type="checkbox"]').forEach((cb, ii) => {
+        const key = `${ci}-${ii}`;
+        if (saved[key]) cb.checked = true;
+        cb.addEventListener('change', () => {
+          const state = JSON.parse(localStorage.getItem('forge-checklists') || '{}');
+          if (cb.checked) state[key] = true;
+          else delete state[key];
+          localStorage.setItem('forge-checklists', JSON.stringify(state));
+        });
+      });
+    });
+  }
+  initForgeChecklists();
+
   // --- Start ---
   init();
 })();

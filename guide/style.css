@@ -760,6 +760,127 @@ li::marker {
   color: var(--text-muted);
 }
 
+/* --- Forge checklists --- */
+.forge-checklist {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin: 12px 0;
+}
+.forge-checklist-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.forge-checklist-header h4 {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  font-size: 0.95rem;
+  margin: 0;
+}
+.forge-checklist-header .drill-stats {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+.forge-checklist-header .drill-stats span {
+  margin-left: 8px;
+}
+.forge-checklist ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px 16px;
+}
+.forge-checklist li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  margin: 0;
+  transition: background var(--duration) var(--ease);
+}
+.forge-checklist li:hover {
+  background: var(--bg-hover);
+}
+.forge-checklist input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border);
+  border-radius: 3px;
+  background: var(--bg-elevated);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all var(--duration) var(--ease);
+  position: relative;
+}
+.forge-checklist input[type="checkbox"]:checked {
+  background: var(--teal-dim);
+  border-color: var(--teal);
+}
+.forge-checklist input[type="checkbox"]:checked::after {
+  content: '✓';
+  position: absolute;
+  top: -1px;
+  left: 2px;
+  font-size: 11px;
+  color: var(--bg-deep);
+  font-weight: 700;
+}
+.forge-checklist li:has(input:checked) .item-name {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+.forge-checklist .item-qty {
+  color: var(--teal);
+  font-weight: 600;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8rem;
+  min-width: 28px;
+}
+.forge-checklist .item-name {
+  color: var(--text-secondary);
+  transition: color var(--duration) var(--ease);
+}
+.forge-checklist .item-coin {
+  color: var(--gold);
+}
+.forge-checklist .checklist-note {
+  grid-column: 1 / -1;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  padding: 4px 8px 0;
+  font-style: italic;
+}
+.forge-checklist .forge-arrow {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+.forge-checklist .forge-arrow::before {
+  content: '↳';
+  color: var(--ember-dim);
+}
+@media (max-width: 600px) {
+  .forge-checklist ul {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* --- Section dividers --- */
 .section-divider {
   border: none;
