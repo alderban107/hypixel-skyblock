@@ -268,11 +268,13 @@ def print_daily_checklist(member):
     bonus_clicks = simon.get("bonus_clicks", 0)
     line = "Superpairs done" if superpairs_done else "Superpairs not done"
     if addon_done:
-        line += f", add-ons claimed"
+        line += f", add-on done"
+        if bonus_clicks:
+            line += f" ({bonus_clicks} bonus clicks banked)"
     elif bonus_clicks:
-        line += f", add-on: {bonus_clicks} bonus clicks (not claimed)"
+        line += f", add-on not done ({bonus_clicks} bonus clicks banked for next Superpairs)"
     else:
-        line += ", add-ons not done"
+        line += ", add-on not done"
     print(f"  Experiments:     {line}")
 
     # Rift entries
@@ -2025,6 +2027,64 @@ def print_misc_extras(member):
             counts = Counter(items)
             parts = [f"{count}x {name}" for name, count in counts.items()]
             print(f"  Quiver:          {', '.join(parts)}")
+
+    # Travel Scrolls
+    completed_tasks = leveling.get("completed_tasks", [])
+    unlocked_travels = sorted([t for t in completed_tasks if t.startswith("FAST_TRAVEL_")])
+    # All known travel scroll destinations (FAST_TRAVEL_ prefix in completed_tasks)
+    all_travel_scrolls = {
+        "FAST_TRAVEL_HUB_CASTLE": ("Hub Castle", "Epic", "Lonely Philosopher — 150K coins"),
+        "FAST_TRAVEL_MUSEUM": ("Museum", "Rare", "Craft — high Museum donation count [needs-verify]"),
+        "FAST_TRAVEL_WIZARD_TOWER": ("Wizard Tower", "Rare", "Grumblefoot — 11,111 coins"),
+        "FAST_TRAVEL_RIFT": ("The Rift", "Rare", "Roger — 5,000 Motes"),
+        "FAST_TRAVEL_DARK_AUCTION": ("Dark Auction", "Epic", "Sirius — win highest bid"),
+        "FAST_TRAVEL_HUB_CRYPTS": ("Hub Crypts", "Epic", "Craft — Zombie Slayer 4"),
+        "FAST_TRAVEL_BARN": ("The Barn", "Rare", "Craft — Potato VI collection"),
+        "FAST_TRAVEL_MUSHROOM_DESERT": ("Mushroom Island", "Rare", "Craft — Cocoa Beans V"),
+        "FAST_TRAVEL_PARK": ("The Park", "Rare", "Charlie quest reward"),
+        "FAST_TRAVEL_JUNGLE_ISLAND": ("Jungle Island", "Epic", "Melancholic Viking — 70K coins"),
+        "FAST_TRAVEL_GALATEA": ("Tangleburg's Path", "Rare", "Auto-unlock on first Galatea visit"),
+        "FAST_TRAVEL_MURKWATER_LOCH": ("Murkwater Loch", "Rare", "Craft — Mangrove Log I"),
+        "FAST_TRAVEL_HOWLING_CAVE": ("Howling Cave", "Epic", "Mob drop (0.02-0.035%)"),
+        "FAST_TRAVEL_GOLD_MINE": ("Gold Mine", "Rare", "Craft — Coal VI collection"),
+        "FAST_TRAVEL_DEEP_CAVERNS": ("Deep Caverns", "Rare", "Craft — Redstone VII"),
+        "FAST_TRAVEL_DWARVEN_MINES": ("Dwarven Mines", "Rare", "Commission Milestone IV"),
+        "FAST_TRAVEL_DWARVEN_FORGE": ("Dwarven Forge", "Rare", "Forge craft"),
+        "FAST_TRAVEL_CRYSTAL_NUCLEUS": ("Crystal Nucleus", "Rare", "Commission Milestone VI"),
+        "FAST_TRAVEL_CRYSTAL_HOLLOWS": ("Crystal Hollows", "Rare", "Auto-unlock on first visit"),
+        "FAST_TRAVEL_SPIDERS_DEN": ("Spider's Den", "Rare", "Craft — Gravel VIII"),
+        "FAST_TRAVEL_SPIDERS_DEN_TOP": ("Spider's Den Top of Nest", "Epic", "Mob drop (0.02-0.03%)"),
+        "FAST_TRAVEL_ARACHNE_SANCTUARY": ("Arachne's Sanctuary", "Epic", "Spider Tamer — 5K Spider Essence"),
+        "FAST_TRAVEL_THE_END": ("The End", "Rare", "Craft — End Stone VIII"),
+        "FAST_TRAVEL_DRAGONS_NEST": ("Dragon's Nest", "Epic", "Unstable Dragon drop — 250 weight"),
+        "FAST_TRAVEL_VOID_SEPULTURE": ("Void Sepulture", "Epic", "Craft — Enderman Slayer 4"),
+        "FAST_TRAVEL_CRIMSON_ISLE": ("Crimson Isle", "Rare", "Craft — Glowstone Dust IV"),
+        "FAST_TRAVEL_SMOLDERING_TOMB": ("Smoldering Tomb", "Epic", "Craft — Blaze Slayer 4"),
+        "FAST_TRAVEL_KUUDRA_SKULL": ("Kuudra Skull", "Epic", "Kuudra drop"),
+        "FAST_TRAVEL_DWARVEN_BASE_CAMP": ("Dwarven Base Camp", "Rare", "Forge craft"),
+        "FAST_TRAVEL_BAYOU": ("Backwater Bayou", "Rare", "Junker Joel — Fishing 5"),
+        "FAST_TRAVEL_TRAPPERS_DEN": ("Trapper's Den", "Rare", "Talbot — 100 Pelts"),
+    }
+    unlocked_set = set(unlocked_travels)
+    missing = {k: v for k, v in all_travel_scrolls.items() if k not in unlocked_set}
+    # Also check for any unlocked ones not in our known list
+    unknown_unlocked = [t for t in unlocked_travels if t not in all_travel_scrolls]
+
+    print(f"  Travel Scrolls:  {len(unlocked_set)}/{len(all_travel_scrolls)} unlocked")
+    if missing:
+        missing_rare = [(n, s) for k, (n, r, s) in sorted(missing.items(), key=lambda x: x[1][0]) if r == "Rare"]
+        missing_epic = [(n, s) for k, (n, r, s) in sorted(missing.items(), key=lambda x: x[1][0]) if r == "Epic"]
+        if missing_rare:
+            print(f"    Missing (Rare):")
+            for name, source in missing_rare:
+                print(f"      {name:<30s} {source}")
+        if missing_epic:
+            print(f"    Missing (Epic / MVP+):")
+            for name, source in missing_epic:
+                print(f"      {name:<30s} {source}")
+    if unknown_unlocked:
+        for t in unknown_unlocked:
+            print(f"    (unknown scroll: {t})")
 
     # Garden chips
     chips = pd.get("garden_chips", {})

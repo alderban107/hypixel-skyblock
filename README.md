@@ -4,7 +4,7 @@ A collection of tools and resources for playing [Hypixel SkyBlock](https://hypix
 
 [Hypixel SkyBlock](https://hypixel.net/) is an MMORPG-style game mode on Minecraft's largest multiplayer server. Players progress through skills, gear, dungeons, bosses, and a player-driven economy with two distinct markets: the **Bazaar** (bulk commodity exchange with instant buy/sell orders) and **Auctions** (player-to-player item sales, typically using "Buy It Now" fixed prices). Equipment in SkyBlock has hidden properties — reforges, enchantments, star upgrades, hot potato books — stored as compressed [NBT](https://minecraft.wiki/w/NBT_format) data in the API, which the tools here decode and display.
 
-This repo includes a beginner guide, a CLI profile analyzer with live market pricing, a craft flip scanner, a Kat upgrade calculator, a minion profit analyzer, an event investment tracker, a local wiki mirror, and an Obsidian vault generator that cross-links game data for graph-view exploration.
+This repo includes a beginner guide, a CLI profile analyzer with live market pricing, a craft flip scanner, a Kat upgrade calculator, a minion profit analyzer, a museum donation optimizer, an event investment tracker, a local wiki mirror, and an Obsidian vault generator that cross-links game data for graph-view exploration.
 
 ## What's Here
 
@@ -28,7 +28,7 @@ Interactive features: localStorage-backed checkboxes with per-section progress t
 
 ### `tools/` — Python Scripts
 
-Nine standalone scripts. No dependencies beyond the standard library. Run from the `tools/` directory (scripts import from each other via relative imports).
+Ten standalone scripts. No dependencies beyond the standard library. Run from the `tools/` directory (scripts import from each other via relative imports).
 
 ---
 
@@ -172,6 +172,20 @@ python3 investments.py                      # recommendations (fetches 30-day hi
 python3 investments.py --calendar           # SkyBlock calendar + upcoming event countdowns
 python3 investments.py --event spooky       # detail view for one event with item prices
 python3 investments.py --history GREEN_CANDY # price history table for one item
+```
+
+---
+
+**`museum.py`** — Museum donation optimizer that identifies the cheapest items you haven't donated yet. Cross-references your profile's museum data with the NEU-REPO museum constants and live market prices to rank missing donations by cost. Supports filtering by category, sorting by XP-per-coin ratio, and armor set grouping.
+
+```bash
+python3 museum.py                    # Show cheapest 25 missing items
+python3 museum.py -n 50              # Show top 50
+python3 museum.py --category combat  # Filter by category
+python3 museum.py --xp               # Sort by XP/coin ratio
+python3 museum.py --sets             # Show armor sets separately
+python3 museum.py --refresh          # Fetch fresh museum data first
+python3 museum.py --special          # Include special items (no XP/milestones)
 ```
 
 ---
