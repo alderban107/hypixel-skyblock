@@ -1,0 +1,5780 @@
+{
+  "_version": "1.0.0",
+  "_phase": "2-3",
+  "_notes": "Phase 2-3: Formula sources + individual tasks including harp songs, event perks, abiphone contacts, essence shop, trophy fish, dojo, Crimson Isle rep, timecharms, community shop, chocolate factory, Jacob's gold medals, dolphin milestones. Task IDs marked [unverified] are inferred from patterns.",
+  "formula_sources": [
+    {
+      "id": "skill_levels",
+      "name": "Skill Level Up",
+      "category": "Core",
+      "max_xp": 7800,
+      "formula": "Per skill level: 1-10 \u2192 +5, 11-25 \u2192 +10, 26-50 \u2192 +20, 51-60 \u2192 +30. Across 13 skills (farming, mining, combat, foraging, fishing, enchanting, alchemy, taming, carpentry, runecrafting, social, hunting \u2014 note: wiki says all skills count).",
+      "api_path": "member.player_data.experience.SKILL_*"
+    },
+    {
+      "id": "fairy_souls",
+      "name": "Fairy Souls",
+      "category": "Core",
+      "max_xp": 490,
+      "formula": "Per 5 fairy souls exchanged: +10 XP. 253 total souls = 49 exchanges (last 3 souls don't count) = 490 XP max. Uses fairy_exchanges not total_collected.",
+      "api_path": "member.fairy_soul.fairy_exchanges"
+    },
+    {
+      "id": "accessory_bag",
+      "name": "Accessory Bag (Magical Power)",
+      "category": "Core",
+      "max_xp": null,
+      "formula": "Per Magical Power: +1 XP. No cap.",
+      "api_path": "member.accessory_bag_storage.highest_magical_power"
+    },
+    {
+      "id": "pet_score",
+      "name": "Pet Score",
+      "category": "Core",
+      "max_xp": null,
+      "formula": "Per pet score point: +3 XP. No cap.",
+      "api_path": "member.leveling.highest_pet_score"
+    },
+    {
+      "id": "collections",
+      "name": "Collections",
+      "category": "Core",
+      "max_xp": 2728,
+      "formula": "Per collection milestone reached: +4 XP. Requires fetching collection tier thresholds from API to count milestones.",
+      "api_path": "member.collection + https://api.hypixel.net/v2/resources/skyblock/collections"
+    },
+    {
+      "id": "crafted_minions",
+      "name": "Craft Minions",
+      "category": "Core",
+      "max_xp": 2834,
+      "formula": "Per unique minion craft: T1-6 \u2192 +1, T7 \u2192 +2, T8 \u2192 +3, T9 \u2192 +4, T10 \u2192 +6, T11 \u2192 +12, T12 \u2192 +24.",
+      "api_path": "member.player_data.crafted_generators"
+    },
+    {
+      "id": "catacombs_level",
+      "name": "Catacombs Level Up",
+      "category": "Dungeons",
+      "max_xp": 1220,
+      "formula": "Per catacombs level: 1-39 \u2192 +20, 40-50 \u2192 +40.",
+      "api_path": "member.dungeons.dungeon_types.catacombs.experience"
+    },
+    {
+      "id": "class_levels",
+      "name": "Class Level Up",
+      "category": "Dungeons",
+      "max_xp": 1000,
+      "formula": "Per class level: +4 XP. 5 classes \u00d7 50 levels = 250 levels \u00d7 4 = 1000 max.",
+      "api_path": "member.dungeons.player_classes.{class}.experience"
+    },
+    {
+      "id": "slayer_levels",
+      "name": "Slayer Level Up",
+      "category": "Slaying",
+      "max_xp": 3825,
+      "formula": "Per slayer level: L1 +15, L2 +25, L3 +35, L4 +50, L5 +70, L6 +100, L7 +125, L8 +150, L9 +150. 6 slayers (zombie/spider/wolf/enderman/blaze/vampire \u2014 vampire max 5).",
+      "api_path": "member.slayer.slayer_bosses.{type}.xp"
+    },
+    {
+      "id": "bestiary",
+      "name": "Bestiary Progress",
+      "category": "Slaying",
+      "max_xp": 3770,
+      "formula": "Per bestiary tier: +1 XP. Every 10 milestones: +10 bonus XP. Uses last_claimed_milestone as tier count.",
+      "api_path": "member.bestiary.milestone.last_claimed_milestone"
+    },
+    {
+      "id": "hotm_tiers",
+      "name": "Heart of the Mountain Tiers",
+      "category": "Mining",
+      "max_xp": 1175,
+      "formula": "HotM tier XP: T1 +35, T2 +45, T3 +60, T4 +75, T5 +90, T6 +110, T7 +130, T8 +180, T9 +210, T10 +240.",
+      "api_path": "member.skill_tree.experience.mining"
+    },
+    {
+      "id": "powder",
+      "name": "Powder (Mithril/Gemstone/Glacite)",
+      "category": "Mining",
+      "max_xp": 1942,
+      "formula": "Mithril: per 2,400 powder \u2192 +1 XP (linear up to 600K, then exponential decay to 12.5M). Gemstone: per 2,500 \u2192 +1 (linear to 600K, decay to 20M). Glacite: per 2,500 \u2192 +1 (linear to 600K, decay to 20M). Lifetime powder = available + spent.",
+      "api_path": "member.mining_core.powder_mithril + powder_spent_mithril, powder_gemstone + powder_spent_gemstone, powder_glacite + powder_spent_glacite"
+    },
+    {
+      "id": "commission_milestones",
+      "name": "Commission Milestones",
+      "category": "Mining",
+      "max_xp": 255,
+      "formula": "Tier 1 +20, T2 +30, T3 +30, T4 +50, T5 +50, T6 +75. Cannot directly read milestone tier from API \u2014 estimated from commission count if available.",
+      "api_path": "unknown \u2014 may need to infer from HotM level or commission data"
+    },
+    {
+      "id": "nucleus_runs",
+      "name": "Crystal Nucleus Runs",
+      "category": "Mining",
+      "max_xp": 200,
+      "formula": "Per completed run: +4 XP. Caps at 50 runs. Run count estimated from crystal total_placed (min across 5 required crystals).",
+      "api_path": "member.mining_core.crystals.{type}_crystal.total_placed"
+    },
+    {
+      "id": "peak_of_mountain",
+      "name": "Peak of the Mountain",
+      "category": "Mining",
+      "max_xp": 1000,
+      "formula": "T1 +25, T2 +35, T3 +50, T4 +65, T5 +75, T6 +100, T7 +125, T8 +150, T9 +175, T10 +200. Requires HotM 7 to unlock. Level = core_of_the_mountain node level.",
+      "api_path": "member.skill_tree.nodes.mining.core_of_the_mountain"
+    },
+    {
+      "id": "fast_travels",
+      "name": "Fast Travels Unlocked",
+      "category": "Core",
+      "max_xp": 240,
+      "formula": "Per travel scroll: +15 XP. Counted from FAST_TRAVEL_* entries in completed_tasks.",
+      "api_path": "member.leveling.completed_tasks (count FAST_TRAVEL_* prefix)"
+    },
+    {
+      "id": "museum",
+      "name": "Museum Progression",
+      "category": "Core",
+      "max_xp": 2797,
+      "formula": "Each donated item gives SBXP based on item value. Milestones at every 100 Museum XP. Max 2,797 SBXP. Calculated from items + special donated count with estimated XP per item.",
+      "api_path": "data.museum.members.{uuid}.items + special"
+    },
+    {
+      "id": "garden_level",
+      "name": "Garden Level",
+      "category": "Farming",
+      "max_xp": 140,
+      "formula": "Per garden level: +10 XP. Max level 14 = 140 XP. Garden XP from data.garden.garden.garden_experience.",
+      "api_path": "data.garden.garden.garden_experience"
+    },
+    {
+      "id": "garden_visitors",
+      "name": "Garden Visitors Served",
+      "category": "Farming",
+      "max_xp": 96,
+      "formula": "Per unique visitor milestone: +3 XP. Max 32 milestones = 96 XP.",
+      "api_path": "data.garden.garden.commission_data.unique_npcs_served"
+    },
+    {
+      "id": "garden_plots",
+      "name": "Garden Unlocked Plots",
+      "category": "Farming",
+      "max_xp": 120,
+      "formula": "Per unlocked plot: +5 XP. Max 24 plots = 120 XP.",
+      "api_path": "data.garden.garden.unlocked_plots_ids"
+    },
+    {
+      "id": "garden_crop_upgrades",
+      "name": "Garden Crop Upgrades",
+      "category": "Farming",
+      "max_xp": 90,
+      "formula": "Per crop upgrade purchased: +1 XP. 9 crops \u00d7 10 tiers = 90 max.",
+      "api_path": "data.garden.garden.crop_upgrade_levels"
+    },
+    {
+      "id": "garden_crop_milestones",
+      "name": "Garden Crop Milestones",
+      "category": "Farming",
+      "max_xp": 460,
+      "formula": "Per crop milestone reached: +1 XP. Max 460.",
+      "api_path": "data.garden.garden.resources_collected"
+    },
+    {
+      "id": "garden_composter",
+      "name": "Garden Composter Upgrades",
+      "category": "Farming",
+      "max_xp": 305,
+      "formula": "Per composter upgrade tier. T1-7: +1, T8-13: +2, T14-19: +3, T20-25: +4. 5 upgrades \u00d7 25 tiers. Max 305 XP.",
+      "api_path": "data.garden.garden.composter_data.upgrades"
+    },
+    {
+      "id": "fossil_research",
+      "name": "Fossil Research",
+      "category": "Mining",
+      "max_xp": 80,
+      "formula": "Per unique fossil donated: +10 XP. Max 8 fossils = 80 XP.",
+      "api_path": "member.mining_core.fossils_donated (or similar)"
+    },
+    {
+      "id": "dojo",
+      "name": "The Dojo",
+      "category": "Crimson Isle",
+      "max_xp": 425,
+      "formula": "White +20, Yellow +30, Green +50, Blue +75, Brown +100, Black +150. Max 425 XP.",
+      "api_path": "member.nether_island_player_data.dojo"
+    }
+  ],
+  "individual_tasks": [
+    {
+      "id": "COMPLETE_CATACOMBS0",
+      "name": "Complete Catacombs Entrance",
+      "category": "Dungeons",
+      "xp": 20,
+      "effort": "easy",
+      "notes": "Entrance floor, very easy with any party"
+    },
+    {
+      "id": "COMPLETE_CATACOMBS1",
+      "name": "Complete Catacombs Floor 1",
+      "category": "Dungeons",
+      "xp": 20,
+      "effort": "easy",
+      "notes": "Easy floor, Bonzo boss"
+    },
+    {
+      "id": "COMPLETE_CATACOMBS2",
+      "name": "Complete Catacombs Floor 2",
+      "category": "Dungeons",
+      "xp": 20,
+      "effort": "easy",
+      "notes": "Easy floor, Scarf boss"
+    },
+    {
+      "id": "COMPLETE_CATACOMBS3",
+      "name": "Complete Catacombs Floor 3",
+      "category": "Dungeons",
+      "xp": 20,
+      "effort": "easy",
+      "notes": "The Professor boss"
+    },
+    {
+      "id": "COMPLETE_CATACOMBS4",
+      "name": "Complete Catacombs Floor 4",
+      "category": "Dungeons",
+      "xp": 20,
+      "effort": "medium",
+      "notes": "Thorn boss, requires decent party"
+    },
+    {
+      "id": "COMPLETE_CATACOMBS5",
+      "name": "Complete Catacombs Floor 5",
+      "category": "Dungeons",
+      "xp": 30,
+      "effort": "medium",
+      "notes": "Livid boss, Cata 14+ recommended"
+    },
+    {
+      "id": "COMPLETE_CATACOMBS6",
+      "name": "Complete Catacombs Floor 6",
+      "category": "Dungeons",
+      "xp": 30,
+      "effort": "hard",
+      "notes": "Sadan boss, Cata 20+ recommended"
+    },
+    {
+      "id": "COMPLETE_CATACOMBS7",
+      "name": "Complete Catacombs Floor 7",
+      "category": "Dungeons",
+      "xp": 30,
+      "effort": "hard",
+      "notes": "Necron boss, Cata 24+ and strong party required"
+    },
+    {
+      "id": "COMPLETE_MASTER_CATACOMBS1",
+      "name": "Complete Master Mode Floor 1",
+      "category": "Dungeons",
+      "xp": 50,
+      "effort": "hard",
+      "notes": "[unverified ID] Requires Cata 24+, significantly harder than normal",
+      "prerequisites": "Cata 24, F7 completion"
+    },
+    {
+      "id": "COMPLETE_MASTER_CATACOMBS2",
+      "name": "Complete Master Mode Floor 2",
+      "category": "Dungeons",
+      "xp": 50,
+      "effort": "hard",
+      "notes": "[unverified ID] Requires Cata 26+",
+      "prerequisites": "Cata 26, M1 completion"
+    },
+    {
+      "id": "COMPLETE_MASTER_CATACOMBS3",
+      "name": "Complete Master Mode Floor 3",
+      "category": "Dungeons",
+      "xp": 50,
+      "effort": "hard",
+      "notes": "[unverified ID] Requires Cata 28+",
+      "prerequisites": "Cata 28, M2 completion"
+    },
+    {
+      "id": "COMPLETE_MASTER_CATACOMBS4",
+      "name": "Complete Master Mode Floor 4",
+      "category": "Dungeons",
+      "xp": 50,
+      "effort": "extreme",
+      "notes": "[unverified ID] Requires Cata 30+",
+      "prerequisites": "Cata 30, M3 completion"
+    },
+    {
+      "id": "COMPLETE_MASTER_CATACOMBS5",
+      "name": "Complete Master Mode Floor 5",
+      "category": "Dungeons",
+      "xp": 50,
+      "effort": "extreme",
+      "notes": "[unverified ID] Requires Cata 32+, strong gear",
+      "prerequisites": "Cata 32, M4 completion"
+    },
+    {
+      "id": "COMPLETE_MASTER_CATACOMBS6",
+      "name": "Complete Master Mode Floor 6",
+      "category": "Dungeons",
+      "xp": 50,
+      "effort": "extreme",
+      "notes": "[unverified ID] Very endgame, Cata 34+",
+      "prerequisites": "Cata 34, M5 completion"
+    },
+    {
+      "id": "COMPLETE_MASTER_CATACOMBS7",
+      "name": "Complete Master Mode Floor 7",
+      "category": "Dungeons",
+      "xp": 50,
+      "effort": "extreme",
+      "notes": "[unverified ID] Endgame content, Cata 36+ and full Necron/Hyperion tier",
+      "prerequisites": "Cata 36, M6 completion"
+    },
+    {
+      "id": "DEFEAT_ZOMBIE_SLAYER_ONE",
+      "name": "Defeat Revenant Horror T1",
+      "category": "Slayers",
+      "xp": 25,
+      "effort": "easy",
+      "notes": "Very easy, any combat level"
+    },
+    {
+      "id": "DEFEAT_ZOMBIE_SLAYER_TWO",
+      "name": "Defeat Revenant Horror T2",
+      "category": "Slayers",
+      "xp": 25,
+      "effort": "easy",
+      "notes": "Easy with mid-game gear"
+    },
+    {
+      "id": "DEFEAT_ZOMBIE_SLAYER_THREE",
+      "name": "Defeat Revenant Horror T3",
+      "category": "Slayers",
+      "xp": 50,
+      "effort": "medium",
+      "notes": "Needs decent lifesteal and DPS"
+    },
+    {
+      "id": "DEFEAT_ZOMBIE_SLAYER_FOUR",
+      "name": "Defeat Revenant Horror T4",
+      "category": "Slayers",
+      "xp": 50,
+      "effort": "medium",
+      "notes": "Requires good combat gear, 500K coins per quest"
+    },
+    {
+      "id": "DEFEAT_ZOMBIE_SLAYER_FIVE",
+      "name": "Defeat Revenant Horror T5",
+      "category": "Slayers",
+      "xp": 75,
+      "effort": "hard",
+      "notes": "[unverified ID] 2M per quest, needs strong lifesteal setup",
+      "prerequisites": "Zombie Slayer 7"
+    },
+    {
+      "id": "DEFEAT_SPIDER_SLAYER_ONE",
+      "name": "Defeat Tarantula Broodfather T1",
+      "category": "Slayers",
+      "xp": 25,
+      "effort": "easy",
+      "notes": "Easy, any combat level"
+    },
+    {
+      "id": "DEFEAT_SPIDER_SLAYER_TWO",
+      "name": "Defeat Tarantula Broodfather T2",
+      "category": "Slayers",
+      "xp": 25,
+      "effort": "easy",
+      "notes": "Easy with mid-game gear"
+    },
+    {
+      "id": "DEFEAT_SPIDER_SLAYER_THREE",
+      "name": "Defeat Tarantula Broodfather T3",
+      "category": "Slayers",
+      "xp": 50,
+      "effort": "medium",
+      "notes": "Needs AoE damage, spider den grind"
+    },
+    {
+      "id": "DEFEAT_SPIDER_SLAYER_FOUR",
+      "name": "Defeat Tarantula Broodfather T4",
+      "category": "Slayers",
+      "xp": 50,
+      "effort": "hard",
+      "notes": "[unverified ID] 500K per quest, needs strong gear",
+      "prerequisites": "Spider Slayer 4"
+    },
+    {
+      "id": "DEFEAT_WOLF_SLAYER_ONE",
+      "name": "Defeat Sven Packmaster T1",
+      "category": "Slayers",
+      "xp": 25,
+      "effort": "easy",
+      "notes": "Easy, Howling Cave"
+    },
+    {
+      "id": "DEFEAT_WOLF_SLAYER_TWO",
+      "name": "Defeat Sven Packmaster T2",
+      "category": "Slayers",
+      "xp": 25,
+      "effort": "easy",
+      "notes": "Easy with decent gear"
+    },
+    {
+      "id": "DEFEAT_WOLF_SLAYER_THREE",
+      "name": "Defeat Sven Packmaster T3",
+      "category": "Slayers",
+      "xp": 50,
+      "effort": "medium",
+      "notes": "Moderate difficulty, needs true damage or high DPS"
+    },
+    {
+      "id": "DEFEAT_WOLF_SLAYER_FOUR",
+      "name": "Defeat Sven Packmaster T4",
+      "category": "Slayers",
+      "xp": 50,
+      "effort": "hard",
+      "notes": "500K per quest, wolf mechanics tricky"
+    },
+    {
+      "id": "DEFEAT_ENDERMAN_SLAYER_ONE",
+      "name": "Defeat Voidgloom Seraph T1",
+      "category": "Slayers",
+      "xp": 25,
+      "effort": "medium",
+      "notes": "Enderman slayers require specific gear (Atomsplit/FD armor)"
+    },
+    {
+      "id": "DEFEAT_ENDERMAN_SLAYER_TWO",
+      "name": "Defeat Voidgloom Seraph T2",
+      "category": "Slayers",
+      "xp": 25,
+      "effort": "hard",
+      "notes": "[unverified ID] Needs Ender Slayer gear setup",
+      "prerequisites": "Enderman Slayer 1"
+    },
+    {
+      "id": "DEFEAT_ENDERMAN_SLAYER_THREE",
+      "name": "Defeat Voidgloom Seraph T3",
+      "category": "Slayers",
+      "xp": 50,
+      "effort": "hard",
+      "notes": "[unverified ID] Expensive, needs strong end-game gear",
+      "prerequisites": "Enderman Slayer 2"
+    },
+    {
+      "id": "DEFEAT_ENDERMAN_SLAYER_FOUR",
+      "name": "Defeat Voidgloom Seraph T4",
+      "category": "Slayers",
+      "xp": 50,
+      "effort": "extreme",
+      "notes": "[unverified ID] 2M per quest, very hard boss",
+      "prerequisites": "Enderman Slayer 3"
+    },
+    {
+      "id": "DEFEAT_BLAZE_SLAYER_ONE",
+      "name": "Defeat Inferno Demonlord T1",
+      "category": "Slayers",
+      "xp": 25,
+      "effort": "hard",
+      "notes": "[unverified ID] Crimson Isle, requires faction rep and specific gear",
+      "prerequisites": "Combat 24, Crimson Isle access"
+    },
+    {
+      "id": "DEFEAT_BLAZE_SLAYER_TWO",
+      "name": "Defeat Inferno Demonlord T2",
+      "category": "Slayers",
+      "xp": 25,
+      "effort": "hard",
+      "notes": "[unverified ID] Needs attunement system gear",
+      "prerequisites": "Blaze Slayer 1"
+    },
+    {
+      "id": "DEFEAT_BLAZE_SLAYER_THREE",
+      "name": "Defeat Inferno Demonlord T3",
+      "category": "Slayers",
+      "xp": 50,
+      "effort": "extreme",
+      "notes": "[unverified ID] Very expensive, 2M per quest",
+      "prerequisites": "Blaze Slayer 2"
+    },
+    {
+      "id": "DEFEAT_BLAZE_SLAYER_FOUR",
+      "name": "Defeat Inferno Demonlord T4",
+      "category": "Slayers",
+      "xp": 50,
+      "effort": "extreme",
+      "notes": "[unverified ID] Endgame content",
+      "prerequisites": "Blaze Slayer 3"
+    },
+    {
+      "id": "DEFEAT_VAMPIRE_SLAYER_ONE",
+      "name": "Defeat Riftstalker Bloodfiend T1",
+      "category": "Slayers",
+      "xp": 25,
+      "effort": "hard",
+      "notes": "[unverified ID] Rift access required, unique mechanics",
+      "prerequisites": "Rift access, Combat 24"
+    },
+    {
+      "id": "DEFEAT_VAMPIRE_SLAYER_TWO",
+      "name": "Defeat Riftstalker Bloodfiend T2",
+      "category": "Slayers",
+      "xp": 25,
+      "effort": "hard",
+      "notes": "[unverified ID] Needs Rift-specific gear",
+      "prerequisites": "Vampire Slayer 1"
+    },
+    {
+      "id": "DEFEAT_VAMPIRE_SLAYER_THREE",
+      "name": "Defeat Riftstalker Bloodfiend T3",
+      "category": "Slayers",
+      "xp": 50,
+      "effort": "extreme",
+      "notes": "[unverified ID] Complex mechanics, expensive",
+      "prerequisites": "Vampire Slayer 2"
+    },
+    {
+      "id": "DEFEAT_VAMPIRE_SLAYER_FOUR",
+      "name": "Defeat Riftstalker Bloodfiend T4",
+      "category": "Slayers",
+      "xp": 50,
+      "effort": "extreme",
+      "notes": "[unverified ID] Very hard fight",
+      "prerequisites": "Vampire Slayer 3"
+    },
+    {
+      "id": "DEFEAT_VAMPIRE_SLAYER_FIVE",
+      "name": "Defeat Riftstalker Bloodfiend T5",
+      "category": "Slayers",
+      "xp": 75,
+      "effort": "extreme",
+      "notes": "[unverified ID] Endgame Rift content",
+      "prerequisites": "Vampire Slayer 4"
+    },
+    {
+      "id": "SLAY_SUPERIOR_DRAGON",
+      "name": "Slay Superior Dragon",
+      "category": "Dragons",
+      "xp": 50,
+      "effort": "extreme",
+      "notes": "[unverified ID] Random spawn, not targetable. RNG-dependent \u2014 you need a Superior to spawn at dragon altar",
+      "prerequisites": "End island access, 4 summoning eyes"
+    },
+    {
+      "id": "SLAY_OLD_DRAGON",
+      "name": "Slay Old Dragon",
+      "category": "Dragons",
+      "xp": 25,
+      "effort": "hard",
+      "notes": "[unverified ID] Need to participate in dragon fight. Random spawn type",
+      "prerequisites": "End island access"
+    },
+    {
+      "id": "SLAY_YOUNG_DRAGON",
+      "name": "Slay Young Dragon",
+      "category": "Dragons",
+      "xp": 25,
+      "effort": "hard",
+      "notes": "[unverified ID] Random spawn type at dragon fight",
+      "prerequisites": "End island access"
+    },
+    {
+      "id": "SLAY_WISE_DRAGON",
+      "name": "Slay Wise Dragon",
+      "category": "Dragons",
+      "xp": 25,
+      "effort": "hard",
+      "notes": "[unverified ID] Random spawn type",
+      "prerequisites": "End island access"
+    },
+    {
+      "id": "SLAY_PROTECTOR_DRAGON",
+      "name": "Slay Protector Dragon",
+      "category": "Dragons",
+      "xp": 25,
+      "effort": "hard",
+      "notes": "[unverified ID] Random spawn type",
+      "prerequisites": "End island access"
+    },
+    {
+      "id": "SLAY_UNSTABLE_DRAGON",
+      "name": "Slay Unstable Dragon",
+      "category": "Dragons",
+      "xp": 25,
+      "effort": "hard",
+      "notes": "[unverified ID] Random spawn type",
+      "prerequisites": "End island access"
+    },
+    {
+      "id": "SLAY_STRONG_DRAGON",
+      "name": "Slay Strong Dragon",
+      "category": "Dragons",
+      "xp": 25,
+      "effort": "hard",
+      "notes": "[unverified ID] Random spawn type",
+      "prerequisites": "End island access"
+    },
+    {
+      "id": "COMPLETE_KUUDRA_BASIC_TIER",
+      "name": "Defeat Kuudra (Basic)",
+      "category": "Kuudra",
+      "xp": 20,
+      "effort": "hard",
+      "notes": "[unverified ID] Requires Crimson Isle access and party",
+      "prerequisites": "Combat 24, Crimson Isle faction"
+    },
+    {
+      "id": "COMPLETE_KUUDRA_HOT_TIER",
+      "name": "Defeat Kuudra (Hot)",
+      "category": "Kuudra",
+      "xp": 40,
+      "effort": "hard",
+      "notes": "[unverified ID] Harder tier, better gear needed",
+      "prerequisites": "Basic Kuudra completion"
+    },
+    {
+      "id": "COMPLETE_KUUDRA_BURNING_TIER",
+      "name": "Defeat Kuudra (Burning)",
+      "category": "Kuudra",
+      "xp": 60,
+      "effort": "extreme",
+      "notes": "[unverified ID] Requires strong Crimson gear",
+      "prerequisites": "Hot Kuudra completion"
+    },
+    {
+      "id": "COMPLETE_KUUDRA_FIERY_TIER",
+      "name": "Defeat Kuudra (Fiery)",
+      "category": "Kuudra",
+      "xp": 80,
+      "effort": "extreme",
+      "notes": "[unverified ID] Endgame Crimson content",
+      "prerequisites": "Burning Kuudra completion"
+    },
+    {
+      "id": "COMPLETE_KUUDRA_INFERNAL_TIER",
+      "name": "Defeat Kuudra (Infernal)",
+      "category": "Kuudra",
+      "xp": 100,
+      "effort": "extreme",
+      "notes": "[unverified ID] Hardest Kuudra tier, top-end gear required",
+      "prerequisites": "Fiery Kuudra completion"
+    },
+    {
+      "id": "KILL_ARACHNE_TIER_1",
+      "name": "Defeat Arachne Tier 1",
+      "category": "Bosses",
+      "xp": 20,
+      "effort": "medium",
+      "notes": "Spider's Den, need Arachne's Calling (craft from shards). Doable with mid gear"
+    },
+    {
+      "id": "KILL_ARACHNE_TIER_2",
+      "name": "Defeat Arachne Tier 2",
+      "category": "Bosses",
+      "xp": 40,
+      "effort": "medium",
+      "notes": "Need Arachne's Calling + Arachne Crystal. Harder but very doable with party"
+    },
+    {
+      "id": "SPOOKY_FESTIVAL_WOOD",
+      "name": "Spooky Festival \u2014 Wood Bracket",
+      "category": "Events",
+      "xp": 10,
+      "effort": "easy",
+      "notes": "Low score threshold in Spooky Festival. Just participate"
+    },
+    {
+      "id": "SPOOKY_FESTIVAL_STONE",
+      "name": "Spooky Festival \u2014 Stone Bracket",
+      "category": "Events",
+      "xp": 20,
+      "effort": "medium",
+      "notes": "[unverified ID] Moderate score, need decent mob-killing setup"
+    },
+    {
+      "id": "SPOOKY_FESTIVAL_IRON",
+      "name": "Spooky Festival \u2014 Iron Bracket",
+      "category": "Events",
+      "xp": 30,
+      "effort": "medium",
+      "notes": "[unverified ID] Higher score threshold"
+    },
+    {
+      "id": "SPOOKY_FESTIVAL_GOLD",
+      "name": "Spooky Festival \u2014 Gold Bracket",
+      "category": "Events",
+      "xp": 40,
+      "effort": "hard",
+      "notes": "[unverified ID] Competitive scoring required"
+    },
+    {
+      "id": "SPOOKY_FESTIVAL_DIAMOND",
+      "name": "Spooky Festival \u2014 Diamond Bracket",
+      "category": "Events",
+      "xp": 50,
+      "effort": "hard",
+      "notes": "[unverified ID] Very competitive"
+    },
+    {
+      "id": "SPOOKY_FESTIVAL_EMERALD",
+      "name": "Spooky Festival \u2014 Emerald Bracket",
+      "category": "Events",
+      "xp": 75,
+      "effort": "extreme",
+      "notes": "[unverified ID] Top bracket, requires optimized grinding"
+    },
+    {
+      "id": "ROCK_MILESTONE_COMMON",
+      "name": "Rock Pet \u2014 Common Milestone",
+      "category": "Pets",
+      "xp": 20,
+      "effort": "easy",
+      "notes": "Mine with Rock pet equipped. First milestone is fast"
+    },
+    {
+      "id": "ROCK_MILESTONE_UNCOMMON",
+      "name": "Rock Pet \u2014 Uncommon Milestone",
+      "category": "Pets",
+      "xp": 20,
+      "effort": "easy",
+      "notes": "More mining with Rock pet. Still reasonable"
+    },
+    {
+      "id": "ROCK_MILESTONE_RARE",
+      "name": "Rock Pet \u2014 Rare Milestone",
+      "category": "Pets",
+      "xp": 20,
+      "effort": "medium",
+      "notes": "Takes some dedicated mining time"
+    },
+    {
+      "id": "ROCK_MILESTONE_EPIC",
+      "name": "Rock Pet \u2014 Epic Milestone",
+      "category": "Pets",
+      "xp": 20,
+      "effort": "hard",
+      "notes": "[unverified ID] Significant mining time required",
+      "prerequisites": "Rock pet + lots of mining"
+    },
+    {
+      "id": "ROCK_MILESTONE_LEGENDARY",
+      "name": "Rock Pet \u2014 Legendary Milestone",
+      "category": "Pets",
+      "xp": 20,
+      "effort": "extreme",
+      "notes": "[unverified ID] Enormous mining time \u2014 hundreds of thousands of ores",
+      "prerequisites": "Rock pet + very long grind"
+    },
+    {
+      "id": "BANK_UPGRADE_GOLD",
+      "name": "Gold Bank Upgrade",
+      "category": "Bank",
+      "xp": 20,
+      "effort": "easy",
+      "notes": "[unverified ID] Cheap bank upgrade, ~200K coins"
+    },
+    {
+      "id": "BANK_UPGRADE_DELUXE",
+      "name": "Deluxe Bank Upgrade",
+      "category": "Bank",
+      "xp": 25,
+      "effort": "easy",
+      "notes": "[unverified ID] ~500K coins"
+    },
+    {
+      "id": "BANK_UPGRADE_SUPER_DELUXE",
+      "name": "Super Deluxe Bank Upgrade",
+      "category": "Bank",
+      "xp": 30,
+      "effort": "medium",
+      "notes": "[unverified ID] ~2.5M coins"
+    },
+    {
+      "id": "BANK_UPGRADE_PREMIER",
+      "name": "Premier Bank Upgrade",
+      "category": "Bank",
+      "xp": 35,
+      "effort": "medium",
+      "notes": "[unverified ID] ~10M coins"
+    },
+    {
+      "id": "BANK_UPGRADE_LUXURIOUS",
+      "name": "Luxurious Bank Upgrade",
+      "category": "Bank",
+      "xp": 40,
+      "effort": "hard",
+      "notes": "[unverified ID] ~25M coins"
+    },
+    {
+      "id": "BANK_UPGRADE_PALATIAL",
+      "name": "Palatial Bank Upgrade",
+      "category": "Bank",
+      "xp": 50,
+      "effort": "extreme",
+      "notes": "[unverified ID] ~50M coins, requires previous tiers"
+    },
+    {
+      "id": "SONG_HYMN_JOY_50",
+      "name": "Harp \u2014 Hymn to the Joy (50%)",
+      "category": "Harp",
+      "xp": 1,
+      "effort": "easy",
+      "notes": "Complete Hymn to the Joy at 50% accuracy at Melody's harp in Park"
+    },
+    {
+      "id": "SONG_HYMN_JOY_70",
+      "name": "Harp \u2014 Hymn to the Joy (70%)",
+      "category": "Harp",
+      "xp": 1,
+      "effort": "easy",
+      "notes": "Complete Hymn to the Joy at 70% accuracy at Melody's harp in Park"
+    },
+    {
+      "id": "SONG_HYMN_JOY_80",
+      "name": "Harp \u2014 Hymn to the Joy (90%)",
+      "category": "Harp",
+      "xp": 1,
+      "effort": "easy",
+      "notes": "Complete Hymn to the Joy at 90% accuracy at Melody's harp in Park"
+    },
+    {
+      "id": "SONG_HYMN_JOY_90",
+      "name": "Harp \u2014 Hymn to the Joy (100%)",
+      "category": "Harp",
+      "xp": 1,
+      "effort": "easy",
+      "notes": "Complete Hymn to the Joy at 100% accuracy at Melody's harp in Park"
+    },
+    {
+      "id": "SONG_FRERE_JACQUES_50",
+      "name": "Harp \u2014 Fr\u00e8re Jacques (50%)",
+      "category": "Harp",
+      "xp": 1,
+      "effort": "easy",
+      "notes": "Complete Fr\u00e8re Jacques at 50% accuracy at Melody's harp in Park"
+    },
+    {
+      "id": "SONG_FRERE_JACQUES_70",
+      "name": "Harp \u2014 Fr\u00e8re Jacques (70%)",
+      "category": "Harp",
+      "xp": 1,
+      "effort": "easy",
+      "notes": "Complete Fr\u00e8re Jacques at 70% accuracy at Melody's harp in Park"
+    },
+    {
+      "id": "SONG_FRERE_JACQUES_80",
+      "name": "Harp \u2014 Fr\u00e8re Jacques (90%)",
+      "category": "Harp",
+      "xp": 1,
+      "effort": "easy",
+      "notes": "Complete Fr\u00e8re Jacques at 90% accuracy at Melody's harp in Park"
+    },
+    {
+      "id": "SONG_FRERE_JACQUES_90",
+      "name": "Harp \u2014 Fr\u00e8re Jacques (100%)",
+      "category": "Harp",
+      "xp": 1,
+      "effort": "easy",
+      "notes": "Complete Fr\u00e8re Jacques at 100% accuracy at Melody's harp in Park"
+    },
+    {
+      "id": "SONG_AMAZING_GRACE_50",
+      "name": "Harp \u2014 Amazing Grace (50%)",
+      "category": "Harp",
+      "xp": 1,
+      "effort": "easy",
+      "notes": "Complete Amazing Grace at 50% accuracy at Melody's harp in Park"
+    },
+    {
+      "id": "SONG_AMAZING_GRACE_70",
+      "name": "Harp \u2014 Amazing Grace (70%)",
+      "category": "Harp",
+      "xp": 1,
+      "effort": "easy",
+      "notes": "Complete Amazing Grace at 70% accuracy at Melody's harp in Park"
+    },
+    {
+      "id": "SONG_AMAZING_GRACE_80",
+      "name": "Harp \u2014 Amazing Grace (90%)",
+      "category": "Harp",
+      "xp": 1,
+      "effort": "easy",
+      "notes": "Complete Amazing Grace at 90% accuracy at Melody's harp in Park"
+    },
+    {
+      "id": "SONG_AMAZING_GRACE_90",
+      "name": "Harp \u2014 Amazing Grace (100%)",
+      "category": "Harp",
+      "xp": 1,
+      "effort": "easy",
+      "notes": "Complete Amazing Grace at 100% accuracy at Melody's harp in Park"
+    },
+    {
+      "id": "SONG_BRAHMS_50",
+      "name": "Harp \u2014 Brahm's Lullaby (50%)",
+      "category": "Harp",
+      "xp": 2,
+      "effort": "easy",
+      "notes": "Complete Brahm's Lullaby at 50% accuracy at Melody's harp in Park"
+    },
+    {
+      "id": "SONG_BRAHMS_70",
+      "name": "Harp \u2014 Brahm's Lullaby (70%)",
+      "category": "Harp",
+      "xp": 2,
+      "effort": "easy",
+      "notes": "Complete Brahm's Lullaby at 70% accuracy at Melody's harp in Park"
+    },
+    {
+      "id": "SONG_BRAHMS_80",
+      "name": "Harp \u2014 Brahm's Lullaby (90%)",
+      "category": "Harp",
+      "xp": 2,
+      "effort": "easy",
+      "notes": "Complete Brahm's Lullaby at 90% accuracy at Melody's harp in Park"
+    },
+    {
+      "id": "SONG_BRAHMS_90",
+      "name": "Harp \u2014 Brahm's Lullaby (100%)",
+      "category": "Harp",
+      "xp": 2,
+      "effort": "easy",
+      "notes": "Complete Brahm's Lullaby at 100% accuracy at Melody's harp in Park"
+    },
+    {
+      "id": "SONG_HAPPY_BIRTHDAY_50",
+      "name": "Harp \u2014 Happy Birthday to You (50%)",
+      "category": "Harp",
+      "xp": 2,
+      "effort": "easy",
+      "notes": "Complete Happy Birthday to You at 50% accuracy at Melody's harp in Park"
+    },
+    {
+      "id": "SONG_HAPPY_BIRTHDAY_70",
+      "name": "Harp \u2014 Happy Birthday to You (70%)",
+      "category": "Harp",
+      "xp": 2,
+      "effort": "easy",
+      "notes": "Complete Happy Birthday to You at 70% accuracy at Melody's harp in Park"
+    },
+    {
+      "id": "SONG_HAPPY_BIRTHDAY_80",
+      "name": "Harp \u2014 Happy Birthday to You (90%)",
+      "category": "Harp",
+      "xp": 2,
+      "effort": "easy",
+      "notes": "Complete Happy Birthday to You at 90% accuracy at Melody's harp in Park"
+    },
+    {
+      "id": "SONG_HAPPY_BIRTHDAY_90",
+      "name": "Harp \u2014 Happy Birthday to You (100%)",
+      "category": "Harp",
+      "xp": 2,
+      "effort": "easy",
+      "notes": "Complete Happy Birthday to You at 100% accuracy at Melody's harp in Park"
+    },
+    {
+      "id": "SONG_GREENSLEEVES_50",
+      "name": "Harp \u2014 Greensleeves (50%)",
+      "category": "Harp",
+      "xp": 2,
+      "effort": "easy",
+      "notes": "Complete Greensleeves at 50% accuracy at Melody's harp in Park"
+    },
+    {
+      "id": "SONG_GREENSLEEVES_70",
+      "name": "Harp \u2014 Greensleeves (70%)",
+      "category": "Harp",
+      "xp": 2,
+      "effort": "easy",
+      "notes": "Complete Greensleeves at 70% accuracy at Melody's harp in Park"
+    },
+    {
+      "id": "SONG_GREENSLEEVES_80",
+      "name": "Harp \u2014 Greensleeves (90%)",
+      "category": "Harp",
+      "xp": 2,
+      "effort": "easy",
+      "notes": "Complete Greensleeves at 90% accuracy at Melody's harp in Park"
+    },
+    {
+      "id": "SONG_GREENSLEEVES_90",
+      "name": "Harp \u2014 Greensleeves (100%)",
+      "category": "Harp",
+      "xp": 2,
+      "effort": "easy",
+      "notes": "Complete Greensleeves at 100% accuracy at Melody's harp in Park"
+    },
+    {
+      "id": "SONG_JEOPARDY_50",
+      "name": "Harp \u2014 Geothermy? (50%)",
+      "category": "Harp",
+      "xp": 4,
+      "effort": "medium",
+      "notes": "Complete Geothermy? at 50% accuracy at Melody's harp in Park"
+    },
+    {
+      "id": "SONG_JEOPARDY_70",
+      "name": "Harp \u2014 Geothermy? (70%)",
+      "category": "Harp",
+      "xp": 4,
+      "effort": "medium",
+      "notes": "Complete Geothermy? at 70% accuracy at Melody's harp in Park"
+    },
+    {
+      "id": "SONG_JEOPARDY_80",
+      "name": "Harp \u2014 Geothermy? (90%)",
+      "category": "Harp",
+      "xp": 4,
+      "effort": "medium",
+      "notes": "Complete Geothermy? at 90% accuracy at Melody's harp in Park"
+    },
+    {
+      "id": "SONG_JEOPARDY_90",
+      "name": "Harp \u2014 Geothermy? (100%)",
+      "category": "Harp",
+      "xp": 4,
+      "effort": "medium",
+      "notes": "Complete Geothermy? at 100% accuracy at Melody's harp in Park"
+    },
+    {
+      "id": "SONG_MINUET_50",
+      "name": "Harp \u2014 Minuet (50%)",
+      "category": "Harp",
+      "xp": 4,
+      "effort": "medium",
+      "notes": "Complete Minuet at 50% accuracy at Melody's harp in Park"
+    },
+    {
+      "id": "SONG_MINUET_70",
+      "name": "Harp \u2014 Minuet (70%)",
+      "category": "Harp",
+      "xp": 4,
+      "effort": "medium",
+      "notes": "Complete Minuet at 70% accuracy at Melody's harp in Park"
+    },
+    {
+      "id": "SONG_MINUET_80",
+      "name": "Harp \u2014 Minuet (90%)",
+      "category": "Harp",
+      "xp": 4,
+      "effort": "medium",
+      "notes": "Complete Minuet at 90% accuracy at Melody's harp in Park"
+    },
+    {
+      "id": "SONG_MINUET_90",
+      "name": "Harp \u2014 Minuet (100%)",
+      "category": "Harp",
+      "xp": 4,
+      "effort": "medium",
+      "notes": "Complete Minuet at 100% accuracy at Melody's harp in Park"
+    },
+    {
+      "id": "SONG_JOY_WORLD_50",
+      "name": "Harp \u2014 Joy to the World (50%)",
+      "category": "Harp",
+      "xp": 4,
+      "effort": "medium",
+      "notes": "Complete Joy to the World at 50% accuracy at Melody's harp in Park"
+    },
+    {
+      "id": "SONG_JOY_WORLD_70",
+      "name": "Harp \u2014 Joy to the World (70%)",
+      "category": "Harp",
+      "xp": 4,
+      "effort": "medium",
+      "notes": "Complete Joy to the World at 70% accuracy at Melody's harp in Park"
+    },
+    {
+      "id": "SONG_JOY_WORLD_80",
+      "name": "Harp \u2014 Joy to the World (90%)",
+      "category": "Harp",
+      "xp": 4,
+      "effort": "medium",
+      "notes": "Complete Joy to the World at 90% accuracy at Melody's harp in Park"
+    },
+    {
+      "id": "SONG_JOY_WORLD_90",
+      "name": "Harp \u2014 Joy to the World (100%)",
+      "category": "Harp",
+      "xp": 4,
+      "effort": "medium",
+      "notes": "Complete Joy to the World at 100% accuracy at Melody's harp in Park"
+    },
+    {
+      "id": "SONG_PURE_IMAGINATION_50",
+      "name": "Harp \u2014 Godly Imagination (50%)",
+      "category": "Harp",
+      "xp": 7,
+      "effort": "medium",
+      "notes": "Complete Godly Imagination at 50% accuracy at Melody's harp in Park"
+    },
+    {
+      "id": "SONG_PURE_IMAGINATION_70",
+      "name": "Harp \u2014 Godly Imagination (70%)",
+      "category": "Harp",
+      "xp": 7,
+      "effort": "medium",
+      "notes": "Complete Godly Imagination at 70% accuracy at Melody's harp in Park"
+    },
+    {
+      "id": "SONG_PURE_IMAGINATION_80",
+      "name": "Harp \u2014 Godly Imagination (90%)",
+      "category": "Harp",
+      "xp": 7,
+      "effort": "medium",
+      "notes": "Complete Godly Imagination at 90% accuracy at Melody's harp in Park"
+    },
+    {
+      "id": "SONG_PURE_IMAGINATION_90",
+      "name": "Harp \u2014 Godly Imagination (100%)",
+      "category": "Harp",
+      "xp": 7,
+      "effort": "medium",
+      "notes": "Complete Godly Imagination at 100% accuracy at Melody's harp in Park"
+    },
+    {
+      "id": "SONG_VIE_EN_ROSE_50",
+      "name": "Harp \u2014 La Vie en Rose (50%)",
+      "category": "Harp",
+      "xp": 7,
+      "effort": "medium",
+      "notes": "Complete La Vie en Rose at 50% accuracy at Melody's harp in Park"
+    },
+    {
+      "id": "SONG_VIE_EN_ROSE_70",
+      "name": "Harp \u2014 La Vie en Rose (70%)",
+      "category": "Harp",
+      "xp": 7,
+      "effort": "medium",
+      "notes": "Complete La Vie en Rose at 70% accuracy at Melody's harp in Park"
+    },
+    {
+      "id": "SONG_VIE_EN_ROSE_80",
+      "name": "Harp \u2014 La Vie en Rose (90%)",
+      "category": "Harp",
+      "xp": 7,
+      "effort": "medium",
+      "notes": "Complete La Vie en Rose at 90% accuracy at Melody's harp in Park"
+    },
+    {
+      "id": "SONG_VIE_EN_ROSE_90",
+      "name": "Harp \u2014 La Vie en Rose (100%)",
+      "category": "Harp",
+      "xp": 7,
+      "effort": "medium",
+      "notes": "Complete La Vie en Rose at 100% accuracy at Melody's harp in Park"
+    },
+    {
+      "id": "SONG_THROUGH_THE_CAMPFIRE_50",
+      "name": "Harp \u2014 Through the Campfire (50%)",
+      "category": "Harp",
+      "xp": 12,
+      "effort": "hard",
+      "notes": "Complete Through the Campfire at 50% accuracy at Melody's harp in Park"
+    },
+    {
+      "id": "SONG_THROUGH_THE_CAMPFIRE_70",
+      "name": "Harp \u2014 Through the Campfire (70%)",
+      "category": "Harp",
+      "xp": 12,
+      "effort": "hard",
+      "notes": "Complete Through the Campfire at 70% accuracy at Melody's harp in Park"
+    },
+    {
+      "id": "SONG_THROUGH_THE_CAMPFIRE_80",
+      "name": "Harp \u2014 Through the Campfire (90%)",
+      "category": "Harp",
+      "xp": 12,
+      "effort": "hard",
+      "notes": "Complete Through the Campfire at 90% accuracy at Melody's harp in Park"
+    },
+    {
+      "id": "SONG_THROUGH_THE_CAMPFIRE_90",
+      "name": "Harp \u2014 Through the Campfire (100%)",
+      "category": "Harp",
+      "xp": 12,
+      "effort": "hard",
+      "notes": "Complete Through the Campfire at 100% accuracy at Melody's harp in Park"
+    },
+    {
+      "id": "SONG_PACHELBEL_50",
+      "name": "Harp \u2014 Pachelbel (50%)",
+      "category": "Harp",
+      "xp": 12,
+      "effort": "hard",
+      "notes": "Complete Pachelbel at 50% accuracy at Melody's harp in Park"
+    },
+    {
+      "id": "SONG_PACHELBEL_70",
+      "name": "Harp \u2014 Pachelbel (70%)",
+      "category": "Harp",
+      "xp": 12,
+      "effort": "hard",
+      "notes": "Complete Pachelbel at 70% accuracy at Melody's harp in Park"
+    },
+    {
+      "id": "SONG_PACHELBEL_80",
+      "name": "Harp \u2014 Pachelbel (90%)",
+      "category": "Harp",
+      "xp": 12,
+      "effort": "hard",
+      "notes": "Complete Pachelbel at 90% accuracy at Melody's harp in Park"
+    },
+    {
+      "id": "SONG_PACHELBEL_90",
+      "name": "Harp \u2014 Pachelbel (100%)",
+      "category": "Harp",
+      "xp": 12,
+      "effort": "hard",
+      "notes": "Complete Pachelbel at 100% accuracy at Melody's harp in Park"
+    },
+    {
+      "id": "SPOOKY_PERK_CANDY_SCAVENGER_1",
+      "name": "Spooky Festival \u2014 Candy Scavenger T1",
+      "category": "Events",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Spooky Festival Perk Shop"
+    },
+    {
+      "id": "SPOOKY_PERK_CANDY_SCAVENGER_2",
+      "name": "Spooky Festival \u2014 Candy Scavenger T2",
+      "category": "Events",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Spooky Festival Perk Shop"
+    },
+    {
+      "id": "SPOOKY_PERK_CANDY_SCAVENGER_3",
+      "name": "Spooky Festival \u2014 Candy Scavenger T3",
+      "category": "Events",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Spooky Festival Perk Shop"
+    },
+    {
+      "id": "SPOOKY_PERK_CANDY_SCAVENGER_4",
+      "name": "Spooky Festival \u2014 Candy Scavenger T4",
+      "category": "Events",
+      "xp": 5,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Spooky Festival Perk Shop"
+    },
+    {
+      "id": "SPOOKY_PERK_CANDY_SCAVENGER_5",
+      "name": "Spooky Festival \u2014 Candy Scavenger T5",
+      "category": "Events",
+      "xp": 7,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Spooky Festival Perk Shop"
+    },
+    {
+      "id": "SPOOKY_PERK_SPOOKY_HOOK_1",
+      "name": "Spooky Festival \u2014 Spooky Hook T1",
+      "category": "Events",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Spooky Festival Perk Shop"
+    },
+    {
+      "id": "SPOOKY_PERK_SPOOKY_HOOK_2",
+      "name": "Spooky Festival \u2014 Spooky Hook T2",
+      "category": "Events",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Spooky Festival Perk Shop"
+    },
+    {
+      "id": "SPOOKY_PERK_SPOOKY_HOOK_3",
+      "name": "Spooky Festival \u2014 Spooky Hook T3",
+      "category": "Events",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Spooky Festival Perk Shop"
+    },
+    {
+      "id": "SPOOKY_PERK_SPOOKY_HOOK_4",
+      "name": "Spooky Festival \u2014 Spooky Hook T4",
+      "category": "Events",
+      "xp": 5,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Spooky Festival Perk Shop"
+    },
+    {
+      "id": "SPOOKY_PERK_SPOOKY_HOOK_5",
+      "name": "Spooky Festival \u2014 Spooky Hook T5",
+      "category": "Events",
+      "xp": 7,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Spooky Festival Perk Shop"
+    },
+    {
+      "id": "SPOOKY_PERK_PURPLE_VOGUE_1",
+      "name": "Spooky Festival \u2014 Purple Vogue T1",
+      "category": "Events",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Spooky Festival Perk Shop"
+    },
+    {
+      "id": "SPOOKY_PERK_PURPLE_VOGUE_2",
+      "name": "Spooky Festival \u2014 Purple Vogue T2",
+      "category": "Events",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Spooky Festival Perk Shop"
+    },
+    {
+      "id": "SPOOKY_PERK_PURPLE_VOGUE_3",
+      "name": "Spooky Festival \u2014 Purple Vogue T3",
+      "category": "Events",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Spooky Festival Perk Shop"
+    },
+    {
+      "id": "SPOOKY_PERK_TRICK_OR_TREAT_ENTHUSIAST_1",
+      "name": "Spooky Festival \u2014 Trick or Treat Enthusiast T1",
+      "category": "Events",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Spooky Festival Perk Shop"
+    },
+    {
+      "id": "SPOOKY_PERK_TRICK_OR_TREAT_ENTHUSIAST_2",
+      "name": "Spooky Festival \u2014 Trick or Treat Enthusiast T2",
+      "category": "Events",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Spooky Festival Perk Shop"
+    },
+    {
+      "id": "JERRY_PERK_ICY_HOOK_1",
+      "name": "Season of Jerry \u2014 Icy Hook T1",
+      "category": "Events",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Season of Jerry Perk Shop"
+    },
+    {
+      "id": "JERRY_PERK_ICY_HOOK_2",
+      "name": "Season of Jerry \u2014 Icy Hook T2",
+      "category": "Events",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Season of Jerry Perk Shop"
+    },
+    {
+      "id": "JERRY_PERK_ICY_HOOK_3",
+      "name": "Season of Jerry \u2014 Icy Hook T3",
+      "category": "Events",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Season of Jerry Perk Shop"
+    },
+    {
+      "id": "JERRY_PERK_ICY_HOOK_4",
+      "name": "Season of Jerry \u2014 Icy Hook T4",
+      "category": "Events",
+      "xp": 5,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Season of Jerry Perk Shop"
+    },
+    {
+      "id": "JERRY_PERK_ICY_HOOK_5",
+      "name": "Season of Jerry \u2014 Icy Hook T5",
+      "category": "Events",
+      "xp": 7,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Season of Jerry Perk Shop"
+    },
+    {
+      "id": "JERRY_PERK_PRESENT_CONNOISSEUR_1",
+      "name": "Season of Jerry \u2014 Present Connoisseur T1",
+      "category": "Events",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Season of Jerry Perk Shop"
+    },
+    {
+      "id": "JERRY_PERK_PRESENT_CONNOISSEUR_2",
+      "name": "Season of Jerry \u2014 Present Connoisseur T2",
+      "category": "Events",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Season of Jerry Perk Shop"
+    },
+    {
+      "id": "JERRY_PERK_PRESENT_CONNOISSEUR_3",
+      "name": "Season of Jerry \u2014 Present Connoisseur T3",
+      "category": "Events",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Season of Jerry Perk Shop"
+    },
+    {
+      "id": "JERRY_PERK_PRESENT_CONNOISSEUR_4",
+      "name": "Season of Jerry \u2014 Present Connoisseur T4",
+      "category": "Events",
+      "xp": 5,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Season of Jerry Perk Shop"
+    },
+    {
+      "id": "JERRY_PERK_PRESENT_CONNOISSEUR_5",
+      "name": "Season of Jerry \u2014 Present Connoisseur T5",
+      "category": "Events",
+      "xp": 7,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Season of Jerry Perk Shop"
+    },
+    {
+      "id": "JERRY_PERK_PROFESSIONAL_GIFTER_1",
+      "name": "Season of Jerry \u2014 Professional Gifter T1",
+      "category": "Events",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Season of Jerry Perk Shop"
+    },
+    {
+      "id": "JERRY_PERK_PROFESSIONAL_GIFTER_2",
+      "name": "Season of Jerry \u2014 Professional Gifter T2",
+      "category": "Events",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Season of Jerry Perk Shop"
+    },
+    {
+      "id": "JERRY_PERK_RED_FAD_1",
+      "name": "Season of Jerry \u2014 Red Fad T1",
+      "category": "Events",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Season of Jerry Perk Shop"
+    },
+    {
+      "id": "JERRY_PERK_RED_FAD_2",
+      "name": "Season of Jerry \u2014 Red Fad T2",
+      "category": "Events",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Season of Jerry Perk Shop"
+    },
+    {
+      "id": "JERRY_PERK_RED_FAD_3",
+      "name": "Season of Jerry \u2014 Red Fad T3",
+      "category": "Events",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Season of Jerry Perk Shop"
+    },
+    {
+      "id": "FISHING_PERK_FISHING_PRODIGY_1",
+      "name": "Fishing Festival \u2014 Fishing Prodigy T1",
+      "category": "Events",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Fishing Festival Perk Shop"
+    },
+    {
+      "id": "FISHING_PERK_FISHING_PRODIGY_2",
+      "name": "Fishing Festival \u2014 Fishing Prodigy T2",
+      "category": "Events",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Fishing Festival Perk Shop"
+    },
+    {
+      "id": "FISHING_PERK_FISHING_PRODIGY_3",
+      "name": "Fishing Festival \u2014 Fishing Prodigy T3",
+      "category": "Events",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Fishing Festival Perk Shop"
+    },
+    {
+      "id": "FISHING_PERK_FISHING_PRODIGY_4",
+      "name": "Fishing Festival \u2014 Fishing Prodigy T4",
+      "category": "Events",
+      "xp": 5,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Fishing Festival Perk Shop"
+    },
+    {
+      "id": "FISHING_PERK_FISHING_PRODIGY_5",
+      "name": "Fishing Festival \u2014 Fishing Prodigy T5",
+      "category": "Events",
+      "xp": 7,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Fishing Festival Perk Shop"
+    },
+    {
+      "id": "FISHING_PERK_SHARK_SONAR_1",
+      "name": "Fishing Festival \u2014 Shark Sonar T1",
+      "category": "Events",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Fishing Festival Perk Shop"
+    },
+    {
+      "id": "FISHING_PERK_SHARK_SONAR_2",
+      "name": "Fishing Festival \u2014 Shark Sonar T2",
+      "category": "Events",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Fishing Festival Perk Shop"
+    },
+    {
+      "id": "FISHING_PERK_SHARK_SONAR_3",
+      "name": "Fishing Festival \u2014 Shark Sonar T3",
+      "category": "Events",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Fishing Festival Perk Shop"
+    },
+    {
+      "id": "FISHING_PERK_SHARK_SONAR_4",
+      "name": "Fishing Festival \u2014 Shark Sonar T4",
+      "category": "Events",
+      "xp": 5,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Fishing Festival Perk Shop"
+    },
+    {
+      "id": "FISHING_PERK_SHARK_SONAR_5",
+      "name": "Fishing Festival \u2014 Shark Sonar T5",
+      "category": "Events",
+      "xp": 7,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Fishing Festival Perk Shop"
+    },
+    {
+      "id": "FISHING_PERK_DENTURE_COLLECTOR_1",
+      "name": "Fishing Festival \u2014 Denture Collector T1",
+      "category": "Events",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Fishing Festival Perk Shop"
+    },
+    {
+      "id": "FISHING_PERK_DENTURE_COLLECTOR_2",
+      "name": "Fishing Festival \u2014 Denture Collector T2",
+      "category": "Events",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Fishing Festival Perk Shop"
+    },
+    {
+      "id": "FISHING_PERK_DENTURE_COLLECTOR_3",
+      "name": "Fishing Festival \u2014 Denture Collector T3",
+      "category": "Events",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Fishing Festival Perk Shop"
+    },
+    {
+      "id": "FISHING_PERK_ELASMOBRANCHII_AFFINITY_1",
+      "name": "Fishing Festival \u2014 Elasmobranchii Affinity T1",
+      "category": "Events",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Fishing Festival Perk Shop"
+    },
+    {
+      "id": "FISHING_PERK_ELASMOBRANCHII_AFFINITY_2",
+      "name": "Fishing Festival \u2014 Elasmobranchii Affinity T2",
+      "category": "Events",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Fishing Festival Perk Shop"
+    },
+    {
+      "id": "MINING_PERK_REFINED_MIND_1",
+      "name": "Mining Fiesta \u2014 Refined Mind T1",
+      "category": "Events",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Mining Fiesta Perk Shop"
+    },
+    {
+      "id": "MINING_PERK_REFINED_MIND_2",
+      "name": "Mining Fiesta \u2014 Refined Mind T2",
+      "category": "Events",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Mining Fiesta Perk Shop"
+    },
+    {
+      "id": "MINING_PERK_REFINED_MIND_3",
+      "name": "Mining Fiesta \u2014 Refined Mind T3",
+      "category": "Events",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Mining Fiesta Perk Shop"
+    },
+    {
+      "id": "MINING_PERK_REFINED_MIND_4",
+      "name": "Mining Fiesta \u2014 Refined Mind T4",
+      "category": "Events",
+      "xp": 5,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Mining Fiesta Perk Shop"
+    },
+    {
+      "id": "MINING_PERK_REFINED_MIND_5",
+      "name": "Mining Fiesta \u2014 Refined Mind T5",
+      "category": "Events",
+      "xp": 7,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Mining Fiesta Perk Shop"
+    },
+    {
+      "id": "MINING_PERK_FORTUNATE_FESTIVITY_1",
+      "name": "Mining Fiesta \u2014 Fortunate Festivity T1",
+      "category": "Events",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Mining Fiesta Perk Shop"
+    },
+    {
+      "id": "MINING_PERK_FORTUNATE_FESTIVITY_2",
+      "name": "Mining Fiesta \u2014 Fortunate Festivity T2",
+      "category": "Events",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Mining Fiesta Perk Shop"
+    },
+    {
+      "id": "MINING_PERK_FORTUNATE_FESTIVITY_3",
+      "name": "Mining Fiesta \u2014 Fortunate Festivity T3",
+      "category": "Events",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Mining Fiesta Perk Shop"
+    },
+    {
+      "id": "MINING_PERK_FORTUNATE_FESTIVITY_4",
+      "name": "Mining Fiesta \u2014 Fortunate Festivity T4",
+      "category": "Events",
+      "xp": 5,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Mining Fiesta Perk Shop"
+    },
+    {
+      "id": "MINING_PERK_FORTUNATE_FESTIVITY_5",
+      "name": "Mining Fiesta \u2014 Fortunate Festivity T5",
+      "category": "Events",
+      "xp": 7,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Mining Fiesta Perk Shop"
+    },
+    {
+      "id": "MINING_PERK_POWDER_HOARDER_1",
+      "name": "Mining Fiesta \u2014 Powder Hoarder T1",
+      "category": "Events",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Mining Fiesta Perk Shop"
+    },
+    {
+      "id": "MINING_PERK_POWDER_HOARDER_2",
+      "name": "Mining Fiesta \u2014 Powder Hoarder T2",
+      "category": "Events",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Mining Fiesta Perk Shop"
+    },
+    {
+      "id": "MINING_PERK_POWDER_HOARDER_3",
+      "name": "Mining Fiesta \u2014 Powder Hoarder T3",
+      "category": "Events",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Mining Fiesta Perk Shop"
+    },
+    {
+      "id": "MINING_PERK_TITANIUM_TENACITY_1",
+      "name": "Mining Fiesta \u2014 Titanium Tenacity T1",
+      "category": "Events",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Mining Fiesta Perk Shop"
+    },
+    {
+      "id": "MINING_PERK_TITANIUM_TENACITY_2",
+      "name": "Mining Fiesta \u2014 Titanium Tenacity T2",
+      "category": "Events",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Mining Fiesta Perk Shop"
+    },
+    {
+      "id": "ABIPHONE_alchemist",
+      "name": "Abiphone \u2014 Alchemist",
+      "category": "Abiphone",
+      "xp": 10,
+      "effort": "medium",
+      "notes": "[unverified ID] Give 64x Mutant Nether Wart"
+    },
+    {
+      "id": "ABIPHONE_alda",
+      "name": "Abiphone \u2014 Alda",
+      "category": "Abiphone",
+      "xp": 10,
+      "effort": "free",
+      "notes": "No requirement"
+    },
+    {
+      "id": "ABIPHONE_anita",
+      "name": "Abiphone \u2014 Anita",
+      "category": "Abiphone",
+      "xp": 10,
+      "effort": "hard",
+      "notes": "[unverified ID] Gold medal in any crop + Jacob's contact"
+    },
+    {
+      "id": "ABIPHONE_aranya",
+      "name": "Abiphone \u2014 Aranya",
+      "category": "Abiphone",
+      "xp": 10,
+      "effort": "easy",
+      "notes": "[unverified ID] No requirement, at Crimson Isle"
+    },
+    {
+      "id": "ABIPHONE_blacksmith",
+      "name": "Abiphone \u2014 Blacksmith",
+      "category": "Abiphone",
+      "xp": 10,
+      "effort": "hard",
+      "notes": "[unverified ID] Pay 32M coins"
+    },
+    {
+      "id": "ABIPHONE_brynmor",
+      "name": "Abiphone \u2014 Brynmor",
+      "category": "Abiphone",
+      "xp": 10,
+      "effort": "medium",
+      "notes": "[unverified ID] Give 1 Speckled Teacup"
+    },
+    {
+      "id": "ABIPHONE_builder",
+      "name": "Abiphone \u2014 Builder",
+      "category": "Abiphone",
+      "xp": 10,
+      "effort": "medium",
+      "notes": "[unverified ID] Give 1 Builder's Wand"
+    },
+    {
+      "id": "ABIPHONE_captain_ahone",
+      "name": "Abiphone \u2014 Captain Ahone",
+      "category": "Abiphone",
+      "xp": 10,
+      "effort": "easy",
+      "notes": "[unverified ID] Mage Faction questline"
+    },
+    {
+      "id": "ABIPHONE_crag",
+      "name": "Abiphone \u2014 Crag",
+      "category": "Abiphone",
+      "xp": 10,
+      "effort": "medium",
+      "notes": "[unverified ID] Give 1 Bezal Shard"
+    },
+    {
+      "id": "ABIPHONE_dean",
+      "name": "Abiphone \u2014 Dean",
+      "category": "Abiphone",
+      "xp": 10,
+      "effort": "easy",
+      "notes": "[unverified ID] Mage Faction questline"
+    },
+    {
+      "id": "ABIPHONE_duncan",
+      "name": "Abiphone \u2014 Duncan",
+      "category": "Abiphone",
+      "xp": 10,
+      "effort": "easy",
+      "notes": "[unverified ID] No requirement"
+    },
+    {
+      "id": "ABIPHONE_dusk",
+      "name": "Abiphone \u2014 Dusk",
+      "category": "Abiphone",
+      "xp": 10,
+      "effort": "easy",
+      "notes": "[unverified ID] Slay a runic Enderman"
+    },
+    {
+      "id": "ABIPHONE_einary",
+      "name": "Abiphone \u2014 Einary",
+      "category": "Abiphone",
+      "xp": 10,
+      "effort": "hard",
+      "notes": "[unverified ID] Give 1 Einary's Red Hoodie"
+    },
+    {
+      "id": "ABIPHONE_elizabeth",
+      "name": "Abiphone \u2014 Elizabeth",
+      "category": "Abiphone",
+      "xp": 10,
+      "effort": "easy",
+      "notes": "[unverified ID] Give 1 Abiphone Contacts Trio"
+    },
+    {
+      "id": "ABIPHONE_elle",
+      "name": "Abiphone \u2014 Elle",
+      "category": "Abiphone",
+      "xp": 10,
+      "effort": "easy",
+      "notes": "[unverified ID] Mage Faction questline"
+    },
+    {
+      "id": "ABIPHONE_fann",
+      "name": "Abiphone \u2014 Fann",
+      "category": "Abiphone",
+      "xp": 10,
+      "effort": "medium",
+      "notes": "[unverified ID] Feed Bat the Fish to Hootie"
+    },
+    {
+      "id": "ABIPHONE_fear_mongerer",
+      "name": "Abiphone \u2014 Fear Mongerer",
+      "category": "Abiphone",
+      "xp": 10,
+      "effort": "medium",
+      "notes": "[unverified ID] Give 64 Purple Candy + 6 Ectoplasm"
+    },
+    {
+      "id": "ABIPHONE_fred",
+      "name": "Abiphone \u2014 Fred",
+      "category": "Abiphone",
+      "xp": 10,
+      "effort": "medium",
+      "notes": "[unverified ID] Give 64 Foul Flesh"
+    },
+    {
+      "id": "ABIPHONE_geo",
+      "name": "Abiphone \u2014 Geo",
+      "category": "Abiphone",
+      "xp": 10,
+      "effort": "hard",
+      "notes": "[unverified ID] Give 6 Flawless Gemstones in order"
+    },
+    {
+      "id": "ABIPHONE_george",
+      "name": "Abiphone \u2014 George",
+      "category": "Abiphone",
+      "xp": 10,
+      "effort": "hard",
+      "notes": "[unverified ID] Give 3 random Lv1 Legendary pets"
+    },
+    {
+      "id": "ABIPHONE_hoppity",
+      "name": "Abiphone \u2014 Hoppity",
+      "category": "Abiphone",
+      "xp": 10,
+      "effort": "easy",
+      "notes": "[unverified ID] Give 1 Fish Chocolat \u00e0 la Vapeur"
+    },
+    {
+      "id": "ABIPHONE_igrupan",
+      "name": "Abiphone \u2014 Igrupan",
+      "category": "Abiphone",
+      "xp": 10,
+      "effort": "easy",
+      "notes": "[unverified ID] Return Igrupan's chickens"
+    },
+    {
+      "id": "ABIPHONE_jacob",
+      "name": "Abiphone \u2014 Jacob",
+      "category": "Abiphone",
+      "xp": 10,
+      "effort": "medium",
+      "notes": "[unverified ID] Give 10 Jacob's Ticket"
+    },
+    {
+      "id": "ABIPHONE_jake",
+      "name": "Abiphone \u2014 Jake",
+      "category": "Abiphone",
+      "xp": 10,
+      "effort": "medium",
+      "notes": "[unverified ID] Give 1 Chocoberry"
+    },
+    {
+      "id": "ABIPHONE_jax",
+      "name": "Abiphone \u2014 Jax",
+      "category": "Abiphone",
+      "xp": 10,
+      "effort": "hard",
+      "notes": "[unverified ID] Pay 10M or complete Target Practice IV in <11s"
+    },
+    {
+      "id": "ABIPHONE_jotraeline",
+      "name": "Abiphone \u2014 Jotraeline Greatforge",
+      "category": "Abiphone",
+      "xp": 10,
+      "effort": "easy",
+      "notes": "[unverified ID] Give any Abiphone model"
+    },
+    {
+      "id": "ABIPHONE_kat",
+      "name": "Abiphone \u2014 Kat",
+      "category": "Abiphone",
+      "xp": 10,
+      "effort": "easy",
+      "notes": "[unverified ID] Give 1 Kat Flower"
+    },
+    {
+      "id": "ABIPHONE_kaus",
+      "name": "Abiphone \u2014 Kaus",
+      "category": "Abiphone",
+      "xp": 10,
+      "effort": "medium",
+      "notes": "[unverified ID] Crimson Isle NPC"
+    },
+    {
+      "id": "ABIPHONE_kiara",
+      "name": "Abiphone \u2014 Kiara",
+      "category": "Abiphone",
+      "xp": 10,
+      "effort": "hard",
+      "notes": "[unverified ID] Give 1 Chameleon Shard"
+    },
+    {
+      "id": "ABIPHONE_lumber_merchant",
+      "name": "Abiphone \u2014 Lumber Merchant",
+      "category": "Abiphone",
+      "xp": 10,
+      "effort": "easy",
+      "notes": "Give 1 Spruce Axe"
+    },
+    {
+      "id": "ABIPHONE_maddox",
+      "name": "Abiphone \u2014 Maddox the Slayer",
+      "category": "Abiphone",
+      "xp": 10,
+      "effort": "easy",
+      "notes": "[unverified ID] Give 1 Maddox Batphone"
+    },
+    {
+      "id": "ABIPHONE_maxwell",
+      "name": "Abiphone \u2014 Maxwell",
+      "category": "Abiphone",
+      "xp": 10,
+      "effort": "hard",
+      "notes": "[unverified ID] Give 2 Ultimate Carrot Candies"
+    },
+    {
+      "id": "ABIPHONE_mort",
+      "name": "Abiphone \u2014 Mort",
+      "category": "Abiphone",
+      "xp": 10,
+      "effort": "medium",
+      "notes": "[unverified ID] Give 1 Saving Grace + 1 Spirit Bone"
+    },
+    {
+      "id": "ABIPHONE_odger",
+      "name": "Abiphone \u2014 Odger",
+      "category": "Abiphone",
+      "xp": 10,
+      "effort": "medium",
+      "notes": "[unverified ID] Give any Diamond Trophy Fish"
+    },
+    {
+      "id": "ABIPHONE_ophelia",
+      "name": "Abiphone \u2014 Ophelia",
+      "category": "Abiphone",
+      "xp": 10,
+      "effort": "hard",
+      "notes": "[unverified ID] Give 1 Catacombs Expert Ring"
+    },
+    {
+      "id": "ABIPHONE_oringo",
+      "name": "Abiphone \u2014 Oringo",
+      "category": "Abiphone",
+      "xp": 10,
+      "effort": "medium",
+      "notes": "[unverified ID] Give 64 Silent Pearl"
+    },
+    {
+      "id": "ABIPHONE_pablo",
+      "name": "Abiphone \u2014 Pablo",
+      "category": "Abiphone",
+      "xp": 10,
+      "effort": "easy",
+      "notes": "[unverified ID] Crimson Isle, no requirement"
+    },
+    {
+      "id": "ABIPHONE_pet_sitter",
+      "name": "Abiphone \u2014 Pet Sitter",
+      "category": "Abiphone",
+      "xp": 10,
+      "effort": "easy",
+      "notes": "No requirement"
+    },
+    {
+      "id": "ABIPHONE_plumber_joe",
+      "name": "Abiphone \u2014 Plumber Joe",
+      "category": "Abiphone",
+      "xp": 10,
+      "effort": "easy",
+      "notes": "[unverified ID] No requirement"
+    },
+    {
+      "id": "ABIPHONE_queen_mismyla",
+      "name": "Abiphone \u2014 Queen Mismyla",
+      "category": "Abiphone",
+      "xp": 10,
+      "effort": "easy",
+      "notes": "[unverified ID] Give 1 Royal Pigeon"
+    },
+    {
+      "id": "ABIPHONE_queen_nyx",
+      "name": "Abiphone \u2014 Queen Nyx",
+      "category": "Abiphone",
+      "xp": 10,
+      "effort": "hard",
+      "notes": "[unverified ID] Reach Mage Reputation 12,000"
+    },
+    {
+      "id": "ABIPHONE_roddy",
+      "name": "Abiphone \u2014 Roddy",
+      "category": "Abiphone",
+      "xp": 10,
+      "effort": "easy",
+      "notes": "[unverified ID] Give 1 Torn Cloth"
+    },
+    {
+      "id": "ABIPHONE_rollim",
+      "name": "Abiphone \u2014 Rollim",
+      "category": "Abiphone",
+      "xp": 10,
+      "effort": "medium",
+      "notes": "[unverified ID] Crimson Isle NPC"
+    },
+    {
+      "id": "ABIPHONE_rusty",
+      "name": "Abiphone \u2014 Rusty",
+      "category": "Abiphone",
+      "xp": 10,
+      "effort": "easy",
+      "notes": "[unverified ID] No requirement"
+    },
+    {
+      "id": "ABIPHONE_shifty",
+      "name": "Abiphone \u2014 Shifty",
+      "category": "Abiphone",
+      "xp": 10,
+      "effort": "medium",
+      "notes": "[unverified ID] Give Red Thornleaf Tea + Scarleton Premium"
+    },
+    {
+      "id": "ABIPHONE_sirih",
+      "name": "Abiphone \u2014 Sirih",
+      "category": "Abiphone",
+      "xp": 10,
+      "effort": "easy",
+      "notes": "[unverified ID] Be Barbarian Faction member"
+    },
+    {
+      "id": "ABIPHONE_sirius",
+      "name": "Abiphone \u2014 Sirius",
+      "category": "Abiphone",
+      "xp": 10,
+      "effort": "hard",
+      "notes": "[unverified ID] Consume Sirius' Personal Phone Number"
+    },
+    {
+      "id": "ABIPHONE_st_jerry",
+      "name": "Abiphone \u2014 St. Jerry",
+      "category": "Abiphone",
+      "xp": 10,
+      "effort": "easy",
+      "notes": "[unverified ID] Type holiday phrase when prompted"
+    },
+    {
+      "id": "ABIPHONE_suus",
+      "name": "Abiphone \u2014 Suus",
+      "category": "Abiphone",
+      "xp": 10,
+      "effort": "easy",
+      "notes": "[unverified ID] Be Barbarian Faction member"
+    },
+    {
+      "id": "ABIPHONE_tia",
+      "name": "Abiphone \u2014 Tia the Fairy",
+      "category": "Abiphone",
+      "xp": 10,
+      "effort": "medium",
+      "notes": "[unverified ID] Wear complete Fairy Armor"
+    },
+    {
+      "id": "ABIPHONE_tomioka",
+      "name": "Abiphone \u2014 Tomioka",
+      "category": "Abiphone",
+      "xp": 10,
+      "effort": "medium",
+      "notes": "[unverified ID] Give 1 Titanic Experience Bottle"
+    },
+    {
+      "id": "ABIPHONE_trevor",
+      "name": "Abiphone \u2014 Trevor",
+      "category": "Abiphone",
+      "xp": 10,
+      "effort": "hard",
+      "notes": "[unverified ID] Give 24 pelts + 1M coins"
+    },
+    {
+      "id": "ABIPHONE_trinity",
+      "name": "Abiphone \u2014 Trinity",
+      "category": "Abiphone",
+      "xp": 10,
+      "effort": "hard",
+      "notes": "[unverified ID] Give 2 Revive Stones"
+    },
+    {
+      "id": "ABIPHONE_vincent",
+      "name": "Abiphone \u2014 Vincent",
+      "category": "Abiphone",
+      "xp": 10,
+      "effort": "medium",
+      "notes": "[unverified ID] Give 1 Mole Pet"
+    },
+    {
+      "id": "ABIPHONE_walter",
+      "name": "Abiphone \u2014 Walter",
+      "category": "Abiphone",
+      "xp": 10,
+      "effort": "medium",
+      "notes": "[unverified ID] Give 1 Enchanted Sulphur Cube + Sulphur VII"
+    },
+    {
+      "id": "ABIPHONE_wool_weaver",
+      "name": "Abiphone \u2014 Wool Weaver",
+      "category": "Abiphone",
+      "xp": 10,
+      "effort": "medium",
+      "notes": "[unverified ID] Give 512 Enchanted Wool"
+    },
+    {
+      "id": "ABIPHONE_zog",
+      "name": "Abiphone \u2014 Zog",
+      "category": "Abiphone",
+      "xp": 10,
+      "effort": "medium",
+      "notes": "[unverified ID] Have 5 max-level Legendary+ pets"
+    },
+    {
+      "id": "DRAGON_ESSENCE_ONE_PUNCH_1",
+      "name": "Dragon Essence \u2014 One Punch T1",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Dragon Essence Shop"
+    },
+    {
+      "id": "DRAGON_ESSENCE_ONE_PUNCH_2",
+      "name": "Dragon Essence \u2014 One Punch T2",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Dragon Essence Shop"
+    },
+    {
+      "id": "DRAGON_ESSENCE_ONE_PUNCH_3",
+      "name": "Dragon Essence \u2014 One Punch T3",
+      "category": "Essence Shop",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Dragon Essence Shop"
+    },
+    {
+      "id": "DRAGON_ESSENCE_ONE_PUNCH_4",
+      "name": "Dragon Essence \u2014 One Punch T4",
+      "category": "Essence Shop",
+      "xp": 5,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Dragon Essence Shop"
+    },
+    {
+      "id": "DRAGON_ESSENCE_ONE_PUNCH_5",
+      "name": "Dragon Essence \u2014 One Punch T5",
+      "category": "Essence Shop",
+      "xp": 7,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Dragon Essence Shop"
+    },
+    {
+      "id": "DRAGON_ESSENCE_RECHARGE_1",
+      "name": "Dragon Essence \u2014 Recharge T1",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Dragon Essence Shop"
+    },
+    {
+      "id": "DRAGON_ESSENCE_RECHARGE_2",
+      "name": "Dragon Essence \u2014 Recharge T2",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Dragon Essence Shop"
+    },
+    {
+      "id": "DRAGON_ESSENCE_RECHARGE_3",
+      "name": "Dragon Essence \u2014 Recharge T3",
+      "category": "Essence Shop",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Dragon Essence Shop"
+    },
+    {
+      "id": "DRAGON_ESSENCE_RECHARGE_4",
+      "name": "Dragon Essence \u2014 Recharge T4",
+      "category": "Essence Shop",
+      "xp": 5,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Dragon Essence Shop"
+    },
+    {
+      "id": "DRAGON_ESSENCE_RECHARGE_5",
+      "name": "Dragon Essence \u2014 Recharge T5",
+      "category": "Essence Shop",
+      "xp": 7,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Dragon Essence Shop"
+    },
+    {
+      "id": "DRAGON_ESSENCE_RECHARGE_6",
+      "name": "Dragon Essence \u2014 Recharge T6",
+      "category": "Essence Shop",
+      "xp": 8,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Dragon Essence Shop"
+    },
+    {
+      "id": "DRAGON_ESSENCE_RECHARGE_7",
+      "name": "Dragon Essence \u2014 Recharge T7",
+      "category": "Essence Shop",
+      "xp": 8,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Dragon Essence Shop"
+    },
+    {
+      "id": "DRAGON_ESSENCE_RECHARGE_8",
+      "name": "Dragon Essence \u2014 Recharge T8",
+      "category": "Essence Shop",
+      "xp": 8,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Dragon Essence Shop"
+    },
+    {
+      "id": "DRAGON_ESSENCE_RECHARGE_9",
+      "name": "Dragon Essence \u2014 Recharge T9",
+      "category": "Essence Shop",
+      "xp": 9,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Dragon Essence Shop"
+    },
+    {
+      "id": "DRAGON_ESSENCE_RECHARGE_10",
+      "name": "Dragon Essence \u2014 Recharge T10",
+      "category": "Essence Shop",
+      "xp": 10,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Dragon Essence Shop"
+    },
+    {
+      "id": "DRAGON_ESSENCE_RAGEBORN_1",
+      "name": "Dragon Essence \u2014 Rageborn T1",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Dragon Essence Shop"
+    },
+    {
+      "id": "DRAGON_ESSENCE_RAGEBORN_2",
+      "name": "Dragon Essence \u2014 Rageborn T2",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Dragon Essence Shop"
+    },
+    {
+      "id": "DRAGON_ESSENCE_RAGEBORN_3",
+      "name": "Dragon Essence \u2014 Rageborn T3",
+      "category": "Essence Shop",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Dragon Essence Shop"
+    },
+    {
+      "id": "DRAGON_ESSENCE_RAGEBORN_4",
+      "name": "Dragon Essence \u2014 Rageborn T4",
+      "category": "Essence Shop",
+      "xp": 5,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Dragon Essence Shop"
+    },
+    {
+      "id": "DRAGON_ESSENCE_RAGEBORN_5",
+      "name": "Dragon Essence \u2014 Rageborn T5",
+      "category": "Essence Shop",
+      "xp": 7,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Dragon Essence Shop"
+    },
+    {
+      "id": "DRAGON_ESSENCE_ZEALUCK_1",
+      "name": "Dragon Essence \u2014 Zealuck T1",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Dragon Essence Shop"
+    },
+    {
+      "id": "DRAGON_ESSENCE_ZEALUCK_2",
+      "name": "Dragon Essence \u2014 Zealuck T2",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Dragon Essence Shop"
+    },
+    {
+      "id": "DRAGON_ESSENCE_ZEALUCK_3",
+      "name": "Dragon Essence \u2014 Zealuck T3",
+      "category": "Essence Shop",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Dragon Essence Shop"
+    },
+    {
+      "id": "DRAGON_ESSENCE_ZEALUCK_4",
+      "name": "Dragon Essence \u2014 Zealuck T4",
+      "category": "Essence Shop",
+      "xp": 5,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Dragon Essence Shop"
+    },
+    {
+      "id": "DRAGON_ESSENCE_ZEALUCK_5",
+      "name": "Dragon Essence \u2014 Zealuck T5",
+      "category": "Essence Shop",
+      "xp": 7,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Dragon Essence Shop"
+    },
+    {
+      "id": "DRAGON_ESSENCE_ENDER_TRAINING_1",
+      "name": "Dragon Essence \u2014 Ender Training T1",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Dragon Essence Shop"
+    },
+    {
+      "id": "DRAGON_ESSENCE_ENDER_TRAINING_2",
+      "name": "Dragon Essence \u2014 Ender Training T2",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Dragon Essence Shop"
+    },
+    {
+      "id": "DRAGON_ESSENCE_ENDER_TRAINING_3",
+      "name": "Dragon Essence \u2014 Ender Training T3",
+      "category": "Essence Shop",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Dragon Essence Shop"
+    },
+    {
+      "id": "DRAGON_ESSENCE_INFUSED_DRAGON_1",
+      "name": "Dragon Essence \u2014 Infused Dragon T1",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Dragon Essence Shop"
+    },
+    {
+      "id": "DRAGON_ESSENCE_INFUSED_DRAGON_2",
+      "name": "Dragon Essence \u2014 Infused Dragon T2",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Dragon Essence Shop"
+    },
+    {
+      "id": "DRAGON_ESSENCE_INFUSED_DRAGON_3",
+      "name": "Dragon Essence \u2014 Infused Dragon T3",
+      "category": "Essence Shop",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Dragon Essence Shop"
+    },
+    {
+      "id": "DRAGON_ESSENCE_INFUSED_DRAGON_4",
+      "name": "Dragon Essence \u2014 Infused Dragon T4",
+      "category": "Essence Shop",
+      "xp": 5,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Dragon Essence Shop"
+    },
+    {
+      "id": "DRAGON_ESSENCE_INFUSED_DRAGON_5",
+      "name": "Dragon Essence \u2014 Infused Dragon T5",
+      "category": "Essence Shop",
+      "xp": 7,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Dragon Essence Shop"
+    },
+    {
+      "id": "DRAGON_ESSENCE_UNBRIDLED_RAGE_1",
+      "name": "Dragon Essence \u2014 Unbridled Rage T1",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Dragon Essence Shop"
+    },
+    {
+      "id": "DRAGON_ESSENCE_UNBRIDLED_RAGE_2",
+      "name": "Dragon Essence \u2014 Unbridled Rage T2",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Dragon Essence Shop"
+    },
+    {
+      "id": "DRAGON_ESSENCE_UNBRIDLED_RAGE_3",
+      "name": "Dragon Essence \u2014 Unbridled Rage T3",
+      "category": "Essence Shop",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Dragon Essence Shop"
+    },
+    {
+      "id": "DRAGON_ESSENCE_UNBRIDLED_RAGE_4",
+      "name": "Dragon Essence \u2014 Unbridled Rage T4",
+      "category": "Essence Shop",
+      "xp": 5,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Dragon Essence Shop"
+    },
+    {
+      "id": "DRAGON_ESSENCE_UNBRIDLED_RAGE_5",
+      "name": "Dragon Essence \u2014 Unbridled Rage T5",
+      "category": "Essence Shop",
+      "xp": 7,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Dragon Essence Shop"
+    },
+    {
+      "id": "DRAGON_ESSENCE_TWO_HEADED_STRIKE_1",
+      "name": "Dragon Essence \u2014 Two-Headed Strike T1",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Dragon Essence Shop"
+    },
+    {
+      "id": "DRAGON_ESSENCE_TWO_HEADED_STRIKE_2",
+      "name": "Dragon Essence \u2014 Two-Headed Strike T2",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Dragon Essence Shop"
+    },
+    {
+      "id": "DRAGON_ESSENCE_TWO_HEADED_STRIKE_3",
+      "name": "Dragon Essence \u2014 Two-Headed Strike T3",
+      "category": "Essence Shop",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Dragon Essence Shop"
+    },
+    {
+      "id": "DRAGON_ESSENCE_TWO_HEADED_STRIKE_4",
+      "name": "Dragon Essence \u2014 Two-Headed Strike T4",
+      "category": "Essence Shop",
+      "xp": 5,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Dragon Essence Shop"
+    },
+    {
+      "id": "DRAGON_ESSENCE_TWO_HEADED_STRIKE_5",
+      "name": "Dragon Essence \u2014 Two-Headed Strike T5",
+      "category": "Essence Shop",
+      "xp": 7,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Dragon Essence Shop"
+    },
+    {
+      "id": "DRAGON_ESSENCE_DRAGON_PIPER_1",
+      "name": "Dragon Essence \u2014 Dragon Piper T1",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Dragon Essence Shop"
+    },
+    {
+      "id": "ICE_ESSENCE_COOLED_FORGES_1",
+      "name": "Ice Essence \u2014 Cooled Forges T1",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Ice Essence Shop"
+    },
+    {
+      "id": "ICE_ESSENCE_COOLED_FORGES_2",
+      "name": "Ice Essence \u2014 Cooled Forges T2",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Ice Essence Shop"
+    },
+    {
+      "id": "ICE_ESSENCE_COOLED_FORGES_3",
+      "name": "Ice Essence \u2014 Cooled Forges T3",
+      "category": "Essence Shop",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Ice Essence Shop"
+    },
+    {
+      "id": "ICE_ESSENCE_COOLED_FORGES_4",
+      "name": "Ice Essence \u2014 Cooled Forges T4",
+      "category": "Essence Shop",
+      "xp": 5,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Ice Essence Shop"
+    },
+    {
+      "id": "ICE_ESSENCE_COOLED_FORGES_5",
+      "name": "Ice Essence \u2014 Cooled Forges T5",
+      "category": "Essence Shop",
+      "xp": 7,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Ice Essence Shop"
+    },
+    {
+      "id": "ICE_ESSENCE_SEASON_OF_JOY_1",
+      "name": "Ice Essence \u2014 Season of Joy T1",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Ice Essence Shop"
+    },
+    {
+      "id": "ICE_ESSENCE_SEASON_OF_JOY_2",
+      "name": "Ice Essence \u2014 Season of Joy T2",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Ice Essence Shop"
+    },
+    {
+      "id": "ICE_ESSENCE_SEASON_OF_JOY_3",
+      "name": "Ice Essence \u2014 Season of Joy T3",
+      "category": "Essence Shop",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Ice Essence Shop"
+    },
+    {
+      "id": "ICE_ESSENCE_SEASON_OF_JOY_4",
+      "name": "Ice Essence \u2014 Season of Joy T4",
+      "category": "Essence Shop",
+      "xp": 5,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Ice Essence Shop"
+    },
+    {
+      "id": "ICE_ESSENCE_SEASON_OF_JOY_5",
+      "name": "Ice Essence \u2014 Season of Joy T5",
+      "category": "Essence Shop",
+      "xp": 7,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Ice Essence Shop"
+    },
+    {
+      "id": "ICE_ESSENCE_SEASON_OF_JOY_6",
+      "name": "Ice Essence \u2014 Season of Joy T6",
+      "category": "Essence Shop",
+      "xp": 8,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Ice Essence Shop"
+    },
+    {
+      "id": "ICE_ESSENCE_SEASON_OF_JOY_7",
+      "name": "Ice Essence \u2014 Season of Joy T7",
+      "category": "Essence Shop",
+      "xp": 8,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Ice Essence Shop"
+    },
+    {
+      "id": "ICE_ESSENCE_SEASON_OF_JOY_8",
+      "name": "Ice Essence \u2014 Season of Joy T8",
+      "category": "Essence Shop",
+      "xp": 8,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Ice Essence Shop"
+    },
+    {
+      "id": "ICE_ESSENCE_SEASON_OF_JOY_9",
+      "name": "Ice Essence \u2014 Season of Joy T9",
+      "category": "Essence Shop",
+      "xp": 9,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Ice Essence Shop"
+    },
+    {
+      "id": "ICE_ESSENCE_SEASON_OF_JOY_10",
+      "name": "Ice Essence \u2014 Season of Joy T10",
+      "category": "Essence Shop",
+      "xp": 10,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Ice Essence Shop"
+    },
+    {
+      "id": "ICE_ESSENCE_COLD_EFFICIENCY_1",
+      "name": "Ice Essence \u2014 Cold Efficiency T1",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Ice Essence Shop"
+    },
+    {
+      "id": "ICE_ESSENCE_COLD_EFFICIENCY_2",
+      "name": "Ice Essence \u2014 Cold Efficiency T2",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Ice Essence Shop"
+    },
+    {
+      "id": "ICE_ESSENCE_COLD_EFFICIENCY_3",
+      "name": "Ice Essence \u2014 Cold Efficiency T3",
+      "category": "Essence Shop",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Ice Essence Shop"
+    },
+    {
+      "id": "ICE_ESSENCE_COLD_EFFICIENCY_4",
+      "name": "Ice Essence \u2014 Cold Efficiency T4",
+      "category": "Essence Shop",
+      "xp": 5,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Ice Essence Shop"
+    },
+    {
+      "id": "ICE_ESSENCE_COLD_EFFICIENCY_5",
+      "name": "Ice Essence \u2014 Cold Efficiency T5",
+      "category": "Essence Shop",
+      "xp": 7,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Ice Essence Shop"
+    },
+    {
+      "id": "ICE_ESSENCE_FROZEN_SKIN_1",
+      "name": "Ice Essence \u2014 Frozen Skin T1",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Ice Essence Shop"
+    },
+    {
+      "id": "ICE_ESSENCE_FROZEN_SKIN_2",
+      "name": "Ice Essence \u2014 Frozen Skin T2",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Ice Essence Shop"
+    },
+    {
+      "id": "ICE_ESSENCE_FROZEN_SKIN_3",
+      "name": "Ice Essence \u2014 Frozen Skin T3",
+      "category": "Essence Shop",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Ice Essence Shop"
+    },
+    {
+      "id": "ICE_ESSENCE_FROZEN_SKIN_4",
+      "name": "Ice Essence \u2014 Frozen Skin T4",
+      "category": "Essence Shop",
+      "xp": 5,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Ice Essence Shop"
+    },
+    {
+      "id": "ICE_ESSENCE_FROZEN_SKIN_5",
+      "name": "Ice Essence \u2014 Frozen Skin T5",
+      "category": "Essence Shop",
+      "xp": 7,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Ice Essence Shop"
+    },
+    {
+      "id": "ICE_ESSENCE_DRAKE_PIPER_1",
+      "name": "Ice Essence \u2014 Drake Piper T1",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Ice Essence Shop"
+    },
+    {
+      "id": "SPIDER_ESSENCE_EMPOWERED_AGILITY_1",
+      "name": "Spider Essence \u2014 Empowered Agility T1",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Spider Essence Shop"
+    },
+    {
+      "id": "SPIDER_ESSENCE_EMPOWERED_AGILITY_2",
+      "name": "Spider Essence \u2014 Empowered Agility T2",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Spider Essence Shop"
+    },
+    {
+      "id": "SPIDER_ESSENCE_EMPOWERED_AGILITY_3",
+      "name": "Spider Essence \u2014 Empowered Agility T3",
+      "category": "Essence Shop",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Spider Essence Shop"
+    },
+    {
+      "id": "SPIDER_ESSENCE_EMPOWERED_AGILITY_4",
+      "name": "Spider Essence \u2014 Empowered Agility T4",
+      "category": "Essence Shop",
+      "xp": 5,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Spider Essence Shop"
+    },
+    {
+      "id": "SPIDER_ESSENCE_EMPOWERED_AGILITY_5",
+      "name": "Spider Essence \u2014 Empowered Agility T5",
+      "category": "Essence Shop",
+      "xp": 7,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Spider Essence Shop"
+    },
+    {
+      "id": "SPIDER_ESSENCE_EMPOWERED_AGILITY_6",
+      "name": "Spider Essence \u2014 Empowered Agility T6",
+      "category": "Essence Shop",
+      "xp": 8,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Spider Essence Shop"
+    },
+    {
+      "id": "SPIDER_ESSENCE_EMPOWERED_AGILITY_7",
+      "name": "Spider Essence \u2014 Empowered Agility T7",
+      "category": "Essence Shop",
+      "xp": 8,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Spider Essence Shop"
+    },
+    {
+      "id": "SPIDER_ESSENCE_EMPOWERED_AGILITY_8",
+      "name": "Spider Essence \u2014 Empowered Agility T8",
+      "category": "Essence Shop",
+      "xp": 8,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Spider Essence Shop"
+    },
+    {
+      "id": "SPIDER_ESSENCE_EMPOWERED_AGILITY_9",
+      "name": "Spider Essence \u2014 Empowered Agility T9",
+      "category": "Essence Shop",
+      "xp": 9,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Spider Essence Shop"
+    },
+    {
+      "id": "SPIDER_ESSENCE_EMPOWERED_AGILITY_10",
+      "name": "Spider Essence \u2014 Empowered Agility T10",
+      "category": "Essence Shop",
+      "xp": 10,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Spider Essence Shop"
+    },
+    {
+      "id": "SPIDER_ESSENCE_VERMIN_CONTROL_1",
+      "name": "Spider Essence \u2014 Vermin Control T1",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Spider Essence Shop"
+    },
+    {
+      "id": "SPIDER_ESSENCE_VERMIN_CONTROL_2",
+      "name": "Spider Essence \u2014 Vermin Control T2",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Spider Essence Shop"
+    },
+    {
+      "id": "SPIDER_ESSENCE_VERMIN_CONTROL_3",
+      "name": "Spider Essence \u2014 Vermin Control T3",
+      "category": "Essence Shop",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Spider Essence Shop"
+    },
+    {
+      "id": "SPIDER_ESSENCE_VERMIN_CONTROL_4",
+      "name": "Spider Essence \u2014 Vermin Control T4",
+      "category": "Essence Shop",
+      "xp": 5,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Spider Essence Shop"
+    },
+    {
+      "id": "SPIDER_ESSENCE_VERMIN_CONTROL_5",
+      "name": "Spider Essence \u2014 Vermin Control T5",
+      "category": "Essence Shop",
+      "xp": 7,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Spider Essence Shop"
+    },
+    {
+      "id": "SPIDER_ESSENCE_BANE_1",
+      "name": "Spider Essence \u2014 Bane T1",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Spider Essence Shop"
+    },
+    {
+      "id": "SPIDER_ESSENCE_BANE_2",
+      "name": "Spider Essence \u2014 Bane T2",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Spider Essence Shop"
+    },
+    {
+      "id": "SPIDER_ESSENCE_BANE_3",
+      "name": "Spider Essence \u2014 Bane T3",
+      "category": "Essence Shop",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Spider Essence Shop"
+    },
+    {
+      "id": "SPIDER_ESSENCE_BANE_4",
+      "name": "Spider Essence \u2014 Bane T4",
+      "category": "Essence Shop",
+      "xp": 5,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Spider Essence Shop"
+    },
+    {
+      "id": "SPIDER_ESSENCE_BANE_5",
+      "name": "Spider Essence \u2014 Bane T5",
+      "category": "Essence Shop",
+      "xp": 7,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Spider Essence Shop"
+    },
+    {
+      "id": "SPIDER_ESSENCE_SPIDER_TRAINING_1",
+      "name": "Spider Essence \u2014 Spider Training T1",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Spider Essence Shop"
+    },
+    {
+      "id": "SPIDER_ESSENCE_SPIDER_TRAINING_2",
+      "name": "Spider Essence \u2014 Spider Training T2",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Spider Essence Shop"
+    },
+    {
+      "id": "SPIDER_ESSENCE_SPIDER_TRAINING_3",
+      "name": "Spider Essence \u2014 Spider Training T3",
+      "category": "Essence Shop",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Spider Essence Shop"
+    },
+    {
+      "id": "SPIDER_ESSENCE_TOXOPHILITE_1",
+      "name": "Spider Essence \u2014 Toxophilite T1",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Spider Essence Shop"
+    },
+    {
+      "id": "SPIDER_ESSENCE_TOXOPHILITE_2",
+      "name": "Spider Essence \u2014 Toxophilite T2",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Spider Essence Shop"
+    },
+    {
+      "id": "SPIDER_ESSENCE_TOXOPHILITE_3",
+      "name": "Spider Essence \u2014 Toxophilite T3",
+      "category": "Essence Shop",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Spider Essence Shop"
+    },
+    {
+      "id": "SPIDER_ESSENCE_TOXOPHILITE_4",
+      "name": "Spider Essence \u2014 Toxophilite T4",
+      "category": "Essence Shop",
+      "xp": 5,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Spider Essence Shop"
+    },
+    {
+      "id": "SPIDER_ESSENCE_TOXOPHILITE_5",
+      "name": "Spider Essence \u2014 Toxophilite T5",
+      "category": "Essence Shop",
+      "xp": 7,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Spider Essence Shop"
+    },
+    {
+      "id": "UNDEAD_ESSENCE_CATACOMBS_BOSS_LUCK_1",
+      "name": "Undead Essence \u2014 Boss Luck T1",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "Purchase from Undead Essence Shop"
+    },
+    {
+      "id": "UNDEAD_ESSENCE_CATACOMBS_BOSS_LUCK_2",
+      "name": "Undead Essence \u2014 Boss Luck T2",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "Purchase from Undead Essence Shop"
+    },
+    {
+      "id": "UNDEAD_ESSENCE_CATACOMBS_BOSS_LUCK_3",
+      "name": "Undead Essence \u2014 Boss Luck T3",
+      "category": "Essence Shop",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Undead Essence Shop"
+    },
+    {
+      "id": "UNDEAD_ESSENCE_CATACOMBS_BOSS_LUCK_4",
+      "name": "Undead Essence \u2014 Boss Luck T4",
+      "category": "Essence Shop",
+      "xp": 5,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Undead Essence Shop"
+    },
+    {
+      "id": "UNDEAD_ESSENCE_LOOTING_1",
+      "name": "Undead Essence \u2014 Looting T1",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Undead Essence Shop"
+    },
+    {
+      "id": "UNDEAD_ESSENCE_LOOTING_2",
+      "name": "Undead Essence \u2014 Looting T2",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Undead Essence Shop"
+    },
+    {
+      "id": "UNDEAD_ESSENCE_LOOTING_3",
+      "name": "Undead Essence \u2014 Looting T3",
+      "category": "Essence Shop",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Undead Essence Shop"
+    },
+    {
+      "id": "UNDEAD_ESSENCE_LOOTING_4",
+      "name": "Undead Essence \u2014 Looting T4",
+      "category": "Essence Shop",
+      "xp": 5,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Undead Essence Shop"
+    },
+    {
+      "id": "UNDEAD_ESSENCE_LOOTING_5",
+      "name": "Undead Essence \u2014 Looting T5",
+      "category": "Essence Shop",
+      "xp": 7,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Undead Essence Shop"
+    },
+    {
+      "id": "UNDEAD_ESSENCE_HEALTH_ESSENCE_1",
+      "name": "Undead Essence \u2014 Health Essence T1",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Undead Essence Shop"
+    },
+    {
+      "id": "UNDEAD_ESSENCE_HEALTH_ESSENCE_2",
+      "name": "Undead Essence \u2014 Health Essence T2",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Undead Essence Shop"
+    },
+    {
+      "id": "UNDEAD_ESSENCE_HEALTH_ESSENCE_3",
+      "name": "Undead Essence \u2014 Health Essence T3",
+      "category": "Essence Shop",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Undead Essence Shop"
+    },
+    {
+      "id": "UNDEAD_ESSENCE_HEALTH_ESSENCE_4",
+      "name": "Undead Essence \u2014 Health Essence T4",
+      "category": "Essence Shop",
+      "xp": 5,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Undead Essence Shop"
+    },
+    {
+      "id": "UNDEAD_ESSENCE_HEALTH_ESSENCE_5",
+      "name": "Undead Essence \u2014 Health Essence T5",
+      "category": "Essence Shop",
+      "xp": 7,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Undead Essence Shop"
+    },
+    {
+      "id": "UNDEAD_ESSENCE_DEFENSE_ESSENCE_1",
+      "name": "Undead Essence \u2014 Defense Essence T1",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Undead Essence Shop"
+    },
+    {
+      "id": "UNDEAD_ESSENCE_DEFENSE_ESSENCE_2",
+      "name": "Undead Essence \u2014 Defense Essence T2",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Undead Essence Shop"
+    },
+    {
+      "id": "UNDEAD_ESSENCE_DEFENSE_ESSENCE_3",
+      "name": "Undead Essence \u2014 Defense Essence T3",
+      "category": "Essence Shop",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Undead Essence Shop"
+    },
+    {
+      "id": "UNDEAD_ESSENCE_DEFENSE_ESSENCE_4",
+      "name": "Undead Essence \u2014 Defense Essence T4",
+      "category": "Essence Shop",
+      "xp": 5,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Undead Essence Shop"
+    },
+    {
+      "id": "UNDEAD_ESSENCE_DEFENSE_ESSENCE_5",
+      "name": "Undead Essence \u2014 Defense Essence T5",
+      "category": "Essence Shop",
+      "xp": 7,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Undead Essence Shop"
+    },
+    {
+      "id": "UNDEAD_ESSENCE_STRENGTH_ESSENCE_1",
+      "name": "Undead Essence \u2014 Strength Essence T1",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Undead Essence Shop"
+    },
+    {
+      "id": "UNDEAD_ESSENCE_STRENGTH_ESSENCE_2",
+      "name": "Undead Essence \u2014 Strength Essence T2",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Undead Essence Shop"
+    },
+    {
+      "id": "UNDEAD_ESSENCE_STRENGTH_ESSENCE_3",
+      "name": "Undead Essence \u2014 Strength Essence T3",
+      "category": "Essence Shop",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Undead Essence Shop"
+    },
+    {
+      "id": "UNDEAD_ESSENCE_STRENGTH_ESSENCE_4",
+      "name": "Undead Essence \u2014 Strength Essence T4",
+      "category": "Essence Shop",
+      "xp": 5,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Undead Essence Shop"
+    },
+    {
+      "id": "UNDEAD_ESSENCE_STRENGTH_ESSENCE_5",
+      "name": "Undead Essence \u2014 Strength Essence T5",
+      "category": "Essence Shop",
+      "xp": 7,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Undead Essence Shop"
+    },
+    {
+      "id": "UNDEAD_ESSENCE_INTELLIGENCE_ESSENCE_1",
+      "name": "Undead Essence \u2014 Intelligence Essence T1",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Undead Essence Shop"
+    },
+    {
+      "id": "UNDEAD_ESSENCE_INTELLIGENCE_ESSENCE_2",
+      "name": "Undead Essence \u2014 Intelligence Essence T2",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Undead Essence Shop"
+    },
+    {
+      "id": "UNDEAD_ESSENCE_INTELLIGENCE_ESSENCE_3",
+      "name": "Undead Essence \u2014 Intelligence Essence T3",
+      "category": "Essence Shop",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Undead Essence Shop"
+    },
+    {
+      "id": "UNDEAD_ESSENCE_INTELLIGENCE_ESSENCE_4",
+      "name": "Undead Essence \u2014 Intelligence Essence T4",
+      "category": "Essence Shop",
+      "xp": 5,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Undead Essence Shop"
+    },
+    {
+      "id": "UNDEAD_ESSENCE_INTELLIGENCE_ESSENCE_5",
+      "name": "Undead Essence \u2014 Intelligence Essence T5",
+      "category": "Essence Shop",
+      "xp": 7,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Undead Essence Shop"
+    },
+    {
+      "id": "UNDEAD_ESSENCE_CRITICAL_ESSENCE_1",
+      "name": "Undead Essence \u2014 Critical Essence T1",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Undead Essence Shop"
+    },
+    {
+      "id": "UNDEAD_ESSENCE_CRITICAL_ESSENCE_2",
+      "name": "Undead Essence \u2014 Critical Essence T2",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Undead Essence Shop"
+    },
+    {
+      "id": "UNDEAD_ESSENCE_CRITICAL_ESSENCE_3",
+      "name": "Undead Essence \u2014 Critical Essence T3",
+      "category": "Essence Shop",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Undead Essence Shop"
+    },
+    {
+      "id": "UNDEAD_ESSENCE_CRITICAL_ESSENCE_4",
+      "name": "Undead Essence \u2014 Critical Essence T4",
+      "category": "Essence Shop",
+      "xp": 5,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Undead Essence Shop"
+    },
+    {
+      "id": "UNDEAD_ESSENCE_CRITICAL_ESSENCE_5",
+      "name": "Undead Essence \u2014 Critical Essence T5",
+      "category": "Essence Shop",
+      "xp": 7,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Undead Essence Shop"
+    },
+    {
+      "id": "UNDEAD_ESSENCE_HELP_OF_THE_FAIRIES_1",
+      "name": "Undead Essence \u2014 Help of the Fairies T1",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Undead Essence Shop"
+    },
+    {
+      "id": "WITHER_ESSENCE_FORBIDDEN_HEALTH_1",
+      "name": "Wither Essence \u2014 Forbidden Health T1",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Wither Essence Shop"
+    },
+    {
+      "id": "WITHER_ESSENCE_FORBIDDEN_HEALTH_2",
+      "name": "Wither Essence \u2014 Forbidden Health T2",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Wither Essence Shop"
+    },
+    {
+      "id": "WITHER_ESSENCE_FORBIDDEN_HEALTH_3",
+      "name": "Wither Essence \u2014 Forbidden Health T3",
+      "category": "Essence Shop",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Wither Essence Shop"
+    },
+    {
+      "id": "WITHER_ESSENCE_FORBIDDEN_HEALTH_4",
+      "name": "Wither Essence \u2014 Forbidden Health T4",
+      "category": "Essence Shop",
+      "xp": 5,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Wither Essence Shop"
+    },
+    {
+      "id": "WITHER_ESSENCE_FORBIDDEN_HEALTH_5",
+      "name": "Wither Essence \u2014 Forbidden Health T5",
+      "category": "Essence Shop",
+      "xp": 7,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Wither Essence Shop"
+    },
+    {
+      "id": "WITHER_ESSENCE_FORBIDDEN_DEFENSE_1",
+      "name": "Wither Essence \u2014 Forbidden Defense T1",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Wither Essence Shop"
+    },
+    {
+      "id": "WITHER_ESSENCE_FORBIDDEN_DEFENSE_2",
+      "name": "Wither Essence \u2014 Forbidden Defense T2",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Wither Essence Shop"
+    },
+    {
+      "id": "WITHER_ESSENCE_FORBIDDEN_DEFENSE_3",
+      "name": "Wither Essence \u2014 Forbidden Defense T3",
+      "category": "Essence Shop",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Wither Essence Shop"
+    },
+    {
+      "id": "WITHER_ESSENCE_FORBIDDEN_DEFENSE_4",
+      "name": "Wither Essence \u2014 Forbidden Defense T4",
+      "category": "Essence Shop",
+      "xp": 5,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Wither Essence Shop"
+    },
+    {
+      "id": "WITHER_ESSENCE_FORBIDDEN_DEFENSE_5",
+      "name": "Wither Essence \u2014 Forbidden Defense T5",
+      "category": "Essence Shop",
+      "xp": 7,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Wither Essence Shop"
+    },
+    {
+      "id": "WITHER_ESSENCE_FORBIDDEN_SPEED_1",
+      "name": "Wither Essence \u2014 Forbidden Speed T1",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Wither Essence Shop"
+    },
+    {
+      "id": "WITHER_ESSENCE_FORBIDDEN_SPEED_2",
+      "name": "Wither Essence \u2014 Forbidden Speed T2",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Wither Essence Shop"
+    },
+    {
+      "id": "WITHER_ESSENCE_FORBIDDEN_INTELLIGENCE_1",
+      "name": "Wither Essence \u2014 Forbidden Intelligence T1",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Wither Essence Shop"
+    },
+    {
+      "id": "WITHER_ESSENCE_FORBIDDEN_INTELLIGENCE_2",
+      "name": "Wither Essence \u2014 Forbidden Intelligence T2",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Wither Essence Shop"
+    },
+    {
+      "id": "WITHER_ESSENCE_FORBIDDEN_INTELLIGENCE_3",
+      "name": "Wither Essence \u2014 Forbidden Intelligence T3",
+      "category": "Essence Shop",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Wither Essence Shop"
+    },
+    {
+      "id": "WITHER_ESSENCE_FORBIDDEN_INTELLIGENCE_4",
+      "name": "Wither Essence \u2014 Forbidden Intelligence T4",
+      "category": "Essence Shop",
+      "xp": 5,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Wither Essence Shop"
+    },
+    {
+      "id": "WITHER_ESSENCE_FORBIDDEN_INTELLIGENCE_5",
+      "name": "Wither Essence \u2014 Forbidden Intelligence T5",
+      "category": "Essence Shop",
+      "xp": 7,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Wither Essence Shop"
+    },
+    {
+      "id": "WITHER_ESSENCE_FORBIDDEN_STRENGTH_1",
+      "name": "Wither Essence \u2014 Forbidden Strength T1",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Wither Essence Shop"
+    },
+    {
+      "id": "WITHER_ESSENCE_FORBIDDEN_STRENGTH_2",
+      "name": "Wither Essence \u2014 Forbidden Strength T2",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Wither Essence Shop"
+    },
+    {
+      "id": "WITHER_ESSENCE_FORBIDDEN_STRENGTH_3",
+      "name": "Wither Essence \u2014 Forbidden Strength T3",
+      "category": "Essence Shop",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Wither Essence Shop"
+    },
+    {
+      "id": "WITHER_ESSENCE_FORBIDDEN_STRENGTH_4",
+      "name": "Wither Essence \u2014 Forbidden Strength T4",
+      "category": "Essence Shop",
+      "xp": 5,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Wither Essence Shop"
+    },
+    {
+      "id": "WITHER_ESSENCE_FORBIDDEN_STRENGTH_5",
+      "name": "Wither Essence \u2014 Forbidden Strength T5",
+      "category": "Essence Shop",
+      "xp": 7,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Wither Essence Shop"
+    },
+    {
+      "id": "WITHER_ESSENCE_FORBIDDEN_BLESSING_1",
+      "name": "Wither Essence \u2014 Forbidden Blessing T1",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Wither Essence Shop"
+    },
+    {
+      "id": "WITHER_ESSENCE_FORBIDDEN_BLESSING_2",
+      "name": "Wither Essence \u2014 Forbidden Blessing T2",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Wither Essence Shop"
+    },
+    {
+      "id": "WITHER_ESSENCE_FORBIDDEN_BLESSING_3",
+      "name": "Wither Essence \u2014 Forbidden Blessing T3",
+      "category": "Essence Shop",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Wither Essence Shop"
+    },
+    {
+      "id": "WITHER_ESSENCE_FORBIDDEN_BLESSING_4",
+      "name": "Wither Essence \u2014 Forbidden Blessing T4",
+      "category": "Essence Shop",
+      "xp": 5,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Wither Essence Shop"
+    },
+    {
+      "id": "WITHER_ESSENCE_FORBIDDEN_BLESSING_5",
+      "name": "Wither Essence \u2014 Forbidden Blessing T5",
+      "category": "Essence Shop",
+      "xp": 7,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Wither Essence Shop"
+    },
+    {
+      "id": "WITHER_ESSENCE_FORBIDDEN_BLESSING_6",
+      "name": "Wither Essence \u2014 Forbidden Blessing T6",
+      "category": "Essence Shop",
+      "xp": 8,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Wither Essence Shop"
+    },
+    {
+      "id": "WITHER_ESSENCE_FORBIDDEN_BLESSING_7",
+      "name": "Wither Essence \u2014 Forbidden Blessing T7",
+      "category": "Essence Shop",
+      "xp": 8,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Wither Essence Shop"
+    },
+    {
+      "id": "WITHER_ESSENCE_FORBIDDEN_BLESSING_8",
+      "name": "Wither Essence \u2014 Forbidden Blessing T8",
+      "category": "Essence Shop",
+      "xp": 8,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Wither Essence Shop"
+    },
+    {
+      "id": "WITHER_ESSENCE_FORBIDDEN_BLESSING_9",
+      "name": "Wither Essence \u2014 Forbidden Blessing T9",
+      "category": "Essence Shop",
+      "xp": 9,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Wither Essence Shop"
+    },
+    {
+      "id": "WITHER_ESSENCE_FORBIDDEN_BLESSING_10",
+      "name": "Wither Essence \u2014 Forbidden Blessing T10",
+      "category": "Essence Shop",
+      "xp": 10,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Wither Essence Shop"
+    },
+    {
+      "id": "CRIMSON_ESSENCE_FUNGUS_FORTUNA_1",
+      "name": "Crimson Essence \u2014 Fungus Fortuna T1",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Crimson Essence Shop"
+    },
+    {
+      "id": "CRIMSON_ESSENCE_FUNGUS_FORTUNA_2",
+      "name": "Crimson Essence \u2014 Fungus Fortuna T2",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Crimson Essence Shop"
+    },
+    {
+      "id": "CRIMSON_ESSENCE_FUNGUS_FORTUNA_3",
+      "name": "Crimson Essence \u2014 Fungus Fortuna T3",
+      "category": "Essence Shop",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Crimson Essence Shop"
+    },
+    {
+      "id": "CRIMSON_ESSENCE_FUNGUS_FORTUNA_4",
+      "name": "Crimson Essence \u2014 Fungus Fortuna T4",
+      "category": "Essence Shop",
+      "xp": 5,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Crimson Essence Shop"
+    },
+    {
+      "id": "CRIMSON_ESSENCE_FUNGUS_FORTUNA_5",
+      "name": "Crimson Essence \u2014 Fungus Fortuna T5",
+      "category": "Essence Shop",
+      "xp": 7,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Crimson Essence Shop"
+    },
+    {
+      "id": "CRIMSON_ESSENCE_FUNGUS_FORTUNA_6",
+      "name": "Crimson Essence \u2014 Fungus Fortuna T6",
+      "category": "Essence Shop",
+      "xp": 8,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Crimson Essence Shop"
+    },
+    {
+      "id": "CRIMSON_ESSENCE_FUNGUS_FORTUNA_7",
+      "name": "Crimson Essence \u2014 Fungus Fortuna T7",
+      "category": "Essence Shop",
+      "xp": 8,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Crimson Essence Shop"
+    },
+    {
+      "id": "CRIMSON_ESSENCE_FUNGUS_FORTUNA_8",
+      "name": "Crimson Essence \u2014 Fungus Fortuna T8",
+      "category": "Essence Shop",
+      "xp": 8,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Crimson Essence Shop"
+    },
+    {
+      "id": "CRIMSON_ESSENCE_FUNGUS_FORTUNA_9",
+      "name": "Crimson Essence \u2014 Fungus Fortuna T9",
+      "category": "Essence Shop",
+      "xp": 9,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Crimson Essence Shop"
+    },
+    {
+      "id": "CRIMSON_ESSENCE_FUNGUS_FORTUNA_10",
+      "name": "Crimson Essence \u2014 Fungus Fortuna T10",
+      "category": "Essence Shop",
+      "xp": 10,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Crimson Essence Shop"
+    },
+    {
+      "id": "CRIMSON_ESSENCE_HARENA_FORTUNA_1",
+      "name": "Crimson Essence \u2014 Harena Fortuna T1",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Crimson Essence Shop"
+    },
+    {
+      "id": "CRIMSON_ESSENCE_HARENA_FORTUNA_2",
+      "name": "Crimson Essence \u2014 Harena Fortuna T2",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Crimson Essence Shop"
+    },
+    {
+      "id": "CRIMSON_ESSENCE_HARENA_FORTUNA_3",
+      "name": "Crimson Essence \u2014 Harena Fortuna T3",
+      "category": "Essence Shop",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Crimson Essence Shop"
+    },
+    {
+      "id": "CRIMSON_ESSENCE_HARENA_FORTUNA_4",
+      "name": "Crimson Essence \u2014 Harena Fortuna T4",
+      "category": "Essence Shop",
+      "xp": 5,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Crimson Essence Shop"
+    },
+    {
+      "id": "CRIMSON_ESSENCE_HARENA_FORTUNA_5",
+      "name": "Crimson Essence \u2014 Harena Fortuna T5",
+      "category": "Essence Shop",
+      "xp": 7,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Crimson Essence Shop"
+    },
+    {
+      "id": "CRIMSON_ESSENCE_HARENA_FORTUNA_6",
+      "name": "Crimson Essence \u2014 Harena Fortuna T6",
+      "category": "Essence Shop",
+      "xp": 8,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Crimson Essence Shop"
+    },
+    {
+      "id": "CRIMSON_ESSENCE_HARENA_FORTUNA_7",
+      "name": "Crimson Essence \u2014 Harena Fortuna T7",
+      "category": "Essence Shop",
+      "xp": 8,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Crimson Essence Shop"
+    },
+    {
+      "id": "CRIMSON_ESSENCE_HARENA_FORTUNA_8",
+      "name": "Crimson Essence \u2014 Harena Fortuna T8",
+      "category": "Essence Shop",
+      "xp": 8,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Crimson Essence Shop"
+    },
+    {
+      "id": "CRIMSON_ESSENCE_HARENA_FORTUNA_9",
+      "name": "Crimson Essence \u2014 Harena Fortuna T9",
+      "category": "Essence Shop",
+      "xp": 9,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Crimson Essence Shop"
+    },
+    {
+      "id": "CRIMSON_ESSENCE_HARENA_FORTUNA_10",
+      "name": "Crimson Essence \u2014 Harena Fortuna T10",
+      "category": "Essence Shop",
+      "xp": 10,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Crimson Essence Shop"
+    },
+    {
+      "id": "CRIMSON_ESSENCE_HEADSTART_1",
+      "name": "Crimson Essence \u2014 Headstart T1",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Crimson Essence Shop"
+    },
+    {
+      "id": "CRIMSON_ESSENCE_HEADSTART_2",
+      "name": "Crimson Essence \u2014 Headstart T2",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Crimson Essence Shop"
+    },
+    {
+      "id": "CRIMSON_ESSENCE_HEADSTART_3",
+      "name": "Crimson Essence \u2014 Headstart T3",
+      "category": "Essence Shop",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Crimson Essence Shop"
+    },
+    {
+      "id": "CRIMSON_ESSENCE_HEADSTART_4",
+      "name": "Crimson Essence \u2014 Headstart T4",
+      "category": "Essence Shop",
+      "xp": 5,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Crimson Essence Shop"
+    },
+    {
+      "id": "CRIMSON_ESSENCE_HEADSTART_5",
+      "name": "Crimson Essence \u2014 Headstart T5",
+      "category": "Essence Shop",
+      "xp": 7,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Crimson Essence Shop"
+    },
+    {
+      "id": "CRIMSON_ESSENCE_FRESH_TOOLS_1",
+      "name": "Crimson Essence \u2014 Fresh Tools T1",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Crimson Essence Shop"
+    },
+    {
+      "id": "CRIMSON_ESSENCE_FRESH_TOOLS_2",
+      "name": "Crimson Essence \u2014 Fresh Tools T2",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Crimson Essence Shop"
+    },
+    {
+      "id": "CRIMSON_ESSENCE_FRESH_TOOLS_3",
+      "name": "Crimson Essence \u2014 Fresh Tools T3",
+      "category": "Essence Shop",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Crimson Essence Shop"
+    },
+    {
+      "id": "CRIMSON_ESSENCE_FRESH_TOOLS_4",
+      "name": "Crimson Essence \u2014 Fresh Tools T4",
+      "category": "Essence Shop",
+      "xp": 5,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Crimson Essence Shop"
+    },
+    {
+      "id": "CRIMSON_ESSENCE_FRESH_TOOLS_5",
+      "name": "Crimson Essence \u2014 Fresh Tools T5",
+      "category": "Essence Shop",
+      "xp": 7,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Crimson Essence Shop"
+    },
+    {
+      "id": "CRIMSON_ESSENCE_CRIMSON_TRAINING_1",
+      "name": "Crimson Essence \u2014 Crimson Training T1",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Crimson Essence Shop"
+    },
+    {
+      "id": "CRIMSON_ESSENCE_CRIMSON_TRAINING_2",
+      "name": "Crimson Essence \u2014 Crimson Training T2",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Crimson Essence Shop"
+    },
+    {
+      "id": "CRIMSON_ESSENCE_CRIMSON_TRAINING_3",
+      "name": "Crimson Essence \u2014 Crimson Training T3",
+      "category": "Essence Shop",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Crimson Essence Shop"
+    },
+    {
+      "id": "CRIMSON_ESSENCE_WITHER_PIPER_1",
+      "name": "Crimson Essence \u2014 Wither Piper T1",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Crimson Essence Shop"
+    },
+    {
+      "id": "CRIMSON_ESSENCE_WITHER_PIPER_2",
+      "name": "Crimson Essence \u2014 Wither Piper T2",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Crimson Essence Shop"
+    },
+    {
+      "id": "CRIMSON_ESSENCE_WITHER_PIPER_3",
+      "name": "Crimson Essence \u2014 Wither Piper T3",
+      "category": "Essence Shop",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Crimson Essence Shop"
+    },
+    {
+      "id": "CRIMSON_ESSENCE_WITHER_PIPER_4",
+      "name": "Crimson Essence \u2014 Wither Piper T4",
+      "category": "Essence Shop",
+      "xp": 5,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Crimson Essence Shop"
+    },
+    {
+      "id": "CRIMSON_ESSENCE_WITHER_PIPER_5",
+      "name": "Crimson Essence \u2014 Wither Piper T5",
+      "category": "Essence Shop",
+      "xp": 7,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Crimson Essence Shop"
+    },
+    {
+      "id": "CRIMSON_ESSENCE_STRONGARM_1",
+      "name": "Crimson Essence \u2014 Strongarm T1",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Crimson Essence Shop"
+    },
+    {
+      "id": "CRIMSON_ESSENCE_STRONGARM_2",
+      "name": "Crimson Essence \u2014 Strongarm T2",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Crimson Essence Shop"
+    },
+    {
+      "id": "CRIMSON_ESSENCE_KUUDRA_MASTER_1",
+      "name": "Crimson Essence \u2014 Kuudra Master T1",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Crimson Essence Shop"
+    },
+    {
+      "id": "GOLD_ESSENCE_EAGER_MINER_1",
+      "name": "Gold Essence \u2014 Eager Miner T1",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "Purchase from Gold Essence Shop"
+    },
+    {
+      "id": "GOLD_ESSENCE_EAGER_MINER_2",
+      "name": "Gold Essence \u2014 Eager Miner T2",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "Purchase from Gold Essence Shop"
+    },
+    {
+      "id": "GOLD_ESSENCE_EAGER_MINER_3",
+      "name": "Gold Essence \u2014 Eager Miner T3",
+      "category": "Essence Shop",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Gold Essence Shop"
+    },
+    {
+      "id": "GOLD_ESSENCE_EAGER_MINER_4",
+      "name": "Gold Essence \u2014 Eager Miner T4",
+      "category": "Essence Shop",
+      "xp": 5,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Gold Essence Shop"
+    },
+    {
+      "id": "GOLD_ESSENCE_EAGER_MINER_5",
+      "name": "Gold Essence \u2014 Eager Miner T5",
+      "category": "Essence Shop",
+      "xp": 7,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Gold Essence Shop"
+    },
+    {
+      "id": "GOLD_ESSENCE_EAGER_MINER_6",
+      "name": "Gold Essence \u2014 Eager Miner T6",
+      "category": "Essence Shop",
+      "xp": 8,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Gold Essence Shop"
+    },
+    {
+      "id": "GOLD_ESSENCE_EAGER_MINER_7",
+      "name": "Gold Essence \u2014 Eager Miner T7",
+      "category": "Essence Shop",
+      "xp": 8,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Gold Essence Shop"
+    },
+    {
+      "id": "GOLD_ESSENCE_EAGER_MINER_8",
+      "name": "Gold Essence \u2014 Eager Miner T8",
+      "category": "Essence Shop",
+      "xp": 8,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Gold Essence Shop"
+    },
+    {
+      "id": "GOLD_ESSENCE_EAGER_MINER_9",
+      "name": "Gold Essence \u2014 Eager Miner T9",
+      "category": "Essence Shop",
+      "xp": 9,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Gold Essence Shop"
+    },
+    {
+      "id": "GOLD_ESSENCE_EAGER_MINER_10",
+      "name": "Gold Essence \u2014 Eager Miner T10",
+      "category": "Essence Shop",
+      "xp": 10,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Gold Essence Shop"
+    },
+    {
+      "id": "GOLD_ESSENCE_TREASURES_OF_THE_EARTH_1",
+      "name": "Gold Essence \u2014 Treasure of the Earth T1",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "Purchase from Gold Essence Shop"
+    },
+    {
+      "id": "GOLD_ESSENCE_TREASURES_OF_THE_EARTH_2",
+      "name": "Gold Essence \u2014 Treasure of the Earth T2",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "Purchase from Gold Essence Shop"
+    },
+    {
+      "id": "GOLD_ESSENCE_TREASURES_OF_THE_EARTH_3",
+      "name": "Gold Essence \u2014 Treasure of the Earth T3",
+      "category": "Essence Shop",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Gold Essence Shop"
+    },
+    {
+      "id": "GOLD_ESSENCE_TREASURES_OF_THE_EARTH_4",
+      "name": "Gold Essence \u2014 Treasure of the Earth T4",
+      "category": "Essence Shop",
+      "xp": 5,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Gold Essence Shop"
+    },
+    {
+      "id": "GOLD_ESSENCE_TREASURES_OF_THE_EARTH_5",
+      "name": "Gold Essence \u2014 Treasure of the Earth T5",
+      "category": "Essence Shop",
+      "xp": 7,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Gold Essence Shop"
+    },
+    {
+      "id": "GOLD_ESSENCE_UNBREAKING_1",
+      "name": "Gold Essence \u2014 Unbreaking T1",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Gold Essence Shop"
+    },
+    {
+      "id": "GOLD_ESSENCE_UNBREAKING_2",
+      "name": "Gold Essence \u2014 Unbreaking T2",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Gold Essence Shop"
+    },
+    {
+      "id": "GOLD_ESSENCE_UNBREAKING_3",
+      "name": "Gold Essence \u2014 Unbreaking T3",
+      "category": "Essence Shop",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Gold Essence Shop"
+    },
+    {
+      "id": "GOLD_ESSENCE_UNBREAKING_4",
+      "name": "Gold Essence \u2014 Unbreaking T4",
+      "category": "Essence Shop",
+      "xp": 5,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Gold Essence Shop"
+    },
+    {
+      "id": "GOLD_ESSENCE_UNBREAKING_5",
+      "name": "Gold Essence \u2014 Unbreaking T5",
+      "category": "Essence Shop",
+      "xp": 7,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Gold Essence Shop"
+    },
+    {
+      "id": "GOLD_ESSENCE_MIDAS_LURE_1",
+      "name": "Gold Essence \u2014 Midas Lure T1",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Gold Essence Shop"
+    },
+    {
+      "id": "GOLD_ESSENCE_MIDAS_LURE_2",
+      "name": "Gold Essence \u2014 Midas Lure T2",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Gold Essence Shop"
+    },
+    {
+      "id": "GOLD_ESSENCE_MIDAS_LURE_3",
+      "name": "Gold Essence \u2014 Midas Lure T3",
+      "category": "Essence Shop",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Gold Essence Shop"
+    },
+    {
+      "id": "GOLD_ESSENCE_MIDAS_LURE_4",
+      "name": "Gold Essence \u2014 Midas Lure T4",
+      "category": "Essence Shop",
+      "xp": 5,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Gold Essence Shop"
+    },
+    {
+      "id": "GOLD_ESSENCE_MIDAS_LURE_5",
+      "name": "Gold Essence \u2014 Midas Lure T5",
+      "category": "Essence Shop",
+      "xp": 7,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Gold Essence Shop"
+    },
+    {
+      "id": "GOLD_ESSENCE_MIDAS_LURE_6",
+      "name": "Gold Essence \u2014 Midas Lure T6",
+      "category": "Essence Shop",
+      "xp": 8,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Gold Essence Shop"
+    },
+    {
+      "id": "GOLD_ESSENCE_MIDAS_LURE_7",
+      "name": "Gold Essence \u2014 Midas Lure T7",
+      "category": "Essence Shop",
+      "xp": 8,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Gold Essence Shop"
+    },
+    {
+      "id": "GOLD_ESSENCE_MIDAS_LURE_8",
+      "name": "Gold Essence \u2014 Midas Lure T8",
+      "category": "Essence Shop",
+      "xp": 8,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Gold Essence Shop"
+    },
+    {
+      "id": "GOLD_ESSENCE_MIDAS_LURE_9",
+      "name": "Gold Essence \u2014 Midas Lure T9",
+      "category": "Essence Shop",
+      "xp": 9,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Gold Essence Shop"
+    },
+    {
+      "id": "GOLD_ESSENCE_MIDAS_LURE_10",
+      "name": "Gold Essence \u2014 Midas Lure T10",
+      "category": "Essence Shop",
+      "xp": 10,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Gold Essence Shop"
+    },
+    {
+      "id": "GOLD_ESSENCE_DWARVEN_TRAINING_1",
+      "name": "Gold Essence \u2014 Dwarven Training T1",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Gold Essence Shop"
+    },
+    {
+      "id": "GOLD_ESSENCE_DWARVEN_TRAINING_2",
+      "name": "Gold Essence \u2014 Dwarven Training T2",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Gold Essence Shop"
+    },
+    {
+      "id": "GOLD_ESSENCE_DWARVEN_TRAINING_3",
+      "name": "Gold Essence \u2014 Dwarven Training T3",
+      "category": "Essence Shop",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Gold Essence Shop"
+    },
+    {
+      "id": "GOLD_ESSENCE_HEART_OF_GOLD_1",
+      "name": "Gold Essence \u2014 Heart of Gold T1",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Gold Essence Shop"
+    },
+    {
+      "id": "GOLD_ESSENCE_HEART_OF_GOLD_2",
+      "name": "Gold Essence \u2014 Heart of Gold T2",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Gold Essence Shop"
+    },
+    {
+      "id": "GOLD_ESSENCE_HEART_OF_GOLD_3",
+      "name": "Gold Essence \u2014 Heart of Gold T3",
+      "category": "Essence Shop",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Gold Essence Shop"
+    },
+    {
+      "id": "GOLD_ESSENCE_HEART_OF_GOLD_4",
+      "name": "Gold Essence \u2014 Heart of Gold T4",
+      "category": "Essence Shop",
+      "xp": 5,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Gold Essence Shop"
+    },
+    {
+      "id": "GOLD_ESSENCE_HEART_OF_GOLD_5",
+      "name": "Gold Essence \u2014 Heart of Gold T5",
+      "category": "Essence Shop",
+      "xp": 7,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Gold Essence Shop"
+    },
+    {
+      "id": "DIAMOND_ESSENCE_RETURN_TO_SENDER_1",
+      "name": "Diamond Essence \u2014 Return to Sender T1",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Diamond Essence Shop"
+    },
+    {
+      "id": "DIAMOND_ESSENCE_RETURN_TO_SENDER_2",
+      "name": "Diamond Essence \u2014 Return to Sender T2",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Diamond Essence Shop"
+    },
+    {
+      "id": "DIAMOND_ESSENCE_RETURN_TO_SENDER_3",
+      "name": "Diamond Essence \u2014 Return to Sender T3",
+      "category": "Essence Shop",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Diamond Essence Shop"
+    },
+    {
+      "id": "DIAMOND_ESSENCE_RETURN_TO_SENDER_4",
+      "name": "Diamond Essence \u2014 Return to Sender T4",
+      "category": "Essence Shop",
+      "xp": 5,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Diamond Essence Shop"
+    },
+    {
+      "id": "DIAMOND_ESSENCE_RETURN_TO_SENDER_5",
+      "name": "Diamond Essence \u2014 Return to Sender T5",
+      "category": "Essence Shop",
+      "xp": 7,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Diamond Essence Shop"
+    },
+    {
+      "id": "DIAMOND_ESSENCE_RETURN_TO_SENDER_6",
+      "name": "Diamond Essence \u2014 Return to Sender T6",
+      "category": "Essence Shop",
+      "xp": 8,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Diamond Essence Shop"
+    },
+    {
+      "id": "DIAMOND_ESSENCE_RETURN_TO_SENDER_7",
+      "name": "Diamond Essence \u2014 Return to Sender T7",
+      "category": "Essence Shop",
+      "xp": 8,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Diamond Essence Shop"
+    },
+    {
+      "id": "DIAMOND_ESSENCE_RETURN_TO_SENDER_8",
+      "name": "Diamond Essence \u2014 Return to Sender T8",
+      "category": "Essence Shop",
+      "xp": 8,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Diamond Essence Shop"
+    },
+    {
+      "id": "DIAMOND_ESSENCE_RETURN_TO_SENDER_9",
+      "name": "Diamond Essence \u2014 Return to Sender T9",
+      "category": "Essence Shop",
+      "xp": 9,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Diamond Essence Shop"
+    },
+    {
+      "id": "DIAMOND_ESSENCE_RETURN_TO_SENDER_10",
+      "name": "Diamond Essence \u2014 Return to Sender T10",
+      "category": "Essence Shop",
+      "xp": 10,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Diamond Essence Shop"
+    },
+    {
+      "id": "DIAMOND_ESSENCE_RHINESTONE_INFUSION_1",
+      "name": "Diamond Essence \u2014 Rhinestone Infusion T1",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Diamond Essence Shop"
+    },
+    {
+      "id": "DIAMOND_ESSENCE_RHINESTONE_INFUSION_2",
+      "name": "Diamond Essence \u2014 Rhinestone Infusion T2",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Diamond Essence Shop"
+    },
+    {
+      "id": "DIAMOND_ESSENCE_RHINESTONE_INFUSION_3",
+      "name": "Diamond Essence \u2014 Rhinestone Infusion T3",
+      "category": "Essence Shop",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Diamond Essence Shop"
+    },
+    {
+      "id": "DIAMOND_ESSENCE_RHINESTONE_INFUSION_4",
+      "name": "Diamond Essence \u2014 Rhinestone Infusion T4",
+      "category": "Essence Shop",
+      "xp": 5,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Diamond Essence Shop"
+    },
+    {
+      "id": "DIAMOND_ESSENCE_RHINESTONE_INFUSION_5",
+      "name": "Diamond Essence \u2014 Rhinestone Infusion T5",
+      "category": "Essence Shop",
+      "xp": 7,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Diamond Essence Shop"
+    },
+    {
+      "id": "DIAMOND_ESSENCE_RHINESTONE_INFUSION_6",
+      "name": "Diamond Essence \u2014 Rhinestone Infusion T6",
+      "category": "Essence Shop",
+      "xp": 8,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Diamond Essence Shop"
+    },
+    {
+      "id": "DIAMOND_ESSENCE_RHINESTONE_INFUSION_7",
+      "name": "Diamond Essence \u2014 Rhinestone Infusion T7",
+      "category": "Essence Shop",
+      "xp": 8,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Diamond Essence Shop"
+    },
+    {
+      "id": "DIAMOND_ESSENCE_RHINESTONE_INFUSION_8",
+      "name": "Diamond Essence \u2014 Rhinestone Infusion T8",
+      "category": "Essence Shop",
+      "xp": 8,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Diamond Essence Shop"
+    },
+    {
+      "id": "DIAMOND_ESSENCE_RHINESTONE_INFUSION_9",
+      "name": "Diamond Essence \u2014 Rhinestone Infusion T9",
+      "category": "Essence Shop",
+      "xp": 9,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Diamond Essence Shop"
+    },
+    {
+      "id": "DIAMOND_ESSENCE_RHINESTONE_INFUSION_10",
+      "name": "Diamond Essence \u2014 Rhinestone Infusion T10",
+      "category": "Essence Shop",
+      "xp": 10,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Diamond Essence Shop"
+    },
+    {
+      "id": "DIAMOND_ESSENCE_UNDER_PRESSURE_1",
+      "name": "Diamond Essence \u2014 Under Pressure T1",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Diamond Essence Shop"
+    },
+    {
+      "id": "DIAMOND_ESSENCE_UNDER_PRESSURE_2",
+      "name": "Diamond Essence \u2014 Under Pressure T2",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Diamond Essence Shop"
+    },
+    {
+      "id": "DIAMOND_ESSENCE_UNDER_PRESSURE_3",
+      "name": "Diamond Essence \u2014 Under Pressure T3",
+      "category": "Essence Shop",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Diamond Essence Shop"
+    },
+    {
+      "id": "DIAMOND_ESSENCE_UNDER_PRESSURE_4",
+      "name": "Diamond Essence \u2014 Under Pressure T4",
+      "category": "Essence Shop",
+      "xp": 5,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Diamond Essence Shop"
+    },
+    {
+      "id": "DIAMOND_ESSENCE_UNDER_PRESSURE_5",
+      "name": "Diamond Essence \u2014 Under Pressure T5",
+      "category": "Essence Shop",
+      "xp": 7,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Diamond Essence Shop"
+    },
+    {
+      "id": "DIAMOND_ESSENCE_RADIANT_FISHER_1",
+      "name": "Diamond Essence \u2014 Radiant Fisher T1",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Diamond Essence Shop"
+    },
+    {
+      "id": "DIAMOND_ESSENCE_RADIANT_FISHER_2",
+      "name": "Diamond Essence \u2014 Radiant Fisher T2",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Diamond Essence Shop"
+    },
+    {
+      "id": "DIAMOND_ESSENCE_RADIANT_FISHER_3",
+      "name": "Diamond Essence \u2014 Radiant Fisher T3",
+      "category": "Essence Shop",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Diamond Essence Shop"
+    },
+    {
+      "id": "DIAMOND_ESSENCE_RADIANT_FISHER_4",
+      "name": "Diamond Essence \u2014 Radiant Fisher T4",
+      "category": "Essence Shop",
+      "xp": 5,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Diamond Essence Shop"
+    },
+    {
+      "id": "DIAMOND_ESSENCE_RADIANT_FISHER_5",
+      "name": "Diamond Essence \u2014 Radiant Fisher T5",
+      "category": "Essence Shop",
+      "xp": 7,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Diamond Essence Shop"
+    },
+    {
+      "id": "DIAMOND_ESSENCE_RADIANT_FISHER_6",
+      "name": "Diamond Essence \u2014 Radiant Fisher T6",
+      "category": "Essence Shop",
+      "xp": 8,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Diamond Essence Shop"
+    },
+    {
+      "id": "DIAMOND_ESSENCE_RADIANT_FISHER_7",
+      "name": "Diamond Essence \u2014 Radiant Fisher T7",
+      "category": "Essence Shop",
+      "xp": 8,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Diamond Essence Shop"
+    },
+    {
+      "id": "DIAMOND_ESSENCE_RADIANT_FISHER_8",
+      "name": "Diamond Essence \u2014 Radiant Fisher T8",
+      "category": "Essence Shop",
+      "xp": 8,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Diamond Essence Shop"
+    },
+    {
+      "id": "DIAMOND_ESSENCE_RADIANT_FISHER_9",
+      "name": "Diamond Essence \u2014 Radiant Fisher T9",
+      "category": "Essence Shop",
+      "xp": 9,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Diamond Essence Shop"
+    },
+    {
+      "id": "DIAMOND_ESSENCE_RADIANT_FISHER_10",
+      "name": "Diamond Essence \u2014 Radiant Fisher T10",
+      "category": "Essence Shop",
+      "xp": 10,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Diamond Essence Shop"
+    },
+    {
+      "id": "DIAMOND_ESSENCE_DIAMOND_IN_THE_ROUGH_1",
+      "name": "Diamond Essence \u2014 Diamond in the Rough T1",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Diamond Essence Shop"
+    },
+    {
+      "id": "DIAMOND_ESSENCE_DIAMOND_IN_THE_ROUGH_2",
+      "name": "Diamond Essence \u2014 Diamond in the Rough T2",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Diamond Essence Shop"
+    },
+    {
+      "id": "DIAMOND_ESSENCE_DIAMOND_IN_THE_ROUGH_3",
+      "name": "Diamond Essence \u2014 Diamond in the Rough T3",
+      "category": "Essence Shop",
+      "xp": 3,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Diamond Essence Shop"
+    },
+    {
+      "id": "DIAMOND_ESSENCE_DIAMOND_IN_THE_ROUGH_4",
+      "name": "Diamond Essence \u2014 Diamond in the Rough T4",
+      "category": "Essence Shop",
+      "xp": 5,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Diamond Essence Shop"
+    },
+    {
+      "id": "DIAMOND_ESSENCE_DIAMOND_IN_THE_ROUGH_5",
+      "name": "Diamond Essence \u2014 Diamond in the Rough T5",
+      "category": "Essence Shop",
+      "xp": 7,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Diamond Essence Shop"
+    },
+    {
+      "id": "DIAMOND_ESSENCE_HIGH_ROLLER_1",
+      "name": "Diamond Essence \u2014 High Roller T1",
+      "category": "Essence Shop",
+      "xp": 2,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Diamond Essence Shop"
+    },
+    {
+      "id": "TROPHY_FISH_SULPHUR_SKITTER_BRONZE",
+      "name": "Trophy Fish \u2014 Sulphur Skitter (Bronze)",
+      "category": "Trophy Fish",
+      "xp": 4,
+      "effort": "medium",
+      "notes": "[unverified ID] Catch Bronze Sulphur Skitter \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_SULPHUR_SKITTER_SILVER",
+      "name": "Trophy Fish \u2014 Sulphur Skitter (Silver)",
+      "category": "Trophy Fish",
+      "xp": 8,
+      "effort": "medium",
+      "notes": "[unverified ID] Catch Silver Sulphur Skitter \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_SULPHUR_SKITTER_GOLD",
+      "name": "Trophy Fish \u2014 Sulphur Skitter (Gold)",
+      "category": "Trophy Fish",
+      "xp": 16,
+      "effort": "hard",
+      "notes": "[unverified ID] Catch Gold Sulphur Skitter \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_SULPHUR_SKITTER_DIAMOND",
+      "name": "Trophy Fish \u2014 Sulphur Skitter (Diamond)",
+      "category": "Trophy Fish",
+      "xp": 32,
+      "effort": "hard",
+      "notes": "[unverified ID] Catch Diamond Sulphur Skitter \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_OBFUSCATED_1_BRONZE",
+      "name": "Trophy Fish \u2014 Obfuscated 1 (Bronze)",
+      "category": "Trophy Fish",
+      "xp": 4,
+      "effort": "medium",
+      "notes": "[unverified ID] Catch Bronze Obfuscated 1 \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_OBFUSCATED_1_SILVER",
+      "name": "Trophy Fish \u2014 Obfuscated 1 (Silver)",
+      "category": "Trophy Fish",
+      "xp": 8,
+      "effort": "medium",
+      "notes": "[unverified ID] Catch Silver Obfuscated 1 \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_OBFUSCATED_1_GOLD",
+      "name": "Trophy Fish \u2014 Obfuscated 1 (Gold)",
+      "category": "Trophy Fish",
+      "xp": 16,
+      "effort": "hard",
+      "notes": "[unverified ID] Catch Gold Obfuscated 1 \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_OBFUSCATED_1_DIAMOND",
+      "name": "Trophy Fish \u2014 Obfuscated 1 (Diamond)",
+      "category": "Trophy Fish",
+      "xp": 32,
+      "effort": "hard",
+      "notes": "[unverified ID] Catch Diamond Obfuscated 1 \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_STEAMING_HOT_FLOUNDER_BRONZE",
+      "name": "Trophy Fish \u2014 Steaming-Hot Flounder (Bronze)",
+      "category": "Trophy Fish",
+      "xp": 4,
+      "effort": "medium",
+      "notes": "[unverified ID] Catch Bronze Steaming-Hot Flounder \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_STEAMING_HOT_FLOUNDER_SILVER",
+      "name": "Trophy Fish \u2014 Steaming-Hot Flounder (Silver)",
+      "category": "Trophy Fish",
+      "xp": 8,
+      "effort": "medium",
+      "notes": "[unverified ID] Catch Silver Steaming-Hot Flounder \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_STEAMING_HOT_FLOUNDER_GOLD",
+      "name": "Trophy Fish \u2014 Steaming-Hot Flounder (Gold)",
+      "category": "Trophy Fish",
+      "xp": 16,
+      "effort": "hard",
+      "notes": "[unverified ID] Catch Gold Steaming-Hot Flounder \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_STEAMING_HOT_FLOUNDER_DIAMOND",
+      "name": "Trophy Fish \u2014 Steaming-Hot Flounder (Diamond)",
+      "category": "Trophy Fish",
+      "xp": 32,
+      "effort": "hard",
+      "notes": "[unverified ID] Catch Diamond Steaming-Hot Flounder \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_GUSHER_BRONZE",
+      "name": "Trophy Fish \u2014 Gusher (Bronze)",
+      "category": "Trophy Fish",
+      "xp": 4,
+      "effort": "medium",
+      "notes": "[unverified ID] Catch Bronze Gusher \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_GUSHER_SILVER",
+      "name": "Trophy Fish \u2014 Gusher (Silver)",
+      "category": "Trophy Fish",
+      "xp": 8,
+      "effort": "medium",
+      "notes": "[unverified ID] Catch Silver Gusher \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_GUSHER_GOLD",
+      "name": "Trophy Fish \u2014 Gusher (Gold)",
+      "category": "Trophy Fish",
+      "xp": 16,
+      "effort": "hard",
+      "notes": "[unverified ID] Catch Gold Gusher \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_GUSHER_DIAMOND",
+      "name": "Trophy Fish \u2014 Gusher (Diamond)",
+      "category": "Trophy Fish",
+      "xp": 32,
+      "effort": "hard",
+      "notes": "[unverified ID] Catch Diamond Gusher \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_BLOBFISH_BRONZE",
+      "name": "Trophy Fish \u2014 Blobfish (Bronze)",
+      "category": "Trophy Fish",
+      "xp": 4,
+      "effort": "medium",
+      "notes": "[unverified ID] Catch Bronze Blobfish \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_BLOBFISH_SILVER",
+      "name": "Trophy Fish \u2014 Blobfish (Silver)",
+      "category": "Trophy Fish",
+      "xp": 8,
+      "effort": "medium",
+      "notes": "[unverified ID] Catch Silver Blobfish \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_BLOBFISH_GOLD",
+      "name": "Trophy Fish \u2014 Blobfish (Gold)",
+      "category": "Trophy Fish",
+      "xp": 16,
+      "effort": "hard",
+      "notes": "[unverified ID] Catch Gold Blobfish \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_BLOBFISH_DIAMOND",
+      "name": "Trophy Fish \u2014 Blobfish (Diamond)",
+      "category": "Trophy Fish",
+      "xp": 32,
+      "effort": "hard",
+      "notes": "[unverified ID] Catch Diamond Blobfish \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_OBFUSCATED_2_BRONZE",
+      "name": "Trophy Fish \u2014 Obfuscated 2 (Bronze)",
+      "category": "Trophy Fish",
+      "xp": 4,
+      "effort": "medium",
+      "notes": "[unverified ID] Catch Bronze Obfuscated 2 \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_OBFUSCATED_2_SILVER",
+      "name": "Trophy Fish \u2014 Obfuscated 2 (Silver)",
+      "category": "Trophy Fish",
+      "xp": 8,
+      "effort": "medium",
+      "notes": "[unverified ID] Catch Silver Obfuscated 2 \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_OBFUSCATED_2_GOLD",
+      "name": "Trophy Fish \u2014 Obfuscated 2 (Gold)",
+      "category": "Trophy Fish",
+      "xp": 16,
+      "effort": "hard",
+      "notes": "[unverified ID] Catch Gold Obfuscated 2 \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_OBFUSCATED_2_DIAMOND",
+      "name": "Trophy Fish \u2014 Obfuscated 2 (Diamond)",
+      "category": "Trophy Fish",
+      "xp": 32,
+      "effort": "hard",
+      "notes": "[unverified ID] Catch Diamond Obfuscated 2 \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_SLUGFISH_BRONZE",
+      "name": "Trophy Fish \u2014 Slugfish (Bronze)",
+      "category": "Trophy Fish",
+      "xp": 4,
+      "effort": "medium",
+      "notes": "[unverified ID] Catch Bronze Slugfish \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_SLUGFISH_SILVER",
+      "name": "Trophy Fish \u2014 Slugfish (Silver)",
+      "category": "Trophy Fish",
+      "xp": 8,
+      "effort": "medium",
+      "notes": "[unverified ID] Catch Silver Slugfish \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_SLUGFISH_GOLD",
+      "name": "Trophy Fish \u2014 Slugfish (Gold)",
+      "category": "Trophy Fish",
+      "xp": 16,
+      "effort": "hard",
+      "notes": "[unverified ID] Catch Gold Slugfish \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_SLUGFISH_DIAMOND",
+      "name": "Trophy Fish \u2014 Slugfish (Diamond)",
+      "category": "Trophy Fish",
+      "xp": 32,
+      "effort": "hard",
+      "notes": "[unverified ID] Catch Diamond Slugfish \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_FLYFISH_BRONZE",
+      "name": "Trophy Fish \u2014 Flyfish (Bronze)",
+      "category": "Trophy Fish",
+      "xp": 4,
+      "effort": "medium",
+      "notes": "[unverified ID] Catch Bronze Flyfish \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_FLYFISH_SILVER",
+      "name": "Trophy Fish \u2014 Flyfish (Silver)",
+      "category": "Trophy Fish",
+      "xp": 8,
+      "effort": "medium",
+      "notes": "[unverified ID] Catch Silver Flyfish \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_FLYFISH_GOLD",
+      "name": "Trophy Fish \u2014 Flyfish (Gold)",
+      "category": "Trophy Fish",
+      "xp": 16,
+      "effort": "hard",
+      "notes": "[unverified ID] Catch Gold Flyfish \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_FLYFISH_DIAMOND",
+      "name": "Trophy Fish \u2014 Flyfish (Diamond)",
+      "category": "Trophy Fish",
+      "xp": 32,
+      "effort": "hard",
+      "notes": "[unverified ID] Catch Diamond Flyfish \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_OBFUSCATED_3_BRONZE",
+      "name": "Trophy Fish \u2014 Obfuscated 3 (Bronze)",
+      "category": "Trophy Fish",
+      "xp": 4,
+      "effort": "medium",
+      "notes": "[unverified ID] Catch Bronze Obfuscated 3 \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_OBFUSCATED_3_SILVER",
+      "name": "Trophy Fish \u2014 Obfuscated 3 (Silver)",
+      "category": "Trophy Fish",
+      "xp": 8,
+      "effort": "medium",
+      "notes": "[unverified ID] Catch Silver Obfuscated 3 \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_OBFUSCATED_3_GOLD",
+      "name": "Trophy Fish \u2014 Obfuscated 3 (Gold)",
+      "category": "Trophy Fish",
+      "xp": 16,
+      "effort": "hard",
+      "notes": "[unverified ID] Catch Gold Obfuscated 3 \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_OBFUSCATED_3_DIAMOND",
+      "name": "Trophy Fish \u2014 Obfuscated 3 (Diamond)",
+      "category": "Trophy Fish",
+      "xp": 32,
+      "effort": "hard",
+      "notes": "[unverified ID] Catch Diamond Obfuscated 3 \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_LAVAHORSE_BRONZE",
+      "name": "Trophy Fish \u2014 Lavahorse (Bronze)",
+      "category": "Trophy Fish",
+      "xp": 4,
+      "effort": "medium",
+      "notes": "[unverified ID] Catch Bronze Lavahorse \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_LAVAHORSE_SILVER",
+      "name": "Trophy Fish \u2014 Lavahorse (Silver)",
+      "category": "Trophy Fish",
+      "xp": 8,
+      "effort": "medium",
+      "notes": "[unverified ID] Catch Silver Lavahorse \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_LAVAHORSE_GOLD",
+      "name": "Trophy Fish \u2014 Lavahorse (Gold)",
+      "category": "Trophy Fish",
+      "xp": 16,
+      "effort": "hard",
+      "notes": "[unverified ID] Catch Gold Lavahorse \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_LAVAHORSE_DIAMOND",
+      "name": "Trophy Fish \u2014 Lavahorse (Diamond)",
+      "category": "Trophy Fish",
+      "xp": 32,
+      "effort": "hard",
+      "notes": "[unverified ID] Catch Diamond Lavahorse \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_MANA_RAY_BRONZE",
+      "name": "Trophy Fish \u2014 Mana Ray (Bronze)",
+      "category": "Trophy Fish",
+      "xp": 4,
+      "effort": "medium",
+      "notes": "[unverified ID] Catch Bronze Mana Ray \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_MANA_RAY_SILVER",
+      "name": "Trophy Fish \u2014 Mana Ray (Silver)",
+      "category": "Trophy Fish",
+      "xp": 8,
+      "effort": "medium",
+      "notes": "[unverified ID] Catch Silver Mana Ray \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_MANA_RAY_GOLD",
+      "name": "Trophy Fish \u2014 Mana Ray (Gold)",
+      "category": "Trophy Fish",
+      "xp": 16,
+      "effort": "hard",
+      "notes": "[unverified ID] Catch Gold Mana Ray \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_MANA_RAY_DIAMOND",
+      "name": "Trophy Fish \u2014 Mana Ray (Diamond)",
+      "category": "Trophy Fish",
+      "xp": 32,
+      "effort": "hard",
+      "notes": "[unverified ID] Catch Diamond Mana Ray \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_VOLCANIC_STONEFISH_BRONZE",
+      "name": "Trophy Fish \u2014 Volcanic Stonefish (Bronze)",
+      "category": "Trophy Fish",
+      "xp": 4,
+      "effort": "medium",
+      "notes": "[unverified ID] Catch Bronze Volcanic Stonefish \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_VOLCANIC_STONEFISH_SILVER",
+      "name": "Trophy Fish \u2014 Volcanic Stonefish (Silver)",
+      "category": "Trophy Fish",
+      "xp": 8,
+      "effort": "medium",
+      "notes": "[unverified ID] Catch Silver Volcanic Stonefish \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_VOLCANIC_STONEFISH_GOLD",
+      "name": "Trophy Fish \u2014 Volcanic Stonefish (Gold)",
+      "category": "Trophy Fish",
+      "xp": 16,
+      "effort": "hard",
+      "notes": "[unverified ID] Catch Gold Volcanic Stonefish \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_VOLCANIC_STONEFISH_DIAMOND",
+      "name": "Trophy Fish \u2014 Volcanic Stonefish (Diamond)",
+      "category": "Trophy Fish",
+      "xp": 32,
+      "effort": "hard",
+      "notes": "[unverified ID] Catch Diamond Volcanic Stonefish \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_VANILLE_BRONZE",
+      "name": "Trophy Fish \u2014 Vanille (Bronze)",
+      "category": "Trophy Fish",
+      "xp": 4,
+      "effort": "medium",
+      "notes": "[unverified ID] Catch Bronze Vanille \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_VANILLE_SILVER",
+      "name": "Trophy Fish \u2014 Vanille (Silver)",
+      "category": "Trophy Fish",
+      "xp": 8,
+      "effort": "medium",
+      "notes": "[unverified ID] Catch Silver Vanille \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_VANILLE_GOLD",
+      "name": "Trophy Fish \u2014 Vanille (Gold)",
+      "category": "Trophy Fish",
+      "xp": 16,
+      "effort": "hard",
+      "notes": "[unverified ID] Catch Gold Vanille \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_VANILLE_DIAMOND",
+      "name": "Trophy Fish \u2014 Vanille (Diamond)",
+      "category": "Trophy Fish",
+      "xp": 32,
+      "effort": "hard",
+      "notes": "[unverified ID] Catch Diamond Vanille \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_SKELETON_FISH_BRONZE",
+      "name": "Trophy Fish \u2014 Skeleton Fish (Bronze)",
+      "category": "Trophy Fish",
+      "xp": 4,
+      "effort": "medium",
+      "notes": "[unverified ID] Catch Bronze Skeleton Fish \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_SKELETON_FISH_SILVER",
+      "name": "Trophy Fish \u2014 Skeleton Fish (Silver)",
+      "category": "Trophy Fish",
+      "xp": 8,
+      "effort": "medium",
+      "notes": "[unverified ID] Catch Silver Skeleton Fish \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_SKELETON_FISH_GOLD",
+      "name": "Trophy Fish \u2014 Skeleton Fish (Gold)",
+      "category": "Trophy Fish",
+      "xp": 16,
+      "effort": "hard",
+      "notes": "[unverified ID] Catch Gold Skeleton Fish \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_SKELETON_FISH_DIAMOND",
+      "name": "Trophy Fish \u2014 Skeleton Fish (Diamond)",
+      "category": "Trophy Fish",
+      "xp": 32,
+      "effort": "hard",
+      "notes": "[unverified ID] Catch Diamond Skeleton Fish \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_MOLDFIN_BRONZE",
+      "name": "Trophy Fish \u2014 Moldfin (Bronze)",
+      "category": "Trophy Fish",
+      "xp": 4,
+      "effort": "medium",
+      "notes": "[unverified ID] Catch Bronze Moldfin \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_MOLDFIN_SILVER",
+      "name": "Trophy Fish \u2014 Moldfin (Silver)",
+      "category": "Trophy Fish",
+      "xp": 8,
+      "effort": "medium",
+      "notes": "[unverified ID] Catch Silver Moldfin \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_MOLDFIN_GOLD",
+      "name": "Trophy Fish \u2014 Moldfin (Gold)",
+      "category": "Trophy Fish",
+      "xp": 16,
+      "effort": "hard",
+      "notes": "[unverified ID] Catch Gold Moldfin \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_MOLDFIN_DIAMOND",
+      "name": "Trophy Fish \u2014 Moldfin (Diamond)",
+      "category": "Trophy Fish",
+      "xp": 32,
+      "effort": "hard",
+      "notes": "[unverified ID] Catch Diamond Moldfin \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_SOUL_FISH_BRONZE",
+      "name": "Trophy Fish \u2014 Soul Fish (Bronze)",
+      "category": "Trophy Fish",
+      "xp": 4,
+      "effort": "medium",
+      "notes": "[unverified ID] Catch Bronze Soul Fish \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_SOUL_FISH_SILVER",
+      "name": "Trophy Fish \u2014 Soul Fish (Silver)",
+      "category": "Trophy Fish",
+      "xp": 8,
+      "effort": "medium",
+      "notes": "[unverified ID] Catch Silver Soul Fish \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_SOUL_FISH_GOLD",
+      "name": "Trophy Fish \u2014 Soul Fish (Gold)",
+      "category": "Trophy Fish",
+      "xp": 16,
+      "effort": "hard",
+      "notes": "[unverified ID] Catch Gold Soul Fish \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_SOUL_FISH_DIAMOND",
+      "name": "Trophy Fish \u2014 Soul Fish (Diamond)",
+      "category": "Trophy Fish",
+      "xp": 32,
+      "effort": "hard",
+      "notes": "[unverified ID] Catch Diamond Soul Fish \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_KARATE_FISH_BRONZE",
+      "name": "Trophy Fish \u2014 Karate Fish (Bronze)",
+      "category": "Trophy Fish",
+      "xp": 4,
+      "effort": "medium",
+      "notes": "[unverified ID] Catch Bronze Karate Fish \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_KARATE_FISH_SILVER",
+      "name": "Trophy Fish \u2014 Karate Fish (Silver)",
+      "category": "Trophy Fish",
+      "xp": 8,
+      "effort": "medium",
+      "notes": "[unverified ID] Catch Silver Karate Fish \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_KARATE_FISH_GOLD",
+      "name": "Trophy Fish \u2014 Karate Fish (Gold)",
+      "category": "Trophy Fish",
+      "xp": 16,
+      "effort": "hard",
+      "notes": "[unverified ID] Catch Gold Karate Fish \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_KARATE_FISH_DIAMOND",
+      "name": "Trophy Fish \u2014 Karate Fish (Diamond)",
+      "category": "Trophy Fish",
+      "xp": 32,
+      "effort": "hard",
+      "notes": "[unverified ID] Catch Diamond Karate Fish \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_GOLDEN_FISH_BRONZE",
+      "name": "Trophy Fish \u2014 Golden Fish (Bronze)",
+      "category": "Trophy Fish",
+      "xp": 4,
+      "effort": "medium",
+      "notes": "[unverified ID] Catch Bronze Golden Fish \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_GOLDEN_FISH_SILVER",
+      "name": "Trophy Fish \u2014 Golden Fish (Silver)",
+      "category": "Trophy Fish",
+      "xp": 8,
+      "effort": "medium",
+      "notes": "[unverified ID] Catch Silver Golden Fish \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_GOLDEN_FISH_GOLD",
+      "name": "Trophy Fish \u2014 Golden Fish (Gold)",
+      "category": "Trophy Fish",
+      "xp": 16,
+      "effort": "hard",
+      "notes": "[unverified ID] Catch Gold Golden Fish \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "TROPHY_FISH_GOLDEN_FISH_DIAMOND",
+      "name": "Trophy Fish \u2014 Golden Fish (Diamond)",
+      "category": "Trophy Fish",
+      "xp": 32,
+      "effort": "hard",
+      "notes": "[unverified ID] Catch Diamond Golden Fish \u2014 lava fishing at Crimson Isle"
+    },
+    {
+      "id": "DOJO_WHITE",
+      "name": "Dojo \u2014 White Belt",
+      "category": "Crimson Isle",
+      "xp": 20,
+      "effort": "easy",
+      "notes": "[unverified ID] Complete Dojo challenges at Crimson Isle"
+    },
+    {
+      "id": "DOJO_YELLOW",
+      "name": "Dojo \u2014 Yellow Belt",
+      "category": "Crimson Isle",
+      "xp": 30,
+      "effort": "medium",
+      "notes": "[unverified ID] Complete Dojo challenges at Crimson Isle"
+    },
+    {
+      "id": "DOJO_GREEN",
+      "name": "Dojo \u2014 Green Belt",
+      "category": "Crimson Isle",
+      "xp": 50,
+      "effort": "medium",
+      "notes": "[unverified ID] Complete Dojo challenges at Crimson Isle"
+    },
+    {
+      "id": "DOJO_BLUE",
+      "name": "Dojo \u2014 Blue Belt",
+      "category": "Crimson Isle",
+      "xp": 75,
+      "effort": "hard",
+      "notes": "[unverified ID] Complete Dojo challenges at Crimson Isle"
+    },
+    {
+      "id": "DOJO_BROWN",
+      "name": "Dojo \u2014 Brown Belt",
+      "category": "Crimson Isle",
+      "xp": 100,
+      "effort": "hard",
+      "notes": "[unverified ID] Complete Dojo challenges at Crimson Isle"
+    },
+    {
+      "id": "DOJO_BLACK",
+      "name": "Dojo \u2014 Black Belt",
+      "category": "Crimson Isle",
+      "xp": 150,
+      "effort": "extreme",
+      "notes": "[unverified ID] Complete Dojo challenges at Crimson Isle"
+    },
+    {
+      "id": "DOLPHIN_MILESTONE_COMMON",
+      "name": "Dolphin Pet \u2014 Common Milestone",
+      "category": "Pets",
+      "xp": 20,
+      "effort": "medium",
+      "notes": "[unverified ID] Fish with Dolphin pet equipped"
+    },
+    {
+      "id": "DOLPHIN_MILESTONE_UNCOMMON",
+      "name": "Dolphin Pet \u2014 Uncommon Milestone",
+      "category": "Pets",
+      "xp": 20,
+      "effort": "medium",
+      "notes": "[unverified ID] Fish with Dolphin pet equipped"
+    },
+    {
+      "id": "DOLPHIN_MILESTONE_RARE",
+      "name": "Dolphin Pet \u2014 Rare Milestone",
+      "category": "Pets",
+      "xp": 20,
+      "effort": "hard",
+      "notes": "[unverified ID] Fish with Dolphin pet equipped"
+    },
+    {
+      "id": "DOLPHIN_MILESTONE_EPIC",
+      "name": "Dolphin Pet \u2014 Epic Milestone",
+      "category": "Pets",
+      "xp": 20,
+      "effort": "hard",
+      "notes": "[unverified ID] Fish with Dolphin pet equipped"
+    },
+    {
+      "id": "DOLPHIN_MILESTONE_LEGENDARY",
+      "name": "Dolphin Pet \u2014 Legendary Milestone",
+      "category": "Pets",
+      "xp": 20,
+      "effort": "extreme",
+      "notes": "[unverified ID] Fish with Dolphin pet equipped"
+    },
+    {
+      "id": "JACOB_GOLD_WHEAT",
+      "name": "Jacob's Gold \u2014 Wheat",
+      "category": "Farming",
+      "xp": 10,
+      "effort": "hard",
+      "notes": "[unverified ID] Win gold medal in Jacob's Farming Contest"
+    },
+    {
+      "id": "JACOB_GOLD_CARROT",
+      "name": "Jacob's Gold \u2014 Carrot",
+      "category": "Farming",
+      "xp": 10,
+      "effort": "hard",
+      "notes": "[unverified ID] Win gold medal in Jacob's Farming Contest"
+    },
+    {
+      "id": "JACOB_GOLD_POTATO",
+      "name": "Jacob's Gold \u2014 Potato",
+      "category": "Farming",
+      "xp": 10,
+      "effort": "hard",
+      "notes": "[unverified ID] Win gold medal in Jacob's Farming Contest"
+    },
+    {
+      "id": "JACOB_GOLD_MELON",
+      "name": "Jacob's Gold \u2014 Melon",
+      "category": "Farming",
+      "xp": 10,
+      "effort": "hard",
+      "notes": "[unverified ID] Win gold medal in Jacob's Farming Contest"
+    },
+    {
+      "id": "JACOB_GOLD_PUMPKIN",
+      "name": "Jacob's Gold \u2014 Pumpkin",
+      "category": "Farming",
+      "xp": 10,
+      "effort": "hard",
+      "notes": "[unverified ID] Win gold medal in Jacob's Farming Contest"
+    },
+    {
+      "id": "JACOB_GOLD_SUGAR_CANE",
+      "name": "Jacob's Gold \u2014 Sugar Cane",
+      "category": "Farming",
+      "xp": 10,
+      "effort": "hard",
+      "notes": "[unverified ID] Win gold medal in Jacob's Farming Contest"
+    },
+    {
+      "id": "JACOB_GOLD_CACTUS",
+      "name": "Jacob's Gold \u2014 Cactus",
+      "category": "Farming",
+      "xp": 10,
+      "effort": "hard",
+      "notes": "[unverified ID] Win gold medal in Jacob's Farming Contest"
+    },
+    {
+      "id": "JACOB_GOLD_COCOA_BEANS",
+      "name": "Jacob's Gold \u2014 Cocoa Beans",
+      "category": "Farming",
+      "xp": 10,
+      "effort": "hard",
+      "notes": "[unverified ID] Win gold medal in Jacob's Farming Contest"
+    },
+    {
+      "id": "JACOB_GOLD_MUSHROOM",
+      "name": "Jacob's Gold \u2014 Mushroom",
+      "category": "Farming",
+      "xp": 10,
+      "effort": "hard",
+      "notes": "[unverified ID] Win gold medal in Jacob's Farming Contest"
+    },
+    {
+      "id": "JACOB_GOLD_NETHER_WART",
+      "name": "Jacob's Gold \u2014 Nether Wart",
+      "category": "Farming",
+      "xp": 10,
+      "effort": "hard",
+      "notes": "[unverified ID] Win gold medal in Jacob's Farming Contest"
+    },
+    {
+      "id": "CHOCOLATE_PRESTIGE_1",
+      "name": "Chocolate Factory Prestige 1",
+      "category": "Events",
+      "xp": 25,
+      "effort": "medium",
+      "notes": "[unverified ID] Prestige your Chocolate Factory"
+    },
+    {
+      "id": "CHOCOLATE_PRESTIGE_2",
+      "name": "Chocolate Factory Prestige 2",
+      "category": "Events",
+      "xp": 25,
+      "effort": "hard",
+      "notes": "[unverified ID] Prestige your Chocolate Factory"
+    },
+    {
+      "id": "CHOCOLATE_PRESTIGE_3",
+      "name": "Chocolate Factory Prestige 3",
+      "category": "Events",
+      "xp": 25,
+      "effort": "hard",
+      "notes": "[unverified ID] Prestige your Chocolate Factory"
+    },
+    {
+      "id": "CHOCOLATE_PRESTIGE_4",
+      "name": "Chocolate Factory Prestige 4",
+      "category": "Events",
+      "xp": 25,
+      "effort": "extreme",
+      "notes": "[unverified ID] Prestige your Chocolate Factory"
+    },
+    {
+      "id": "CHOCOLATE_PRESTIGE_5",
+      "name": "Chocolate Factory Prestige 5",
+      "category": "Events",
+      "xp": 25,
+      "effort": "extreme",
+      "notes": "[unverified ID] Prestige your Chocolate Factory"
+    },
+    {
+      "id": "COMMUNITY_UPGRADE_MINION_SLOTS_1",
+      "name": "Community Shop \u2014 Minion Slot 1",
+      "category": "Community",
+      "xp": 10,
+      "effort": "easy",
+      "notes": "[unverified ID] Purchase from Community Shop"
+    },
+    {
+      "id": "COMMUNITY_UPGRADE_MINION_SLOTS_2",
+      "name": "Community Shop \u2014 Minion Slot 2",
+      "category": "Community",
+      "xp": 10,
+      "effort": "easy",
+      "notes": "[unverified ID] Purchase from Community Shop"
+    },
+    {
+      "id": "COMMUNITY_UPGRADE_MINION_SLOTS_3",
+      "name": "Community Shop \u2014 Minion Slot 3",
+      "category": "Community",
+      "xp": 10,
+      "effort": "easy",
+      "notes": "[unverified ID] Purchase from Community Shop"
+    },
+    {
+      "id": "COMMUNITY_UPGRADE_MINION_SLOTS_4",
+      "name": "Community Shop \u2014 Minion Slot 4",
+      "category": "Community",
+      "xp": 10,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Community Shop"
+    },
+    {
+      "id": "COMMUNITY_UPGRADE_MINION_SLOTS_5",
+      "name": "Community Shop \u2014 Minion Slot 5",
+      "category": "Community",
+      "xp": 10,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Community Shop"
+    },
+    {
+      "id": "COMMUNITY_UPGRADE_COINS_ALLOWANCE_1",
+      "name": "Community Shop \u2014 Coins Allowance 1",
+      "category": "Community",
+      "xp": 10,
+      "effort": "easy",
+      "notes": "[unverified ID] Purchase from Community Shop"
+    },
+    {
+      "id": "COMMUNITY_UPGRADE_COINS_ALLOWANCE_2",
+      "name": "Community Shop \u2014 Coins Allowance 2",
+      "category": "Community",
+      "xp": 10,
+      "effort": "easy",
+      "notes": "[unverified ID] Purchase from Community Shop"
+    },
+    {
+      "id": "COMMUNITY_UPGRADE_COINS_ALLOWANCE_3",
+      "name": "Community Shop \u2014 Coins Allowance 3",
+      "category": "Community",
+      "xp": 10,
+      "effort": "easy",
+      "notes": "[unverified ID] Purchase from Community Shop"
+    },
+    {
+      "id": "COMMUNITY_UPGRADE_COINS_ALLOWANCE_4",
+      "name": "Community Shop \u2014 Coins Allowance 4",
+      "category": "Community",
+      "xp": 10,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Community Shop"
+    },
+    {
+      "id": "COMMUNITY_UPGRADE_COINS_ALLOWANCE_5",
+      "name": "Community Shop \u2014 Coins Allowance 5",
+      "category": "Community",
+      "xp": 10,
+      "effort": "medium",
+      "notes": "[unverified ID] Purchase from Community Shop"
+    },
+    {
+      "id": "COMMUNITY_UPGRADE_ISLAND_SIZE",
+      "name": "Community Shop \u2014 Island Size",
+      "category": "Community",
+      "xp": 10,
+      "effort": "easy",
+      "notes": "[unverified ID] Purchase from Community Shop"
+    },
+    {
+      "id": "COMMUNITY_UPGRADE_GUESTS_LIMIT",
+      "name": "Community Shop \u2014 Guests Limit",
+      "category": "Community",
+      "xp": 10,
+      "effort": "easy",
+      "notes": "[unverified ID] Purchase from Community Shop"
+    },
+    {
+      "id": "MAGE_REPUTATION_FRIENDLY",
+      "name": "Mage Rep \u2014 Friendly",
+      "category": "Crimson Isle",
+      "xp": 5,
+      "effort": "medium",
+      "notes": "[unverified ID] Reach Friendly with Mage Faction"
+    },
+    {
+      "id": "MAGE_REPUTATION_TRUSTED",
+      "name": "Mage Rep \u2014 Trusted",
+      "category": "Crimson Isle",
+      "xp": 10,
+      "effort": "medium",
+      "notes": "[unverified ID] Reach Trusted with Mage Faction"
+    },
+    {
+      "id": "MAGE_REPUTATION_HONORED",
+      "name": "Mage Rep \u2014 Honored",
+      "category": "Crimson Isle",
+      "xp": 20,
+      "effort": "hard",
+      "notes": "[unverified ID] Reach Honored with Mage Faction"
+    },
+    {
+      "id": "MAGE_REPUTATION_HERO",
+      "name": "Mage Rep \u2014 Hero",
+      "category": "Crimson Isle",
+      "xp": 40,
+      "effort": "hard",
+      "notes": "[unverified ID] Reach Hero with Mage Faction"
+    },
+    {
+      "id": "BARBARIAN_REPUTATION_FRIENDLY",
+      "name": "Barbarian Rep \u2014 Friendly",
+      "category": "Crimson Isle",
+      "xp": 5,
+      "effort": "medium",
+      "notes": "[unverified ID] Reach Friendly with Barbarian Faction"
+    },
+    {
+      "id": "BARBARIAN_REPUTATION_TRUSTED",
+      "name": "Barbarian Rep \u2014 Trusted",
+      "category": "Crimson Isle",
+      "xp": 10,
+      "effort": "medium",
+      "notes": "[unverified ID] Reach Trusted with Barbarian Faction"
+    },
+    {
+      "id": "BARBARIAN_REPUTATION_HONORED",
+      "name": "Barbarian Rep \u2014 Honored",
+      "category": "Crimson Isle",
+      "xp": 20,
+      "effort": "hard",
+      "notes": "[unverified ID] Reach Honored with Barbarian Faction"
+    },
+    {
+      "id": "BARBARIAN_REPUTATION_HERO",
+      "name": "Barbarian Rep \u2014 Hero",
+      "category": "Crimson Isle",
+      "xp": 40,
+      "effort": "hard",
+      "notes": "[unverified ID] Reach Hero with Barbarian Faction"
+    },
+    {
+      "id": "TIMECHARM_1",
+      "name": "Timecharm #1",
+      "category": "Rift",
+      "xp": 100,
+      "effort": "hard",
+      "notes": "[unverified ID] Secure a Timecharm in the Rift"
+    },
+    {
+      "id": "TIMECHARM_2",
+      "name": "Timecharm #2",
+      "category": "Rift",
+      "xp": 100,
+      "effort": "hard",
+      "notes": "[unverified ID] Secure a Timecharm in the Rift"
+    },
+    {
+      "id": "TIMECHARM_3",
+      "name": "Timecharm #3",
+      "category": "Rift",
+      "xp": 100,
+      "effort": "hard",
+      "notes": "[unverified ID] Secure a Timecharm in the Rift"
+    },
+    {
+      "id": "TIMECHARM_4",
+      "name": "Timecharm #4",
+      "category": "Rift",
+      "xp": 100,
+      "effort": "hard",
+      "notes": "[unverified ID] Secure a Timecharm in the Rift"
+    },
+    {
+      "id": "TIMECHARM_5",
+      "name": "Timecharm #5",
+      "category": "Rift",
+      "xp": 100,
+      "effort": "hard",
+      "notes": "[unverified ID] Secure a Timecharm in the Rift"
+    },
+    {
+      "id": "TIMECHARM_6",
+      "name": "Timecharm #6",
+      "category": "Rift",
+      "xp": 100,
+      "effort": "hard",
+      "notes": "[unverified ID] Secure a Timecharm in the Rift"
+    },
+    {
+      "id": "TIMECHARM_7",
+      "name": "Timecharm #7",
+      "category": "Rift",
+      "xp": 100,
+      "effort": "hard",
+      "notes": "[unverified ID] Secure a Timecharm in the Rift"
+    },
+    {
+      "id": "TIMECHARM_8",
+      "name": "Timecharm #8",
+      "category": "Rift",
+      "xp": 100,
+      "effort": "hard",
+      "notes": "[unverified ID] Secure a Timecharm in the Rift"
+    },
+    {
+      "id": "UPGRADE_MINION_SLOTS_1",
+      "name": "Community Shop \u2014 Minion Slot 1",
+      "category": "Community",
+      "xp": 10,
+      "effort": "easy",
+      "notes": "Purchase from Community Shop"
+    },
+    {
+      "id": "UPGRADE_MINION_SLOTS_2",
+      "name": "Community Shop \u2014 Minion Slot 2",
+      "category": "Community",
+      "xp": 10,
+      "effort": "easy",
+      "notes": "Purchase from Community Shop"
+    },
+    {
+      "id": "UPGRADE_MINION_SLOTS_3",
+      "name": "Community Shop \u2014 Minion Slot 3",
+      "category": "Community",
+      "xp": 10,
+      "effort": "easy",
+      "notes": "Purchase from Community Shop"
+    },
+    {
+      "id": "UPGRADE_MINION_SLOTS_4",
+      "name": "Community Shop \u2014 Minion Slot 4",
+      "category": "Community",
+      "xp": 10,
+      "effort": "medium",
+      "notes": "Purchase from Community Shop"
+    },
+    {
+      "id": "UPGRADE_MINION_SLOTS_5",
+      "name": "Community Shop \u2014 Minion Slot 5",
+      "category": "Community",
+      "xp": 10,
+      "effort": "medium",
+      "notes": "Purchase from Community Shop"
+    },
+    {
+      "id": "OBJECTIVE_APPLY_ENGINE",
+      "name": "Objective \u2014 Apply Engine",
+      "category": "Objectives",
+      "xp": 5,
+      "effort": "easy",
+      "notes": "Quest/tutorial objective"
+    },
+    {
+      "id": "OBJECTIVE_APPLY_ROD_PART",
+      "name": "Objective \u2014 Apply Rod Part",
+      "category": "Objectives",
+      "xp": 5,
+      "effort": "easy",
+      "notes": "Quest/tutorial objective"
+    },
+    {
+      "id": "OBJECTIVE_CLEAN_CROP_PLOT",
+      "name": "Objective \u2014 Clean Crop Plot",
+      "category": "Objectives",
+      "xp": 5,
+      "effort": "easy",
+      "notes": "Quest/tutorial objective"
+    },
+    {
+      "id": "OBJECTIVE_COMPLETE_THE_END_RACE_4",
+      "name": "Objective \u2014 Complete The End Race 4",
+      "category": "Objectives",
+      "xp": 5,
+      "effort": "easy",
+      "notes": "Quest/tutorial objective"
+    },
+    {
+      "id": "OBJECTIVE_EXPLORE_HUB",
+      "name": "Objective \u2014 Explore Hub",
+      "category": "Objectives",
+      "xp": 5,
+      "effort": "easy",
+      "notes": "Quest/tutorial objective"
+    },
+    {
+      "id": "OBJECTIVE_EXPLORE_VILLAGE",
+      "name": "Objective \u2014 Explore Village",
+      "category": "Objectives",
+      "xp": 5,
+      "effort": "easy",
+      "notes": "Quest/tutorial objective"
+    },
+    {
+      "id": "OBJECTIVE_GIVE_PICKAXE_LAPIS_MINER",
+      "name": "Objective \u2014 Give Pickaxe Lapis Miner",
+      "category": "Objectives",
+      "xp": 5,
+      "effort": "easy",
+      "notes": "Quest/tutorial objective"
+    },
+    {
+      "id": "OBJECTIVE_GIVE_SAM_COMPOST",
+      "name": "Objective \u2014 Give Sam Compost",
+      "category": "Objectives",
+      "xp": 5,
+      "effort": "easy",
+      "notes": "Quest/tutorial objective"
+    },
+    {
+      "id": "OBJECTIVE_GIVE_SAM_WHEAT",
+      "name": "Objective \u2014 Give Sam Wheat",
+      "category": "Objectives",
+      "xp": 5,
+      "effort": "easy",
+      "notes": "Quest/tutorial objective"
+    },
+    {
+      "id": "OBJECTIVE_HELP_ELLE",
+      "name": "Objective \u2014 Help Elle",
+      "category": "Objectives",
+      "xp": 5,
+      "effort": "easy",
+      "notes": "Quest/tutorial objective"
+    },
+    {
+      "id": "OBJECTIVE_INCREASE_FARMING_SKILL_5",
+      "name": "Objective \u2014 Increase Farming Skill 5",
+      "category": "Objectives",
+      "xp": 5,
+      "effort": "easy",
+      "notes": "Quest/tutorial objective"
+    },
+    {
+      "id": "OBJECTIVE_INSERT_GARDEN_CHIP",
+      "name": "Objective \u2014 Insert Garden Chip",
+      "category": "Objectives",
+      "xp": 5,
+      "effort": "easy",
+      "notes": "Quest/tutorial objective"
+    },
+    {
+      "id": "OBJECTIVE_KILL_DANGER_MOBS",
+      "name": "Objective \u2014 Kill Danger Mobs",
+      "category": "Objectives",
+      "xp": 5,
+      "effort": "easy",
+      "notes": "Quest/tutorial objective"
+    },
+    {
+      "id": "OBJECTIVE_MINE_COAL",
+      "name": "Objective \u2014 Mine Coal",
+      "category": "Objectives",
+      "xp": 5,
+      "effort": "easy",
+      "notes": "Quest/tutorial objective"
+    },
+    {
+      "id": "OBJECTIVE_SERVE_FIRST_CUSTOMER",
+      "name": "Objective \u2014 Serve First Customer",
+      "category": "Objectives",
+      "xp": 5,
+      "effort": "easy",
+      "notes": "Quest/tutorial objective"
+    },
+    {
+      "id": "OBJECTIVE_TALK_TO_AGATHA",
+      "name": "Objective \u2014 Talk To Agatha",
+      "category": "Objectives",
+      "xp": 5,
+      "effort": "easy",
+      "notes": "Quest/tutorial objective"
+    },
+    {
+      "id": "OBJECTIVE_TALK_TO_BANKER",
+      "name": "Objective \u2014 Talk To Banker",
+      "category": "Objectives",
+      "xp": 5,
+      "effort": "easy",
+      "notes": "Quest/tutorial objective"
+    },
+    {
+      "id": "OBJECTIVE_TALK_TO_CHARLIE_NEW_3",
+      "name": "Objective \u2014 Talk To Charlie New 3",
+      "category": "Objectives",
+      "xp": 5,
+      "effort": "easy",
+      "notes": "Quest/tutorial objective"
+    },
+    {
+      "id": "OBJECTIVE_TALK_TO_DAVID_7",
+      "name": "Objective \u2014 Talk To David 7",
+      "category": "Objectives",
+      "xp": 5,
+      "effort": "easy",
+      "notes": "Quest/tutorial objective"
+    },
+    {
+      "id": "OBJECTIVE_TALK_TO_ENID_2",
+      "name": "Objective \u2014 Talk To Enid 2",
+      "category": "Objectives",
+      "xp": 5,
+      "effort": "easy",
+      "notes": "Quest/tutorial objective"
+    },
+    {
+      "id": "OBJECTIVE_TALK_TO_FARMER",
+      "name": "Objective \u2014 Talk To Farmer",
+      "category": "Objectives",
+      "xp": 5,
+      "effort": "easy",
+      "notes": "Quest/tutorial objective"
+    },
+    {
+      "id": "OBJECTIVE_TALK_TO_FARMHAND_1",
+      "name": "Objective \u2014 Talk To Farmhand 1",
+      "category": "Objectives",
+      "xp": 5,
+      "effort": "easy",
+      "notes": "Quest/tutorial objective"
+    },
+    {
+      "id": "OBJECTIVE_TALK_TO_GREENHOUSE_CARPENTER",
+      "name": "Objective \u2014 Talk To Greenhouse Carpenter",
+      "category": "Objectives",
+      "xp": 5,
+      "effort": "easy",
+      "notes": "Quest/tutorial objective"
+    },
+    {
+      "id": "OBJECTIVE_TALK_TO_GUBER_5",
+      "name": "Objective \u2014 Talk To Guber 5",
+      "category": "Objectives",
+      "xp": 5,
+      "effort": "easy",
+      "notes": "Quest/tutorial objective"
+    },
+    {
+      "id": "OBJECTIVE_TALK_TO_HATTIE_2",
+      "name": "Objective \u2014 Talk To Hattie 2",
+      "category": "Objectives",
+      "xp": 5,
+      "effort": "easy",
+      "notes": "Quest/tutorial objective"
+    },
+    {
+      "id": "OBJECTIVE_TALK_TO_KELLY_2",
+      "name": "Objective \u2014 Talk To Kelly 2",
+      "category": "Objectives",
+      "xp": 5,
+      "effort": "easy",
+      "notes": "Quest/tutorial objective"
+    },
+    {
+      "id": "OBJECTIVE_TALK_TO_LAZY_MINER",
+      "name": "Objective \u2014 Talk To Lazy Miner",
+      "category": "Objectives",
+      "xp": 5,
+      "effort": "easy",
+      "notes": "Quest/tutorial objective"
+    },
+    {
+      "id": "OBJECTIVE_TALK_TO_LIBRARIAN",
+      "name": "Objective \u2014 Talk To Librarian",
+      "category": "Objectives",
+      "xp": 5,
+      "effort": "easy",
+      "notes": "Quest/tutorial objective"
+    },
+    {
+      "id": "OBJECTIVE_TALK_TO_LUMBER_JACK_2",
+      "name": "Objective \u2014 Talk To Lumber Jack 2",
+      "category": "Objectives",
+      "xp": 5,
+      "effort": "easy",
+      "notes": "Quest/tutorial objective"
+    },
+    {
+      "id": "OBJECTIVE_TALK_TO_MELODY_2",
+      "name": "Objective \u2014 Talk To Melody 2",
+      "category": "Objectives",
+      "xp": 5,
+      "effort": "easy",
+      "notes": "Quest/tutorial objective"
+    },
+    {
+      "id": "OBJECTIVE_TALK_TO_MOLBERT_5",
+      "name": "Objective \u2014 Talk To Molbert 5",
+      "category": "Objectives",
+      "xp": 5,
+      "effort": "easy",
+      "notes": "Quest/tutorial objective"
+    },
+    {
+      "id": "OBJECTIVE_TALK_TO_REDSTONE_MINER_6",
+      "name": "Objective \u2014 Talk To Redstone Miner 6",
+      "category": "Objectives",
+      "xp": 5,
+      "effort": "easy",
+      "notes": "Quest/tutorial objective"
+    },
+    {
+      "id": "OBJECTIVE_TALK_TO_RYAN_3",
+      "name": "Objective \u2014 Talk To Ryan 3",
+      "category": "Objectives",
+      "xp": 5,
+      "effort": "easy",
+      "notes": "Quest/tutorial objective"
+    },
+    {
+      "id": "OBJECTIVE_TALK_TO_SWOOP_4",
+      "name": "Objective \u2014 Talk To Swoop 4",
+      "category": "Objectives",
+      "xp": 5,
+      "effort": "easy",
+      "notes": "Quest/tutorial objective"
+    },
+    {
+      "id": "OBJECTIVE_TALK_TO_TEDDY",
+      "name": "Objective \u2014 Talk To Teddy",
+      "category": "Objectives",
+      "xp": 5,
+      "effort": "easy",
+      "notes": "Quest/tutorial objective"
+    }
+  ]
+}
