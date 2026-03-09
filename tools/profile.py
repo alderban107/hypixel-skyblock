@@ -521,8 +521,6 @@ HOTM_XP_THRESHOLDS = [0, 3_000, 12_000, 37_000, 97_000, 197_000, 347_000, 557_00
 # Index 0 = level 1 (0 XP), index 1 = level 2 (3K cumulative), etc.
 # Both HotM and HotF share the same XP table (HotF caps at level 7)
 
-HOTM_TOKENS_PER_LEVEL = [1, 2, 2, 2, 2, 2, 3, 2, 2, 2]  # levels 1-10
-
 
 def calc_hotx_level(xp, max_level=10):
     """Calculate HotM or HotF level from cumulative XP."""
@@ -1026,8 +1024,7 @@ def print_rift(member):
     if access:
         charge_ts = access.get("charge_track_timestamp")
         if charge_ts:
-            import time as _time
-            elapsed_sec = _time.time() - (charge_ts / 1000)
+            elapsed_sec = time.time() - (charge_ts / 1000)
             elapsed_hours = elapsed_sec / 3600
             CHARGE_COOLDOWN_HOURS = 4
             MAX_CHARGES = 3

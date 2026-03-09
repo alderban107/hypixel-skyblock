@@ -202,10 +202,13 @@ def search_items(query):
     """Search items by name substring (case-insensitive). Returns list of item dicts."""
     _ensure_items()
     query_lower = query.lower()
+    query_spaced = query_lower.replace("_", " ")  # normalize underscores for display name matching
     results = []
     for item_id, item in _items_by_id.items():
         name = item.get("name", "")
-        if query_lower in name.lower() or query_lower in item_id.lower():
+        name_lower = name.lower()
+        if (query_lower in name_lower or query_lower in item_id.lower()
+                or query_spaced in name_lower):
             results.append(item)
     return results
 
@@ -632,6 +635,19 @@ def main():
 
     # If args provided, check for exact item ID or search
     if len(sys.argv) > 1:
+        if sys.argv[1] in ("--help", "-h"):
+            print("Usage: python3 items.py [ITEM_ID | search query]")
+            print()
+            print("  No args          Show API stats summary")
+            print("  EXACT_ITEM_ID    Show item requirements + profile check")
+            print("  search terms     Fuzzy search by name or ID substring")
+            print()
+            print("Examples:")
+            print("  python3 items.py ASPECT_OF_THE_DRAGON")
+            print("  python3 items.py aspect of the dragon")
+            print("  python3 items.py livid dagger")
+            return
+
         query = " ".join(sys.argv[1:])
 
         # If it looks like an exact item ID, show requirements directly

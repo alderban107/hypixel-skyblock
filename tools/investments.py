@@ -46,7 +46,6 @@ SB_EPOCH = 1_560_275_700      # Unix seconds — June 11, 2019 10:55 AM PDT
 SB_YEAR_SECONDS = 446_400     # 124 real hours
 SB_MONTH_SECONDS = 37_200     # 31 SB days * 1200 sec/day
 SB_DAY_SECONDS = 1_200        # 20 real minutes
-SB_HOUR_SECONDS = 50          # 50 real seconds
 
 SB_MONTHS = [
     "Early Spring", "Spring", "Late Spring",
@@ -725,7 +724,7 @@ def _recommend_mayor_dependent(item_id, event, current_price, stats, position, p
     low = stats.get("off_event_min", 0)
     high = stats.get("off_event_max", 0)
 
-    if not median or not current_price:
+    if median is None or current_price is None:
         return ("WATCH", "Insufficient data", None, "")
 
     # Estimate where current price sits in the historical range

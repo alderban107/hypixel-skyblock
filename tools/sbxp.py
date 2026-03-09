@@ -979,8 +979,11 @@ def print_recommendations(available_tasks, formula_results, member, category_fil
 
 # ─── Phase 4: Smart recommendation helpers ───
 
-# Essence costs per tier, parsed from wiki shop pages
+# Essence costs per tier, parsed from wiki shop pages (as of Feb 2026).
+# Source: https://hypixel-skyblock.fandom.com/wiki/Essence_Shop
 # Format: {ESSENCE_TYPE: {PERK_ID: [cost_tier_1, cost_tier_2, ...]}}
+# TODO: Consider generating this from wiki_dump.py parsed data or the API
+#       to avoid manual maintenance when Hypixel adds/changes perks.
 ESSENCE_SHOP_COSTS = {
     "GOLD": {
         "HEART_OF_GOLD": [1000, 1500, 2000, 3000, 5000],

@@ -769,8 +769,9 @@ def print_report(active, inactive, missing, upgrades, owned_canonical,
         show_missing = budget_missing
 
     # Print ranked missing list
-    available = [m for m in show_missing if m["cost"] is not None and m["obtainable"]]
-    locked = [m for m in show_missing if m["obtainable"] and m["cost"] is None
+    available = [m for m in show_missing if m["cost"] is not None and m["obtainable"]
+                 and m.get("requirements_met", True)]
+    locked = [m for m in show_missing if m["obtainable"]
               and m.get("requirements") and not m["requirements_met"]]
     unobtainable = [m for m in missing if not m["obtainable"]]
 

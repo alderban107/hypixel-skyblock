@@ -47,7 +47,10 @@ def _parse_item_str(item_str):
     """Parse 'ENCHANTED_RABBIT:16' into (item_id, qty)."""
     parts = item_str.split(":")
     if len(parts) == 2:
-        return parts[0], int(parts[1])
+        try:
+            return parts[0], int(parts[1])
+        except ValueError:
+            return parts[0], 1
     return parts[0], 1
 
 
@@ -116,6 +119,7 @@ def calculate_total(chain, price_cache):
     # Price each material
     total_material_cost = 0
     material_details = []
+    has_unpriced = False
     for item_id, qty in sorted(all_items.items()):
         p = price_cache.get_price(item_id)
         if p["source"] == "bazaar" and p.get("buy"):
@@ -124,6 +128,7 @@ def calculate_total(chain, price_cache):
             unit_price = p["lowest_bin"]
         else:
             unit_price = 0
+            has_unpriced = True
         line_total = unit_price * qty
         total_material_cost += line_total
         material_details.append({
@@ -140,6 +145,7 @@ def calculate_total(chain, price_cache):
         "total_material_cost": total_material_cost,
         "materials": material_details,
         "grand_total": total_coins + total_material_cost,
+        "has_unpriced": has_unpriced,
     }
 
 
@@ -305,7 +311,15 @@ def show_upgrade(pet_type, from_rarity, to_rarity, price_cache, show_profit=Fals
             sell_val = avg or lbin or 0
             if sell_val > 0:
                 profit = sell_val * 0.99 - (input_cost + totals["grand_total"])
-                print(f"  Profit:  {_fmt(profit)}")
+                profit_str = f"  Profit:  {_fmt(profit)}"
+                warnings = []
+                if totals.get("has_unpriced"):
+                    warnings.append("some materials unpriced")
+                if input_cost == 0:
+                    warnings.append("input pet cost unknown")
+                if warnings:
+                    profit_str += f"  ⚠ ({', '.join(warnings)})"
+                print(profit_str)
         else:
             print(f"  No AH data for {to_name} {pet_display}")
 

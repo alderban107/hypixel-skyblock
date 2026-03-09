@@ -215,7 +215,7 @@ def calculate_boss_profit(slayer_data, tier, price_cache,
     cost = tier_info["cost"]
     xp = tier_info["xp"]
     level = tier_info.get("level", 0)
-    kph = kills_per_hour or tier_info.get("kph", 10)
+    kph = kills_per_hour if kills_per_hour is not None else tier_info.get("kph", 10)
     ref_tier = slayer_data.get("rng_meter_ref_tier", tier_key)
     ref_tier_xp = slayer_data["tiers"].get(ref_tier, {}).get("xp", xp)
 
@@ -562,6 +562,9 @@ def main():
     magic_find = args.magic_find
     aatrox = args.aatrox
     kph = args.kills_per_hour
+    if kph is not None and kph <= 0:
+        print("Error: --kills-per-hour must be positive", file=sys.stderr)
+        sys.exit(1)
 
     if slayer_key and args.tier:
         # Detailed single tier

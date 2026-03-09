@@ -46,10 +46,14 @@ def _fmt(n):
         return f"{n / 1_000_000_000:.1f}B"
     if n >= 1_000_000:
         val = n / 1_000_000
-        return f"{val:.1f}B" if val >= 999.95 else f"{val:.1f}M"
+        if val >= 999.95:
+            return f"{n / 1_000_000_000:.1f}B"
+        return f"{val:.1f}M"
     if n >= 1_000:
         val = n / 1_000
-        return f"{val:.1f}M" if val >= 999.95 else f"{val:.1f}K"
+        if val >= 999.95:
+            return f"{n / 1_000_000:.1f}M"
+        return f"{val:.1f}K"
     return f"{n:,.0f}"
 
 
@@ -390,12 +394,12 @@ def _show_all_pet_rarities(pet_type, cache):
 
 
 def main():
-    if len(sys.argv) < 2:
+    if len(sys.argv) < 2 or sys.argv[1] in ("--help", "-h"):
         print("Usage: python3 pricing.py ITEM_ID [ITEM_ID ...]")
         print("       python3 pricing.py \"RABBIT;4\"              # Pet by ID")
         print("       python3 pricing.py \"rabbit legendary\"       # Pet by name + rarity")
         print("       python3 pricing.py rabbit                   # All pet rarities")
-        sys.exit(1)
+        sys.exit(0 if sys.argv[1:] and sys.argv[1] in ("--help", "-h") else 1)
 
     cache = PriceCache()
 

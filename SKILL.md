@@ -1,7 +1,7 @@
 ---
 name: skyblock
 description: Fetch a Hypixel SkyBlock profile and provide live gameplay recommendations
-allowed-tools: Bash(cd tools && python3 profile.py*), Bash(cd tools && python3 pricing.py*), Bash(cd tools && python3 crafts.py*), Bash(cd tools && python3 investments.py*), Bash(cd tools && python3 kat.py*), Bash(cd tools && python3 museum.py*), Bash(cd tools && python3 networth.py*), Bash(cd tools && python3 dungeons.py*), Bash(cd tools && python3 accessories.py*), Bash(cd tools && python3 slayers.py*)
+allowed-tools: Bash(cd tools && python3 profile.py*), Bash(cd tools && python3 pricing.py*), Bash(cd tools && python3 crafts.py*), Bash(cd tools && python3 investments.py*), Bash(cd tools && python3 kat.py*), Bash(cd tools && python3 museum.py*), Bash(cd tools && python3 networth.py*), Bash(cd tools && python3 dungeons.py*), Bash(cd tools && python3 accessories.py*), Bash(cd tools && python3 slayers.py*), Bash(cd tools && python3 sbxp.py*), Bash(cd tools && python3 items.py*), Bash(cd tools && python3 minions.py*)
 ---
 
 # SkyBlock Profile Analyzer
@@ -65,13 +65,27 @@ When this skill is invoked:
    cd tools && python3 accessories.py --budget 5m
    ```
 
-11. **Check museum donations** for cheapest missing items:
+11. **Analyze SkyBlock XP** for efficient progression:
+   ```
+   cd tools && python3 sbxp.py
+   cd tools && python3 sbxp.py --brief
+   cd tools && python3 sbxp.py --category mining
+   ```
+
+12. **Check minion optimization** for profit and slot unlocks:
+   ```
+   cd tools && python3 minions.py
+   cd tools && python3 minions.py --item snow --roi
+   cd tools && python3 minions.py --slots
+   ```
+
+13. **Check museum donations** for cheapest missing items:
    ```
    cd tools && python3 museum.py
    cd tools && python3 museum.py --xp
    ```
 
-12. **Grep the local wiki** to verify game mechanics before making claims:
+14. **Grep the local wiki** to verify game mechanics before making claims:
    ```
    grep -ri "search term" data/wiki/
    ```
@@ -79,9 +93,9 @@ When this skill is invoked:
 
    **If `data/wiki/` is empty or doesn't exist**, tell the user to run the wiki dump first (`cd tools && python3 wiki_dump.py`) before you can verify game mechanics. Do not guess at specifics without wiki verification.
 
-13. **Reference the beginner guide** at `guide/index.html` for progression advice. The guide contains curated gear paths, money-making strategies, mod recommendations, and section-by-section walkthrough content that has been hands-on verified. It covers topics not always on the wiki (e.g., optimal mod setups, budget-conscious upgrade paths, early-game money methods). Prefer its recommendations over generic wiki info when they overlap — but don't modify the guide unless asked.
+15. **Reference the beginner guide** at `guide/index.html` for progression advice. The guide contains curated gear paths, money-making strategies, mod recommendations, and section-by-section walkthrough content that has been hands-on verified. It covers topics not always on the wiki (e.g., optimal mod setups, budget-conscious upgrade paths, early-game money methods). Prefer its recommendations over generic wiki info when they overlap — but don't modify the guide unless asked.
 
-14. **Analyze the profile and provide recommendations.** You ARE the recommendation engine — the script just fetches data for you to interpret.
+16. **Analyze the profile and provide recommendations.** You ARE the recommendation engine — the script just fetches data for you to interpret.
 
 ## Analysis Checklist
 
@@ -90,7 +104,8 @@ Cover ALL of these areas, not just one or two. The user invokes this skill when 
 - **Progression stage**: Where is the user in the game? Early/mid/late? What content are they ready for?
 - **Skill gaps**: Any skills lagging behind? Quick wins to raise skill average?
 - **Gear assessment**: Is current equipment appropriate for the user's level and next goals? The INVENTORIES section shows all equipped armor, equipment slots, inventory items, accessories, ender chest contents, and backpacks — use this to see exactly what they have before recommending anything. Use `pricing.py` to check current market values when evaluating upgrade options.
-- **Minion optimization**: Are minions set up well? Missing easy crafts for slot unlocks?
+- **SkyBlock XP**: Run `sbxp.py` (or `--brief`) to find cheap XP. Check affordable essence perks, close collection milestones, and garden progress.
+- **Minion optimization**: Run `minions.py` to check profit rankings. Are minions set up well? Missing easy crafts for slot unlocks? Use `--slots` to find cheapest slot unlock path.
 - **Collections**: Any collections close to a meaningful tier unlock? Grep the wiki for collection tier thresholds rather than guessing.
 - **Slayer/Dungeon readiness**: Ready to start or progress in slayers/dungeons? What gear/stats are needed? Check the wiki for floor requirements and slayer level unlock thresholds. Run `dungeons.py` to show which floors are most profitable at current prices. Run `slayers.py` to show which slayer bosses are most profitable — include tier comparison and RNG meter analysis.
 - **Pets**: Is the active pet optimal? Any pets worth getting for current activities?

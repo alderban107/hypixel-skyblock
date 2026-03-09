@@ -492,7 +492,7 @@ def main():
             for piece_id in pieces:
                 piece_name = display_name(piece_id)
                 info = price_cache.get_price(piece_id)
-                p = _best_price(info)
+                p = _best_buy_price(info)
                 p_str = _fmt(p) if p else "???"
                 print(f"     └─ {piece_name:<38} {p_str:>10}")
 

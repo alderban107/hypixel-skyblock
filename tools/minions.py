@@ -853,10 +853,13 @@ def calc_setup_cost(minion_key, tier, use_sc3000, use_diamond, fuel, pc):
         costs["minion"] = 0  # no recipe (T12 NPC upgrade, quest-only T1)
 
     # SC3000
+    unpriced = []
     if use_sc3000:
         p = pc.get_price("SUPER_COMPACTOR_3000")
         if p["source"] != "unknown":
             costs["sc3000"] = (p.get("lowest_bin") or p.get("buy") or 0)
+        else:
+            unpriced.append("SC3000")
 
     # Diamond Spreading
     if use_diamond:
@@ -864,6 +867,8 @@ def calc_setup_cost(minion_key, tier, use_sc3000, use_diamond, fuel, pc):
         if p["source"] != "unknown":
             costs["diamond_spreading"] = (p.get("lowest_bin")
                                           or p.get("buy") or 0)
+        else:
+            unpriced.append("Diamond Spreading")
 
     # Fuel
     fuel_id = FUELS[fuel]["item_id"]
@@ -871,8 +876,12 @@ def calc_setup_cost(minion_key, tier, use_sc3000, use_diamond, fuel, pc):
         p = pc.get_price(fuel_id)
         if p["source"] != "unknown":
             costs["fuel"] = (p.get("buy") or p.get("lowest_bin") or 0)
+        else:
+            unpriced.append(fuel)
 
     costs["total"] = sum(costs.values())
+    if unpriced:
+        costs["unpriced"] = unpriced
     return costs
 
 

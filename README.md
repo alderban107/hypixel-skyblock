@@ -4,7 +4,7 @@ A collection of tools and resources for playing [Hypixel SkyBlock](https://hypix
 
 [Hypixel SkyBlock](https://hypixel.net/) is an MMORPG-style game mode on Minecraft's largest multiplayer server. Players progress through skills, gear, dungeons, bosses, and a player-driven economy with two distinct markets: the **Bazaar** (bulk commodity exchange with instant buy/sell orders) and **Auctions** (player-to-player item sales, typically using "Buy It Now" fixed prices). Equipment in SkyBlock has hidden properties — reforges, enchantments, star upgrades, hot potato books — stored as compressed [NBT](https://minecraft.wiki/w/NBT_format) data in the API, which the tools here decode and display.
 
-This repo includes a beginner guide, a CLI profile analyzer with live market pricing, a craft flip scanner, a Kat upgrade calculator, a minion profit analyzer, a museum donation optimizer, an event investment tracker, a local wiki mirror, and an Obsidian vault generator that cross-links game data for graph-view exploration.
+This repo includes a beginner guide, a CLI profile analyzer with live market pricing, a craft flip scanner, a Kat upgrade calculator, a minion profit analyzer, a slayer profit calculator, a dungeon profit calculator, an accessories optimizer, a SkyBlock XP analyzer, a networth calculator, a museum donation optimizer, an event investment tracker, a local wiki mirror, and an Obsidian vault generator that cross-links game data for graph-view exploration.
 
 ## What's Here
 
@@ -28,7 +28,7 @@ Interactive features: localStorage-backed checkboxes with per-section progress t
 
 ### `tools/` — Python Scripts
 
-Fourteen standalone scripts. No dependencies beyond the standard library. Run from the `tools/` directory (scripts import from each other via relative imports).
+Fifteen standalone scripts. No dependencies beyond the standard library. Run from the `tools/` directory (scripts import from each other via relative imports).
 
 ---
 
@@ -51,11 +51,11 @@ Also used as a library — all other tools import `display_name()` from here, an
 
 **`profile.py`** — Fetches a player's SkyBlock profile from the [Hypixel API v2](https://api.hypixel.net/) and prints a comprehensive breakdown. Decodes base64-gzip NBT inventory blobs to extract item details (reforges, enchantments with levels, star count, hot potato book count, rarity) for every equipped item, accessory, wardrobe slot, ender chest item, and backpack.
 
-Output is organized into 23 sections — 8 core shown by default, 15 extended available on request:
+Output is organized into 24 sections — 9 core shown by default, 15 extended available on request:
 
 | Core (default) | Extended (`--full` or `-s`) |
 |---|---|
-| general, skills, slayers, dungeons | collections, minions, garden, museum |
+| general, dailies, skills, slayers, dungeons | collections, minions, garden, museum |
 | hotm, effects, pets, inventories | rift, sacks, jacob, crystals |
 | | bestiary, stats, foraging, chocolate |
 | | community, misc, crafts |
@@ -67,7 +67,7 @@ Also includes:
 
 ```bash
 python3 profile.py                          # core sections
-python3 profile.py --full                   # all 22 sections
+python3 profile.py --full                   # all 24 sections
 python3 profile.py -s dungeons,collections  # specific sections
 ```
 
@@ -90,7 +90,7 @@ Also used as a library — `profile.py` imports `PriceCache` directly for inline
 
 **`networth.py`** — Calculates total profile value by pricing every item across all 12+ storage locations (inventory, ender chest, accessory bag, wardrobe, equipment, personal vault, storage/backpacks, museum, pets, purse, bank, sacks, essence). Uses weighted average Bazaar pricing and LBIN for AH items.
 
-Items are priced with full modifier pricing — 18 modifier handlers with application worth multipliers based on [SkyHelper-Networth](https://github.com/SkyHelperBot/networth)'s handler architecture:
+Items are priced with full modifier pricing — 19 modifier handlers with application worth multipliers based on [SkyHelper-Networth](https://github.com/SkyHelperBot/networth)'s handler architecture:
 
 | Modifier | Multiplier | Source |
 |---|---|---|
@@ -154,10 +154,10 @@ Accepts `--talisman` and `--luck` flags (reserved for future data sources — th
 
 ---
 
-**`accessories.py`** — Identifies **missing accessories** and ranks them by Magical Power cost-efficiency. Compares the player's accessories (scanned from all inventory locations — accessory bag, inventory, ender chest, storage, armor slots, wardrobe) against the full list from the Hypixel items API (393 accessories).
+**`accessories.py`** — Identifies **missing accessories** and ranks them by Magical Power cost-efficiency. Compares the player's accessories (scanned from all inventory locations — accessory bag, inventory, ender chest, storage, armor slots, wardrobe) against the full list from the Hypixel items API (333 master accessories).
 
 Handles the full complexity of accessory management:
-- **Upgrade chains** — 53 chains ported from [SkyCrypt](https://github.com/SkyCryptWebsite/SkyCrypt). Only the highest tier in a family provides MP; lower tiers are flagged as inactive
+- **Upgrade chains** — 55 chains ported from [SkyCrypt](https://github.com/SkyCryptWebsite/SkyCrypt). Only the highest tier in a family provides MP; lower tiers are flagged as inactive
 - **Aliases** — Items like Piggy Bank / Broken Piggy Bank / Cracked Piggy Bank are treated as the same accessory
 - **Ignored accessories** — Unobtainable items (Luck Talisman, Space accessories, etc.) filtered from the master list
 - **Recombobulation tracking** — Shows how many accessories are recombed vs total, and the potential MP gain from recombing the rest
@@ -211,9 +211,12 @@ Each item's unlock requirement is resolved from two sources: NEU-REPO data (craf
 
 ```bash
 python3 crafts.py              # full scan — all profitable crafts (~5 sec)
+python3 crafts.py --forge      # include Forge recipes (longer craft times)
 python3 crafts.py --profile    # filter by player's unlocked recipes (reads last_profile.json)
 python3 crafts.py --cached     # use cached prices only (no API calls)
 python3 crafts.py --fresh      # ignore cache, fetch all prices fresh
+python3 crafts.py --undercut 8 # set undercut % below LBIN (default: 5%)
+python3 crafts.py --item MINING_2_TRAVEL_SCROLL  # single item recipe breakdown
 ```
 
 Price data is cached in `data/craft_cache.json` (5-minute TTL, 1-hour eviction). The `--profile` mode cross-references the player's collections and slayer XP to show which crafts are unlocked and which are closest to unlocking.
@@ -227,7 +230,7 @@ Also used as a library — `profile.py` imports craft scanning functions for the
 Three modes of operation:
 
 - **Single pet** — Shows all available upgrade steps with per-step and full-chain cost breakdowns. With `--profit`, includes AH sell prices and profit calculation, showing both AH buy and craft cost for the starting pet.
-- **`--scan`** — Discovers all 39 pets with Kat upgrades by scanning NEU-REPO `*;0.json` files, calculates full-chain profit for each (lowest available rarity to highest), and outputs a ranked table sorted by profit. Flags pets where crafting the starting pet is cheaper than buying from AH.
+- **`--scan`** — Discovers all 46 pets with Kat upgrades by scanning NEU-REPO `*;0.json` files, calculates full-chain profit for each (lowest available rarity to highest), and outputs a ranked table sorted by profit. Flags pets where crafting the starting pet is cheaper than buying from AH.
 - **`--shopping`** — Outputs a consolidated shopping list that merges the pet's crafting recipe ingredients (if crafting is cheaper) with all Kat upgrade materials across the chain. Groups by item, sums quantities, prices everything from Bazaar, and shows totals with profit.
 
 ```bash
@@ -241,11 +244,11 @@ python3 kat.py RABBIT --from common --to mythic --shopping   # shopping list wit
 
 ---
 
-**`minions.py`** — Calculates daily profit for **60 minion types** across all tiers using live Bazaar prices. Parses action speeds from the [NEU-REPO](https://github.com/NotEnoughUpdates/NotEnoughUpdates-REPO) item database and supports fuel types (11 options from Coal to Hyper Catalyst), Super Compactor 3000, Diamond Spreading, and NPC hopper pricing. Displays a ranked table of all minions or a detailed breakdown for a single type including per-drop revenue analysis.
+**`minions.py`** — Calculates daily profit for **57 minion types** across all tiers using live Bazaar prices. Parses action speeds from the [NEU-REPO](https://github.com/NotEnoughUpdates/NotEnoughUpdates-REPO) item database and supports fuel types (11 options from Coal to Hyper Catalyst), Super Compactor 3000, Diamond Spreading, and NPC hopper pricing. Displays a ranked table of all minions or a detailed breakdown for a single type including per-drop revenue analysis.
 
 Includes full **setup cost and ROI calculation** — recursively prices every tier's crafting recipe from T1 through the target tier using Bazaar buy prices, adds upgrade costs (SC3000, Diamond Spreading, fuel), and calculates days-to-payback per minion.
 
-The **`--slots` flag** is a minion slot unlock guide that reads the player's crafted minion history from `last_profile.json`, scans all 60 generator types in the NEU repo for uncrafted tiers, prices each tier's recipe ingredients on the Bazaar (incremental cost only — skips the previous-tier minion in the center slot since the player reuses it), and shows the cheapest path to the next slot unlock with a running cost total.
+The **`--slots` flag** is a minion slot unlock guide that reads the player's crafted minion history from `last_profile.json`, scans all 57 generator types in the NEU repo for uncrafted tiers, prices each tier's recipe ingredients on the Bazaar (incremental cost only — skips the previous-tier minion in the center slot since the player reuses it), and shows the cheapest path to the next slot unlock with a running cost total.
 
 ```bash
 python3 minions.py                    # ranked profit table, default setup (25× T11, E-Lava, SC3000)
@@ -254,8 +257,27 @@ python3 minions.py --tier 12 --top 10 # top 10 T12 minions by profit
 python3 minions.py --fuel plasma      # change fuel type
 python3 minions.py --no-sc3000 --npc  # raw NPC pricing, no compactor
 python3 minions.py --sort roi --top 15 # sort by ROI, show top 15
-python3 minions.py --list             # list all 60 minion types with max tiers
+python3 minions.py --list             # list all 57 minion types with max tiers
 python3 minions.py --slots            # cheapest crafts for next minion slot unlock
+```
+
+---
+
+**`sbxp.py`** — SkyBlock XP analyzer that calculates current progress across all 17 XP categories and identifies the most efficient ways to earn more. Pulls from 23 formula sources (Hypixel API profile data, collections, skills, slayers, dungeons, bestiary, essence shop, fairy souls, community upgrades, etc.) to build a database of 692 individual tasks with completion status and XP values.
+
+Features:
+- **Full XP breakdown** — per-category current/max XP with completion percentage
+- **Smart recommendations** — detects affordable essence shop perks, close collection milestones, garden plot unlocks, and other low-effort XP sources based on the player's current profile
+- **Category filtering** — drill into specific categories (mining, dungeons, slayers, etc.)
+- **Task-level detail** — every individual task with its XP value and completion status
+
+Cross-references the player's essence stockpile against shop costs to find perks they can buy right now for free XP. Scans collection progress to find milestones within reach. All 23 calculation functions source their formulas from the wiki or API documentation.
+
+```bash
+python3 sbxp.py                           # full SBXP analysis + recommendations
+python3 sbxp.py --brief                   # recommendations only
+python3 sbxp.py --category mining         # filter by category
+python3 sbxp.py --json                    # machine-readable output
 ```
 
 ---
@@ -397,31 +419,19 @@ Large and/or generated files that don't belong in version control. Everything he
 
 No pip packages required — everything uses the Python standard library.
 
-## Claude Code Skill
+## AI Skill
 
-This repo includes a [Claude Code skill](https://docs.anthropic.com/en/docs/claude-code/skills) that turns `/skyblock` into an AI-powered profile analyzer. When invoked, Claude fetches your live profile data, cross-references the local wiki, checks current market prices, and gives prioritized gameplay recommendations.
-
-### Installing the Skill
-
-1. Complete the setup steps above (API key, wiki dump)
-
-2. Copy the skill file to your Claude Code skills directory:
-   ```bash
-   mkdir -p ~/.claude/skills/skyblock
-   cp SKILL.md ~/.claude/skills/skyblock/SKILL.md
-   ```
-
-3. Open Claude Code from the project root and type `/skyblock`
+This repo includes a `SKILL.md` file that turns the toolkit into an AI-powered profile analyzer. The skill instructs an AI coding assistant to fetch live profile data, cross-reference the local wiki, check current market prices, and give prioritized gameplay recommendations.
 
 ### Prerequisites
 
 - **Hypixel API key** — Apply at [developer.hypixel.net](https://developer.hypixel.net/). Approval is not instant; dev keys may take a few days.
 - **Local wiki dump** — The skill relies on grepping the wiki to verify game mechanics before making claims. Without it, recommendations may be less accurate. Run `cd tools && python3 wiki_dump.py` (~5 min, rate-limited to 1 req/sec).
-- **Claude Code working directory** — The skill uses relative paths, so Claude Code must be opened from the project root.
+- **Working directory** — The skill uses relative paths, so the AI assistant must be opened from the project root.
 
 ### Customization
 
-The `SKILL.md` file's "Important Context" section controls how Claude approaches recommendations. You can edit your local copy to match your playstyle — for example, adding notes about your budget preferences, which content you enjoy, or specific goals you're working toward.
+The `SKILL.md` file's "Important Context" section controls how the assistant approaches recommendations. You can edit your local copy to match your playstyle — for example, adding notes about your budget preferences, which content you enjoy, or specific goals you're working toward.
 
 ## License
 

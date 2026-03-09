@@ -40,6 +40,12 @@ MOULBERRY_EVICT = 3600       # 1 hour
 
 MIN_PROFIT = 10_000
 MIN_VOLUME = 1
+LBIN_SANITY_MULT = 5  # Skip AH price if LBIN > this × avg_lbin (manipulation guard)
+
+# Items that are disabled in-game but still have NEU recipes / AH listings
+DISABLED_ITEMS = {
+    "SOULS_REBOUND",
+}
 
 
 # ─── Recipe Parsing ───────────────────────────────────────────────────
@@ -250,6 +256,9 @@ def scan_forge_flips(recipes, price_cache, craft_cache, use_cached_only=False,
     for recipe in recipes:
         item_id = recipe["item_id"]
 
+        if item_id in DISABLED_ITEMS:
+            continue
+
         cost, sources = calculate_forge_cost(recipe, price_cache)
         if cost is None:
             continue
@@ -278,14 +287,18 @@ def scan_forge_flips(recipes, price_cache, craft_cache, use_cached_only=False,
         ah_sales_day = ah_sales / 3.0 if ah_sales else None
 
         if ah_lbin and ah_lbin > 0:
-            sell_mult = (1 - undercut_pct / 100) * 0.99
-            ah_profit = ah_lbin * sell_mult - cost
+            # Sanity check: skip if LBIN looks manipulated (>5× avg)
+            if ah_avg and ah_avg > 0 and ah_lbin > LBIN_SANITY_MULT * ah_avg:
+                pass  # LBIN unreliable, skip AH channel
+            else:
+                sell_mult = (1 - undercut_pct / 100) * 0.99
+                ah_profit = ah_lbin * sell_mult - cost
 
-            # Use AH if it's more profitable (or if no Bazaar option)
-            if sell_channel is None or ah_profit > (sell_price - cost if sell_price else 0):
-                sell_price = ah_lbin
-                sell_channel = "auction"
-                sales_per_day = ah_sales_day
+                # Use AH if it's more profitable (or if no Bazaar option)
+                if sell_channel is None or ah_profit > (sell_price - cost if sell_price else 0):
+                    sell_price = ah_lbin
+                    sell_channel = "auction"
+                    sales_per_day = ah_sales_day
 
         if sell_price is None:
             continue
@@ -578,6 +591,9 @@ def scan_craft_flips(recipes, price_cache, craft_cache, use_cached_only=False,
     for recipe in recipes:
         item_id = recipe["item_id"]
 
+        if item_id in DISABLED_ITEMS:
+            continue
+
         cost = calculate_craft_cost(recipe, price_cache)
         if cost is None:
             continue
@@ -608,14 +624,18 @@ def scan_craft_flips(recipes, price_cache, craft_cache, use_cached_only=False,
         ah_sales = avg_data.get("sales", 0) / 3.0 if avg_data else 0
 
         if item_avg and item_avg > 0 and current_lbin and current_lbin > 0 and ah_sales >= MIN_VOLUME:
-            ah_profit = current_lbin * sell_mult - cost
-            if ah_profit >= MIN_PROFIT and (best_profit is None or ah_profit > best_profit):
-                best_profit = ah_profit
-                best_channel = "auction"
-                best_sell = current_lbin
-                best_avg = item_avg
-                best_lbin = current_lbin
-                best_sales = ah_sales
+            # Sanity check: skip if LBIN looks manipulated (>5× avg)
+            if current_lbin > LBIN_SANITY_MULT * item_avg:
+                pass  # LBIN unreliable, skip AH channel
+            else:
+                ah_profit = current_lbin * sell_mult - cost
+                if ah_profit >= MIN_PROFIT and (best_profit is None or ah_profit > best_profit):
+                    best_profit = ah_profit
+                    best_channel = "auction"
+                    best_sell = current_lbin
+                    best_avg = item_avg
+                    best_lbin = current_lbin
+                    best_sales = ah_sales
 
         if best_profit is None:
             continue

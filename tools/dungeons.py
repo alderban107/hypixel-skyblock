@@ -26,7 +26,6 @@ import json
 import re
 import sys
 import time
-from html.parser import HTMLParser
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
@@ -444,56 +443,6 @@ def _extract_item_from_row(row):
 
 
 # ─── Fandom Wiki HTML Scraper ───────────────────────────────────────
-
-class WikiTableParser(HTMLParser):
-    """Parse fandom wiki HTML loot tables."""
-
-    def __init__(self):
-        super().__init__()
-        self.floors = {}
-        self._in_tabber = False
-        self._current_floor = None
-        self._in_table = False
-        self._in_row = False
-        self._in_cell = False
-        self._is_header = False
-        self._cell_text = ""
-        self._row_cells = []
-        self._current_chest = None
-        self._current_mode = "normal"
-        self._depth = 0
-
-    def handle_starttag(self, tag, attrs):
-        attrs_dict = dict(attrs)
-        if tag == "table" and "wikitable" in attrs_dict.get("class", ""):
-            self._in_table = True
-        elif tag == "tr" and self._in_table:
-            self._in_row = True
-            self._row_cells = []
-        elif tag in ("td", "th") and self._in_row:
-            self._in_cell = True
-            self._is_header = tag == "th"
-            self._cell_text = ""
-        elif tag == "b" and self._in_cell:
-            pass  # bold text handled in data
-
-    def handle_endtag(self, tag):
-        if tag in ("td", "th") and self._in_cell:
-            self._in_cell = False
-            self._row_cells.append(self._cell_text.strip())
-        elif tag == "tr" and self._in_row:
-            self._in_row = False
-            self._process_row()
-        elif tag == "table":
-            self._in_table = False
-
-    def handle_data(self, data):
-        if self._in_cell:
-            self._cell_text += data
-
-    def _process_row(self):
-        pass  # Implemented in scrape function below
-
 
 def scrape_fandom_wiki():
     """Scrape the fandom wiki live for dungeon loot data.
@@ -1074,6 +1023,10 @@ def main():
                         help="Force re-scrape wiki data (ignore cache)")
 
     args = parser.parse_args()
+
+    if args.runs_per_hour is not None and args.runs_per_hour <= 0:
+        parser.error("--runs-per-hour must be a positive integer")
+
     use_splus = not args.no_splus
 
     # Load loot data
