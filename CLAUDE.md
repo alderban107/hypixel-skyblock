@@ -13,6 +13,7 @@ tools/          Python scripts (run from this dir or project root)
   crafts.py     Craft flip scanner + single-item recipe breakdown
   networth.py   Networth calculator (all storage locations, modifier pricing, soulbound)
   dungeons.py   Dungeon profit calculator (per-chest EV, Kismet analysis, RNG drops)
+  accessories.py Missing accessories finder (MP efficiency, upgrade chains, inactive detection)
   kat.py        Kat upgrade calculator (materials, coins, time, profit)
   sbxp.py       SkyBlock XP analyzer — 25 formula sources, 692 tasks, smart recs (essence/collections/garden)
   minions.py    Minion profit calculator (live Bazaar pricing, 50+ minion types)
@@ -65,6 +66,13 @@ python3 dungeons.py --no-splus                # base score rates instead of S+
 python3 dungeons.py --runs-per-hour 6         # override runs/hr estimate
 python3 dungeons.py --json                    # machine-readable output
 python3 dungeons.py --refresh                 # force re-scrape wiki data
+python3 accessories.py                    # full missing accessories report
+python3 accessories.py --budget 10m       # only show within 10M total budget
+python3 accessories.py --sort cost        # sort by absolute cost instead of coins/MP
+python3 accessories.py --upgrades-only    # only show upgrade opportunities
+python3 accessories.py --inactive         # focus on inactive/duplicate cleanup
+python3 accessories.py --available-only   # hide locked/unobtainable
+python3 accessories.py --json             # machine-readable output
 python3 minions.py                          # ranked profit table, default setup (25× T11)
 python3 minions.py --item snow --roi        # detailed breakdown + setup cost + ROI
 python3 minions.py --tier 12 --top 10       # top 10 T12 minions

@@ -1,7 +1,7 @@
 ---
 name: skyblock
 description: Fetch a Hypixel SkyBlock profile and provide live gameplay recommendations
-allowed-tools: Bash(cd tools && python3 profile.py*), Bash(cd tools && python3 pricing.py*), Bash(cd tools && python3 crafts.py*), Bash(cd tools && python3 investments.py*), Bash(cd tools && python3 kat.py*), Bash(cd tools && python3 museum.py*), Bash(cd tools && python3 networth.py*), Bash(cd tools && python3 dungeons.py*)
+allowed-tools: Bash(cd tools && python3 profile.py*), Bash(cd tools && python3 pricing.py*), Bash(cd tools && python3 crafts.py*), Bash(cd tools && python3 investments.py*), Bash(cd tools && python3 kat.py*), Bash(cd tools && python3 museum.py*), Bash(cd tools && python3 networth.py*), Bash(cd tools && python3 dungeons.py*), Bash(cd tools && python3 accessories.py*)
 ---
 
 # SkyBlock Profile Analyzer
@@ -50,13 +50,20 @@ When this skill is invoked:
    cd tools && python3 dungeons.py --floor f7
    ```
 
-9. **Check museum donations** for cheapest missing items:
+9. **Check missing accessories** for cheap MP upgrades:
+   ```
+   cd tools && python3 accessories.py
+   cd tools && python3 accessories.py --upgrades-only
+   cd tools && python3 accessories.py --budget 5m
+   ```
+
+10. **Check museum donations** for cheapest missing items:
    ```
    cd tools && python3 museum.py
    cd tools && python3 museum.py --xp
    ```
 
-10. **Grep the local wiki** to verify game mechanics before making claims:
+11. **Grep the local wiki** to verify game mechanics before making claims:
    ```
    grep -ri "search term" data/wiki/
    ```
@@ -64,9 +71,9 @@ When this skill is invoked:
 
    **If `data/wiki/` is empty or doesn't exist**, tell the user to run the wiki dump first (`cd tools && python3 wiki_dump.py`) before you can verify game mechanics. Do not guess at specifics without wiki verification.
 
-11. **Reference the beginner guide** at `guide/index.html` for progression advice. The guide contains curated gear paths, money-making strategies, mod recommendations, and section-by-section walkthrough content that has been hands-on verified. It covers topics not always on the wiki (e.g., optimal mod setups, budget-conscious upgrade paths, early-game money methods). Prefer its recommendations over generic wiki info when they overlap — but don't modify the guide unless asked.
+12. **Reference the beginner guide** at `guide/index.html` for progression advice. The guide contains curated gear paths, money-making strategies, mod recommendations, and section-by-section walkthrough content that has been hands-on verified. It covers topics not always on the wiki (e.g., optimal mod setups, budget-conscious upgrade paths, early-game money methods). Prefer its recommendations over generic wiki info when they overlap — but don't modify the guide unless asked.
 
-12. **Analyze the profile and provide recommendations.** You ARE the recommendation engine — the script just fetches data for you to interpret.
+13. **Analyze the profile and provide recommendations.** You ARE the recommendation engine — the script just fetches data for you to interpret.
 
 ## Analysis Checklist
 
@@ -79,7 +86,7 @@ Cover ALL of these areas, not just one or two. The user invokes this skill when 
 - **Collections**: Any collections close to a meaningful tier unlock? Grep the wiki for collection tier thresholds rather than guessing.
 - **Slayer/Dungeon readiness**: Ready to start or progress in slayers/dungeons? What gear/stats are needed? Check the wiki for floor requirements and slayer level unlock thresholds. Run `dungeons.py` to show which floors are most profitable at current prices.
 - **Pets**: Is the active pet optimal? Any pets worth getting for current activities?
-- **Magical Power**: Is accessory bag power appropriate? Check the accessory bag AND ender chest for talismans that should be moved into the bag.
+- **Magical Power**: Run `accessories.py` to see active MP, inactive/duplicate accessories, and the cheapest missing MP upgrades. Also check `--upgrades-only` for chain upgrade opportunities.
 - **Money-making**: Run `crafts.py --profile` for craft flips, `investments.py` for event investments, and `kat.py --scan` for pet flip opportunities. Highlight the best current opportunities.
 - **Museum**: Run `museum.py` to check cheapest missing donations. SkyBlock XP from museum milestones adds up.
 - **Garden**: Progression status, worth investing time?

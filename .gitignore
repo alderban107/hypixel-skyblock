@@ -10,6 +10,8 @@ data/collections_resource.json
 data/items_resource.json
 data/skills_resource.json
 data/craft_cache.json
+data/dungeon_loot.json
+data/sbxp_tasks.json
 data/wiki/
 data/wiki-official/
 data/neu-repo/

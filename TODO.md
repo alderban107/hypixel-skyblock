@@ -291,7 +291,7 @@ python3 dungeons.py --json                    # machine-readable output
 
 ---
 
-## 3. Missing Accessories Finder (`accessories.py`)
+## 3. ~~Missing Accessories Finder (`accessories.py`)~~ ✅ COMPLETE
 
 Identify which accessories a player is missing, prioritized by magical power and cost-effectiveness.
 

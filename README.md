@@ -28,7 +28,7 @@ Interactive features: localStorage-backed checkboxes with per-section progress t
 
 ### `tools/` — Python Scripts
 
-Twelve standalone scripts. No dependencies beyond the standard library. Run from the `tools/` directory (scripts import from each other via relative imports).
+Thirteen standalone scripts. No dependencies beyond the standard library. Run from the `tools/` directory (scripts import from each other via relative imports).
 
 ---
 
@@ -151,6 +151,29 @@ python3 dungeons.py --refresh                 # force re-scrape wiki data
 ```
 
 Accepts `--talisman` and `--luck` flags (reserved for future data sources — the fandom wiki currently only provides Default/S+ rates, not per-modifier breakdowns).
+
+---
+
+**`accessories.py`** — Identifies **missing accessories** and ranks them by Magical Power cost-efficiency. Compares the player's accessories (scanned from all inventory locations — accessory bag, inventory, ender chest, storage, armor slots, wardrobe) against the full list from the Hypixel items API (393 accessories).
+
+Handles the full complexity of accessory management:
+- **Upgrade chains** — 53 chains ported from [SkyCrypt](https://github.com/SkyCryptWebsite/SkyCrypt). Only the highest tier in a family provides MP; lower tiers are flagged as inactive
+- **Aliases** — Items like Piggy Bank / Broken Piggy Bank / Cracked Piggy Bank are treated as the same accessory
+- **Ignored accessories** — Unobtainable items (Luck Talisman, Space accessories, etc.) filtered from the master list
+- **Recombobulation tracking** — Shows how many accessories are recombed vs total, and the potential MP gain from recombing the rest
+- **Inactive/duplicate detection** — Identifies wasted bag slots from lower-tier upgrades and duplicates
+
+Missing accessories are ranked by coins/MP (cost ÷ MP gain), with upgrade opportunities showing incremental cost (new price minus value of current tier). Prices come from AH LBIN or craft cost fallback. Requirements are checked against the player's profile to separate available, locked, and unobtainable accessories.
+
+```bash
+python3 accessories.py                    # full missing accessories report
+python3 accessories.py --budget 10m       # only show within 10M total budget
+python3 accessories.py --sort cost        # sort by absolute cost instead of coins/MP
+python3 accessories.py --upgrades-only    # only show upgrade opportunities
+python3 accessories.py --inactive         # focus on inactive/duplicate cleanup
+python3 accessories.py --available-only   # hide locked/unobtainable
+python3 accessories.py --json             # machine-readable output
+```
 
 ---
 
