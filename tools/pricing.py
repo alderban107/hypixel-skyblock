@@ -289,6 +289,29 @@ class PriceCache:
             return "  ".join(parts)
         return "No price data"
 
+    def weighted(self, item_id):
+        """Get weighted average price for an item.
+
+        For Bazaar items:
+            weighted = (buy_price × buy_volume + sell_price × sell_volume)
+                       / (buy_volume + sell_volume)
+        For AH items: returns LBIN, falling back to avg_lbin.
+        Returns None if no price data.
+        """
+        p = self.get_price(item_id)
+        if p["source"] == "bazaar":
+            buy = p.get("buy") or 0
+            sell = p.get("sell") or 0
+            bv = p.get("buy_volume") or 0
+            sv = p.get("sell_volume") or 0
+            total_vol = bv + sv
+            if total_vol > 0 and (buy > 0 or sell > 0):
+                return (buy * bv + sell * sv) / total_vol
+            return buy or sell or None
+        if p["source"] == "auction":
+            return p.get("lowest_bin") or p.get("avg_bin") or None
+        return None
+
     def get_prices_bulk(self, item_ids):
         """Get prices for multiple items. Returns {item_id: price_info}."""
         self._fetch_bazaar()  # single request for all bazaar items

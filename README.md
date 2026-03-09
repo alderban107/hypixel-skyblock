@@ -28,7 +28,7 @@ Interactive features: localStorage-backed checkboxes with per-section progress t
 
 ### `tools/` — Python Scripts
 
-Ten standalone scripts. No dependencies beyond the standard library. Run from the `tools/` directory (scripts import from each other via relative imports).
+Eleven standalone scripts. No dependencies beyond the standard library. Run from the `tools/` directory (scripts import from each other via relative imports).
 
 ---
 
@@ -85,6 +85,45 @@ python3 pricing.py SHADOW_ASSASSIN_CHESTPLATE ENCHANTED_DIAMOND
 ```
 
 Also used as a library — `profile.py` imports `PriceCache` directly for inline market valuations. Display names are provided by `items.py`.
+
+---
+
+**`networth.py`** — Calculates total profile value by pricing every item across all 12+ storage locations (inventory, ender chest, accessory bag, wardrobe, equipment, personal vault, storage/backpacks, museum, pets, purse, bank, sacks, essence). Uses weighted average Bazaar pricing and LBIN for AH items.
+
+Items are priced with full modifier pricing — 18 modifier handlers with application worth multipliers based on [SkyHelper-Networth](https://github.com/SkyHelperBot/networth)'s handler architecture:
+
+| Modifier | Multiplier | Source |
+|---|---|---|
+| Essence Stars (1-5) | 0.75× | Hypixel items API `upgrade_costs` + NEU `essencecosts.json` |
+| Hot Potato Books (1-10) | 1.0× | `hot_potato_count` NBT field |
+| Fuming Potato Books (11-15) | 0.6× | `hot_potato_count` > 10 |
+| Recombobulator 3000 | 0.8× | `rarity_upgrades` NBT field |
+| Enchantments | 0.85× | `enchantments` compound → `ENCHANTMENT_{NAME}_{LEVEL}` |
+| Reforge Stones | 1.0× | `modifier` NBT → 75 stone mappings from NEU lore |
+| Gemstones | 1.0× | `gems` NBT compound |
+| Master Stars (6-10) | 1.0× | Stars > 5 |
+| Necron Blade Scrolls | 1.0× | `ability_scroll` NBT list |
+| Art of War / Art of Peace | 0.6× / 0.8× | NBT flags |
+| Drill/Rod Parts | 1.0× | `drill_part_*` NBT strings |
+| Dyes | 0.9× | `dye_item` NBT string |
+| Pet Candy | 0.65× | Pet `candyUsed` field |
+| Pet Held Items | 1.0× | Pet `heldItem` field |
+| Wood Singularity | 0.5× | `wood_singularity_count` NBT |
+| Farming for Dummies | 0.5× | `farming_for_dummies_count` NBT |
+| Etherwarp Conduit | 1.0× | `ethermerge` NBT flag |
+| Transmission Tuners | 0.7× | `tuned_transmission` NBT |
+| Mana Disintegrator | 0.8× | `mana_disintegrator_count` NBT |
+
+Reports dual networth (total + unsoulbound). Soulbound items are detected from lore lines (`✦ Soulbound`, `Co-op Soulbound`) and the `donated_museum` NBT flag, then valued at recursive crafting cost. Unpriceable items are tracked separately rather than silently dropped.
+
+```bash
+python3 networth.py                    # full networth breakdown
+python3 networth.py --category pets    # just pets breakdown
+python3 networth.py --top 20          # top 20 most valuable items
+python3 networth.py --no-cosmetic     # exclude cosmetic items (dyes, skins, runes)
+python3 networth.py --json            # machine-readable output
+python3 networth.py --verbose         # list every priced item
+```
 
 ---
 

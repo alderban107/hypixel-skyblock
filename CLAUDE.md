@@ -11,6 +11,7 @@ tools/          Python scripts (run from this dir or project root)
   profile.py    Fetch & display SkyBlock profile data
   pricing.py    Live Bazaar + Moulberry BIN pricing (supports pet IDs)
   crafts.py     Craft flip scanner + single-item recipe breakdown
+  networth.py   Networth calculator (all storage locations, modifier pricing, soulbound)
   kat.py        Kat upgrade calculator (materials, coins, time, profit)
   sbxp.py       SkyBlock XP analyzer — 25 formula sources, 692 tasks, smart recs (essence/collections/garden)
   minions.py    Minion profit calculator (live Bazaar pricing, 50+ minion types)
@@ -49,6 +50,12 @@ python3 crafts.py --fresh                   # ignore cache, fetch all prices fre
 python3 crafts.py --undercut 8              # set undercut % below LBIN (default: 5%)
 python3 crafts.py --item MINING_2_TRAVEL_SCROLL         # single item recipe breakdown
 python3 crafts.py --item MINING_2_TRAVEL_SCROLL --check # + requirement check vs profile
+python3 networth.py                    # full networth breakdown
+python3 networth.py --category pets    # just pets breakdown
+python3 networth.py --top 20          # top 20 most valuable items
+python3 networth.py --no-cosmetic     # exclude cosmetic items
+python3 networth.py --json            # machine-readable output
+python3 networth.py --verbose         # list every item with price
 python3 minions.py                          # ranked profit table, default setup (25× T11)
 python3 minions.py --item snow --roi        # detailed breakdown + setup cost + ROI
 python3 minions.py --tier 12 --top 10       # top 10 T12 minions

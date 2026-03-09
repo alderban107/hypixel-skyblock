@@ -8,6 +8,7 @@ current lowest BIN, and actual sales volume).
 
 Usage:
     python3 crafts.py              # Full scan — all profitable crafts
+    python3 crafts.py --forge      # Scan forge recipes (time-gated crafts)
     python3 crafts.py --profile    # Filter by player's unlocked recipes
     python3 crafts.py --cached     # Use cached prices only (skip API calls)
     python3 crafts.py --fresh      # Ignore cache, fetch all prices fresh
@@ -121,6 +122,314 @@ def parse_recipes():
     return recipes
 
 
+def parse_forge_recipes():
+    """Scan NEU repo for all forge recipes. Returns list of recipe dicts."""
+    recipes = []
+    if not NEU_ITEMS_DIR.exists():
+        print("  NEU repo not found at", NEU_ITEMS_DIR, file=sys.stderr)
+        return recipes
+
+    for path in NEU_ITEMS_DIR.glob("*.json"):
+        try:
+            data = json.loads(path.read_text())
+        except (json.JSONDecodeError, OSError):
+            continue
+
+        item_id = data.get("internalname", path.stem)
+
+        if "recipes" not in data or not isinstance(data["recipes"], list):
+            continue
+
+        for r in data["recipes"]:
+            if r.get("type") != "forge":
+                continue
+
+            # Parse inputs — format is "ITEM_ID:QTY" or just "ITEM_ID"
+            ingredients = {}
+            for inp in r.get("inputs", []):
+                parts = str(inp).split(":")
+                if len(parts) == 2:
+                    ing_id = parts[0]
+                    try:
+                        qty = int(float(parts[1]))
+                    except ValueError:
+                        qty = 1
+                elif len(parts) == 1:
+                    ing_id, qty = parts[0], 1
+                else:
+                    continue
+                if ing_id:
+                    ingredients[ing_id] = ingredients.get(ing_id, 0) + qty
+
+            if not ingredients:
+                continue
+
+            output_count = r.get("count", 1)
+            if isinstance(output_count, str):
+                try:
+                    output_count = int(output_count)
+                except ValueError:
+                    output_count = 1
+
+            output_id = r.get("overrideOutputId", item_id)
+            duration = r.get("duration", 0)  # seconds
+
+            all_reqs = get_all_requirements(output_id)
+            requirement = all_reqs[0] if all_reqs else None
+
+            recipes.append({
+                "item_id": output_id,
+                "ingredients": ingredients,
+                "output_count": max(output_count, 1),
+                "duration": duration,
+                "requirement": requirement,
+            })
+            break  # only first forge recipe per item
+
+    return recipes
+
+
+def _format_duration(seconds):
+    """Format forge duration in human-readable form."""
+    if seconds <= 0:
+        return "instant"
+    days = seconds // 86400
+    hours = (seconds % 86400) // 3600
+    minutes = (seconds % 3600) // 60
+    if days > 0:
+        if hours > 0:
+            return f"{days}d {hours}h"
+        return f"{days}d"
+    if hours > 0:
+        if minutes > 0:
+            return f"{hours}h {minutes}m"
+        return f"{hours}h"
+    return f"{minutes}m"
+
+
+def calculate_forge_cost(recipe, price_cache):
+    """Calculate total ingredient cost for a forge recipe.
+
+    Accepts mixed sources: Bazaar buy price preferred, falls back to AH LBIN.
+    Returns (total_cost, sources) where sources maps ingredient IDs to their
+    price source ("bazaar" or "auction").
+    """
+    total = 0
+    sources = {}
+    for ing_id, qty in recipe["ingredients"].items():
+        p = price_cache.get_price(ing_id)
+        if p["source"] == "bazaar" and p.get("buy"):
+            total += p["buy"] * qty
+            sources[ing_id] = "bazaar"
+        elif p["source"] == "auction" and p.get("lowest_bin"):
+            total += p["lowest_bin"] * qty
+            sources[ing_id] = "auction"
+        else:
+            return None, None  # can't price this ingredient
+    return total / recipe["output_count"], sources
+
+
+def scan_forge_flips(recipes, price_cache, craft_cache, use_cached_only=False,
+                     force_refresh=False, undercut_pct=5):
+    """Scan forge recipes for profitable flips.
+
+    Unlike craft flips, forge outputs can sell on Bazaar OR AH.
+    Picks whichever sell channel gives better profit.
+    """
+    # Load bulk AH data for items that sell on AH
+    if use_cached_only:
+        mb = craft_cache.get("moulberry", {})
+        lowestbin = mb.get("lowestbin", {})
+        avg_lbin = mb.get("avg_lbin", {})
+        auction_averages = mb.get("auction_averages", {})
+    else:
+        lowestbin, avg_lbin, auction_averages = fetch_moulberry_data(
+            cache=craft_cache, force_refresh=force_refresh)
+
+    flips = []
+    for recipe in recipes:
+        item_id = recipe["item_id"]
+
+        cost, sources = calculate_forge_cost(recipe, price_cache)
+        if cost is None:
+            continue
+
+        # Check both sell channels for output
+        output_price = price_cache.get_price(item_id)
+
+        sell_price = None
+        sell_channel = None
+        sales_per_day = None
+
+        # Check Bazaar instant-sell
+        if output_price["source"] == "bazaar" and output_price.get("sell"):
+            bz_sell = output_price["sell"]
+            bz_profit = bz_sell - cost
+            sell_price = bz_sell
+            sell_channel = "bazaar"
+            # Bazaar volume is essentially unlimited for instant-sell
+            sales_per_day = None  # continuous
+
+        # Check AH
+        ah_lbin = lowestbin.get(item_id, 0)
+        ah_avg = avg_lbin.get(item_id, 0)
+        ah_data = auction_averages.get(item_id, {})
+        ah_sales = ah_data.get("clean_sales") or ah_data.get("sales")
+        ah_sales_day = ah_sales / 3.0 if ah_sales else None
+
+        if ah_lbin and ah_lbin > 0:
+            sell_mult = (1 - undercut_pct / 100) * 0.99
+            ah_profit = ah_lbin * sell_mult - cost
+
+            # Use AH if it's more profitable (or if no Bazaar option)
+            if sell_channel is None or ah_profit > (sell_price - cost if sell_price else 0):
+                sell_price = ah_lbin
+                sell_channel = "auction"
+                sales_per_day = ah_sales_day
+
+        if sell_price is None:
+            continue
+
+        # Calculate final profit
+        if sell_channel == "bazaar":
+            profit = sell_price - cost
+        else:
+            sell_mult = (1 - undercut_pct / 100) * 0.99
+            profit = sell_price * sell_mult - cost
+
+        if profit < MIN_PROFIT:
+            continue
+
+        # Require sales volume for AH items
+        if sell_channel == "auction" and (sales_per_day is None or sales_per_day < MIN_VOLUME):
+            continue
+
+        flips.append({
+            "item_id": item_id,
+            "cost": cost,
+            "sell_price": sell_price,
+            "avg_lbin": ah_avg if sell_channel == "auction" else None,
+            "profit": profit,
+            "sales_per_day": sales_per_day,
+            "sell_channel": sell_channel,
+            "duration": recipe["duration"],
+            "requirement": recipe.get("requirement"),
+            "input_sources": sources,
+        })
+
+    flips.sort(key=lambda x: x["profit"], reverse=True)
+    return flips
+
+
+def print_forge_flips(flips, title="FORGE FLIPS"):
+    """Print a table of forge flips."""
+    print(f"\n{title} (min {_fmt(MIN_PROFIT)} profit, min {MIN_VOLUME} sale/day)")
+    print("=" * 110)
+    print(f"  {'Item':<28s} {'Cost':>10s}  {'Sell':>10s}  {'Profit':>10s} {'Sales':>6s}  {'Time':>8s}  {'Channel':>7s}  Requirement")
+    print(f"  {'-'*28} {'-'*10}  {'-'*10}  {'-'*10} {'-'*6}  {'-'*8}  {'-'*7}  {'-'*20}")
+
+    for flip in flips:
+        name = display_name(flip["item_id"])
+        if len(name) > 28:
+            name = name[:25] + "..."
+        req_text = flip["requirement"]["text"] if flip.get("requirement") else ""
+        spd = flip.get("sales_per_day")
+        if spd is None:
+            spd_str = "∞"
+        elif spd >= 10:
+            spd_str = f"{spd:.0f}/d"
+        else:
+            spd_str = f"{spd:.1f}/d"
+        channel = "BZ" if flip["sell_channel"] == "bazaar" else "AH"
+        dur = _format_duration(flip["duration"])
+        print(f"  {name:<28s} {_fmt(flip['cost']):>10s}  {_fmt(flip['sell_price']):>10s}  "
+              f"{_fmt(flip['profit']):>10s} {spd_str:>6s}  {dur:>8s}  {channel:>7s}  {req_text}")
+
+    if not flips:
+        print("  No profitable forge flips found.")
+    print()
+
+
+def print_profile_forge_flips(flips, member):
+    """Print forge flips filtered by player unlocks."""
+    unlocked = []
+    almost = []
+
+    for flip in flips:
+        item_id = flip["item_id"]
+        checked = check_requirements(item_id, member)
+
+        if not checked:
+            unlocked.append(flip)
+            continue
+
+        all_met = all(r.get("met", False) for r in checked)
+        if all_met:
+            unlocked.append(flip)
+        else:
+            for r in checked:
+                if not r.get("met", False) and r.get("needed") and r["needed"] > 0:
+                    progress = r.get("progress", 0) or 0
+                    pct = progress / r["needed"] if r["needed"] > 0 else 0
+                    almost.append({
+                        **flip,
+                        "progress": progress,
+                        "needed": r["needed"],
+                        "pct": pct,
+                        "req_text": r.get("text", ""),
+                        "req_type": r.get("type", ""),
+                    })
+                    break
+
+    # Print unlocked
+    print(f"\nUNLOCKED FORGE FLIPS")
+    print("=" * 100)
+    if unlocked:
+        print(f"  {'Item':<28s} {'Cost':>10s}  {'Sell':>10s}  {'Profit':>10s} {'Sales':>6s}  {'Time':>8s}  {'Via':>3s}")
+        print(f"  {'-'*28} {'-'*10}  {'-'*10}  {'-'*10} {'-'*6}  {'-'*8}  {'-'*3}")
+        for flip in unlocked:
+            name = display_name(flip["item_id"])
+            if len(name) > 28:
+                name = name[:25] + "..."
+            spd = flip.get("sales_per_day")
+            if spd is None:
+                spd_str = "∞"
+            elif spd >= 10:
+                spd_str = f"{spd:.0f}/d"
+            else:
+                spd_str = f"{spd:.1f}/d"
+            channel = "BZ" if flip["sell_channel"] == "bazaar" else "AH"
+            dur = _format_duration(flip["duration"])
+            print(f"  {name:<28s} {_fmt(flip['cost']):>10s}  {_fmt(flip['sell_price']):>10s}  "
+                  f"{_fmt(flip['profit']):>10s} {spd_str:>6s}  {dur:>8s}  {channel:>3s}")
+    else:
+        print("  No unlocked profitable forge flips found.")
+    print()
+
+    # Print almost unlocked
+    almost.sort(key=lambda x: x["pct"], reverse=True)
+    almost = almost[:10]
+    if almost:
+        print(f"ALMOST UNLOCKED FORGE FLIPS (sorted by proximity)")
+        print("=" * 88)
+        print(f"  {'Item':<24s} {'Profit':>8s}  {'Time':>8s}  {'Requirement':<22s} Progress")
+        print(f"  {'-'*24} {'-'*8}  {'-'*8}  {'-'*22} {'-'*20}")
+        for flip in almost:
+            name = display_name(flip["item_id"])
+            if len(name) > 24:
+                name = name[:21] + "..."
+            req_text = flip.get("req_text", "")
+            if len(req_text) > 22:
+                req_text = req_text[:19] + "..."
+            dur = _format_duration(flip["duration"])
+            prog_str = f"{_fmt(flip['progress'])} / {_fmt(flip['needed'])}"
+            if flip.get("req_type") == "SLAYER":
+                prog_str += " XP"
+            pct_str = f"({flip['pct']*100:.0f}%)"
+            print(f"  {name:<24s} {_fmt(flip['profit']):>8s}  {dur:>8s}  {req_text:<22s} {prog_str} {pct_str}")
+        print()
+
+
 # ─── Moulberry Bulk Price Data ───────────────────────────────────────
 
 def load_craft_cache():
@@ -193,8 +502,8 @@ def fetch_moulberry_data(cache, force_refresh=False):
 # ─── Craft Flip Analysis ──────────────────────────────────────────────
 
 def filter_craft_flips(recipes, price_cache):
-    """Filter recipes to those where all ingredients are on bazaar
-    and the output is NOT on bazaar (i.e., sold on AH)."""
+    """Filter recipes to those where all ingredients are on bazaar.
+    Output can sell on either AH or Bazaar (best channel chosen at scan time)."""
     bazaar_items = set()
     price_cache._fetch_bazaar()
     for pid, bz in price_cache._bazaar.items():
@@ -210,12 +519,6 @@ def filter_craft_flips(recipes, price_cache):
 
     valid = []
     for recipe in recipes:
-        item_id = recipe["item_id"]
-
-        # Output must NOT be on bazaar (it's an AH item)
-        if _on_bazaar(item_id):
-            continue
-
         # All ingredients must be on bazaar
         all_bz = True
         for ing_id in recipe["ingredients"]:
@@ -247,10 +550,11 @@ def scan_craft_flips(recipes, price_cache, craft_cache, use_cached_only=False,
 
     All price data is loaded in bulk from Moulberry APIs up front,
     then a single pass iterates recipes and looks up prices in memory.
+    Output can sell on AH or Bazaar — whichever gives better profit.
 
-    undercut_pct: how far below LBIN to price (default 5%). Profit formula:
-        LBIN * (1 - undercut/100) * 0.99 - cost
-    The 0.99 accounts for the ~1% AH claim tax.
+    undercut_pct: how far below LBIN to price for AH items (default 5%).
+    AH profit formula: LBIN * (1 - undercut/100) * 0.99 - cost
+    Bazaar profit formula: instant_sell - cost
     """
     # Load bulk price data
     if use_cached_only:
@@ -268,6 +572,8 @@ def scan_craft_flips(recipes, price_cache, craft_cache, use_cached_only=False,
             print("  Error: Could not fetch Moulberry data.", file=sys.stderr)
             return []
 
+    sell_mult = (1 - undercut_pct / 100) * 0.99
+
     flips = []
     for recipe in recipes:
         item_id = recipe["item_id"]
@@ -276,39 +582,53 @@ def scan_craft_flips(recipes, price_cache, craft_cache, use_cached_only=False,
         if cost is None:
             continue
 
-        # Get 3-day avg lowest BIN (primary profit metric)
+        # Check both sell channels for output
+        output_price = price_cache.get_price(item_id)
+
+        best_profit = None
+        best_channel = None
+        best_sell = None
+        best_avg = None
+        best_lbin = None
+        best_sales = None
+
+        # Check Bazaar instant-sell
+        if output_price["source"] == "bazaar" and output_price.get("sell"):
+            bz_profit = output_price["sell"] - cost
+            if bz_profit >= MIN_PROFIT:
+                best_profit = bz_profit
+                best_channel = "bazaar"
+                best_sell = output_price["sell"]
+                best_sales = None  # continuous
+
+        # Check AH
         item_avg = avg_lbin.get(item_id)
-        if not item_avg or item_avg <= 0:
-            continue
-
-        # Get sales volume from auction averages
-        avg_data = auction_averages.get(item_id)
-        if not avg_data:
-            continue
-        sales_per_day = avg_data.get("sales", 0) / 3.0
-
-        if sales_per_day < MIN_VOLUME:
-            continue
-
-        # Current lowest BIN (what you'd undercut to sell)
         current_lbin = lowestbin.get(item_id, 0)
-        if not current_lbin or current_lbin <= 0:
-            continue
+        avg_data = auction_averages.get(item_id, {})
+        ah_sales = avg_data.get("sales", 0) / 3.0 if avg_data else 0
 
-        # Profit based on current lowest BIN minus undercut and AH tax
-        sell_mult = (1 - undercut_pct / 100) * 0.99
-        profit = current_lbin * sell_mult - cost
+        if item_avg and item_avg > 0 and current_lbin and current_lbin > 0 and ah_sales >= MIN_VOLUME:
+            ah_profit = current_lbin * sell_mult - cost
+            if ah_profit >= MIN_PROFIT and (best_profit is None or ah_profit > best_profit):
+                best_profit = ah_profit
+                best_channel = "auction"
+                best_sell = current_lbin
+                best_avg = item_avg
+                best_lbin = current_lbin
+                best_sales = ah_sales
 
-        if profit < MIN_PROFIT:
+        if best_profit is None:
             continue
 
         flips.append({
             "item_id": item_id,
             "cost": cost,
-            "avg_lbin": item_avg,
-            "lbin": current_lbin,
-            "profit": profit,
-            "sales_per_day": sales_per_day,
+            "avg_lbin": best_avg,
+            "lbin": best_lbin,
+            "sell_price": best_sell,
+            "profit": best_profit,
+            "sales_per_day": best_sales,
+            "sell_channel": best_channel,
             "requirement": recipe["requirement"],
         })
 
@@ -325,20 +645,26 @@ def scan_craft_flips(recipes, price_cache, craft_cache, use_cached_only=False,
 def print_flips(flips, title="CRAFT FLIPS"):
     """Print a table of craft flips."""
     print(f"\n{title} (min {_fmt(MIN_PROFIT)} profit, min {MIN_VOLUME} sale/day)")
-    print("=" * 100)
-    print(f"  {'Item':<30s} {'Cost':>10s}  {'Avg BIN':>10s}  {'Lbin':>10s}  {'Profit':>10s} {'Sales':>6s}  Requirement")
-    print(f"  {'-'*30} {'-'*10}  {'-'*10}  {'-'*10}  {'-'*10} {'-'*6}  {'-'*20}")
+    print("=" * 106)
+    print(f"  {'Item':<30s} {'Cost':>10s}  {'Sell':>10s}  {'Profit':>10s} {'Sales':>6s}  {'Via':>3s}  Requirement")
+    print(f"  {'-'*30} {'-'*10}  {'-'*10}  {'-'*10} {'-'*6}  {'-'*3}  {'-'*20}")
 
     for flip in flips:
         name = display_name(flip["item_id"])
         if len(name) > 30:
             name = name[:27] + "..."
         req_text = flip["requirement"]["text"] if flip["requirement"] else ""
-        spd = flip.get("sales_per_day", 0)
-        spd_str = f"{spd:.0f}/d" if spd >= 10 else f"{spd:.1f}/d"
-        lbin_str = _fmt(flip["lbin"]) if flip.get("lbin") else "N/A"
-        print(f"  {name:<30s} {_fmt(flip['cost']):>10s}  {_fmt(flip['avg_lbin']):>10s}  "
-              f"{lbin_str:>10s}  {_fmt(flip['profit']):>10s} {spd_str:>6s}  {req_text}")
+        spd = flip.get("sales_per_day")
+        if spd is None:
+            spd_str = "∞"
+        elif spd >= 10:
+            spd_str = f"{spd:.0f}/d"
+        else:
+            spd_str = f"{spd:.1f}/d"
+        sell_str = _fmt(flip.get("sell_price") or flip.get("lbin") or 0)
+        channel = "BZ" if flip.get("sell_channel") == "bazaar" else "AH"
+        print(f"  {name:<30s} {_fmt(flip['cost']):>10s}  {sell_str:>10s}  "
+              f"{_fmt(flip['profit']):>10s} {spd_str:>6s}  {channel:>3s}  {req_text}")
 
     if not flips:
         print("  No profitable crafts found.")
@@ -388,17 +714,23 @@ def print_profile_flips(flips, member):
     print(f"\nUNLOCKED CRAFT FLIPS")
     print("=" * 90)
     if unlocked:
-        print(f"  {'Item':<30s} {'Cost':>10s}  {'Avg BIN':>10s}  {'Lbin':>10s}  {'Profit':>10s} {'Sales':>6s}")
-        print(f"  {'-'*30} {'-'*10}  {'-'*10}  {'-'*10}  {'-'*10} {'-'*6}")
+        print(f"  {'Item':<30s} {'Cost':>10s}  {'Sell':>10s}  {'Profit':>10s} {'Sales':>6s}  {'Via':>3s}")
+        print(f"  {'-'*30} {'-'*10}  {'-'*10}  {'-'*10} {'-'*6}  {'-'*3}")
         for flip in unlocked:
             name = display_name(flip["item_id"])
             if len(name) > 30:
                 name = name[:27] + "..."
-            spd = flip.get("sales_per_day", 0)
-            spd_str = f"{spd:.0f}/d" if spd >= 10 else f"{spd:.1f}/d"
-            lbin_str = _fmt(flip["lbin"]) if flip.get("lbin") else "N/A"
-            print(f"  {name:<30s} {_fmt(flip['cost']):>10s}  {_fmt(flip['avg_lbin']):>10s}  "
-                  f"{lbin_str:>10s}  {_fmt(flip['profit']):>10s} {spd_str:>6s}")
+            spd = flip.get("sales_per_day")
+            if spd is None:
+                spd_str = "∞"
+            elif spd >= 10:
+                spd_str = f"{spd:.0f}/d"
+            else:
+                spd_str = f"{spd:.1f}/d"
+            sell_str = _fmt(flip.get("sell_price") or flip.get("lbin") or 0)
+            channel = "BZ" if flip.get("sell_channel") == "bazaar" else "AH"
+            print(f"  {name:<30s} {_fmt(flip['cost']):>10s}  {sell_str:>10s}  "
+                  f"{_fmt(flip['profit']):>10s} {spd_str:>6s}  {channel:>3s}")
     else:
         print("  No unlocked profitable crafts found.")
     print()
@@ -609,6 +941,8 @@ def show_item_breakdown(item_id, price_cache, do_check=False, undercut_pct=5):
 def main():
     import argparse
     parser = argparse.ArgumentParser(description="SkyBlock craft flip scanner")
+    parser.add_argument("--forge", action="store_true",
+                        help="Scan forge recipes instead of crafting recipes")
     parser.add_argument("--profile", action="store_true",
                         help="Filter by player's unlocked recipes (reads last_profile.json)")
     parser.add_argument("--cached", action="store_true",
@@ -638,42 +972,68 @@ def main():
         craft_cache["moulberry"] = {}
         print("  Cleared price cache (--fresh)", file=sys.stderr)
 
-    # Parse all recipes from NEU repo
-    print("  Parsing recipes from NEU repo...", file=sys.stderr)
-    all_recipes = parse_recipes()
-    print(f"  Found {len(all_recipes)} crafting recipes", file=sys.stderr)
-
-    # Filter to valid craft flips (all ingredients on bazaar, output on AH)
     price_cache = PriceCache()
-    valid = filter_craft_flips(all_recipes, price_cache)
-    print(f"  {len(valid)} recipes with all-bazaar ingredients and AH output", file=sys.stderr)
 
-    if not valid:
-        print("\n  No valid craft flip candidates found.")
+    if args.forge:
+        # ── Forge flip mode ──────────────────────────────────────────
+        print("  Parsing forge recipes from NEU repo...", file=sys.stderr)
+        forge_recipes = parse_forge_recipes()
+        print(f"  Found {len(forge_recipes)} forge recipes", file=sys.stderr)
+
+        if not forge_recipes:
+            print("\n  No forge recipes found.")
+            price_cache.flush()
+            return
+
+        flips = scan_forge_flips(forge_recipes, price_cache, craft_cache,
+                                 use_cached_only=args.cached, force_refresh=args.fresh,
+                                 undercut_pct=args.undercut)
+
+        save_craft_cache(craft_cache)
         price_cache.flush()
-        return
 
-    # Scan for profitable flips
-    flips = scan_craft_flips(valid, price_cache, craft_cache,
-                             use_cached_only=args.cached, force_refresh=args.fresh,
-                             undercut_pct=args.undercut)
-
-    # Save caches
-    save_craft_cache(craft_cache)
-    price_cache.flush()
-
-    # Display results
-    if args.profile:
-        member = _load_profile_member()
-        if not member:
-            print("  Error: last_profile.json not found or invalid.", file=sys.stderr)
-            print("  Run 'python3 profile.py' first to fetch profile data.", file=sys.stderr)
-            # Fall back to full list
-            print_flips(flips)
+        if args.profile:
+            member = _load_profile_member()
+            if not member:
+                print("  Error: last_profile.json not found or invalid.", file=sys.stderr)
+                print("  Run 'python3 profile.py' first to fetch profile data.", file=sys.stderr)
+                print_forge_flips(flips)
+            else:
+                print_profile_forge_flips(flips, member)
         else:
-            print_profile_flips(flips, member)
+            print_forge_flips(flips)
+
     else:
-        print_flips(flips)
+        # ── Craft flip mode (default) ───────────────────────────────
+        print("  Parsing recipes from NEU repo...", file=sys.stderr)
+        all_recipes = parse_recipes()
+        print(f"  Found {len(all_recipes)} crafting recipes", file=sys.stderr)
+
+        valid = filter_craft_flips(all_recipes, price_cache)
+        print(f"  {len(valid)} recipes with all-bazaar ingredients", file=sys.stderr)
+
+        if not valid:
+            print("\n  No valid craft flip candidates found.")
+            price_cache.flush()
+            return
+
+        flips = scan_craft_flips(valid, price_cache, craft_cache,
+                                 use_cached_only=args.cached, force_refresh=args.fresh,
+                                 undercut_pct=args.undercut)
+
+        save_craft_cache(craft_cache)
+        price_cache.flush()
+
+        if args.profile:
+            member = _load_profile_member()
+            if not member:
+                print("  Error: last_profile.json not found or invalid.", file=sys.stderr)
+                print("  Run 'python3 profile.py' first to fetch profile data.", file=sys.stderr)
+                print_flips(flips)
+            else:
+                print_profile_flips(flips, member)
+        else:
+            print_flips(flips)
 
     mb = craft_cache.get("moulberry", {})
     n_lbin = len(mb.get("lowestbin", {}))

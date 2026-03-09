@@ -1240,7 +1240,12 @@ class NBTReader:
     def read_compound_find_id(self):
         """Read a TAG_Compound and find the SkyBlock item 'id' at any nesting depth.
 
-        Returns a dict with: id, reforge, enchants, stars, hpb, lore.
+        Returns a dict with: id, reforge, enchants, stars, hpb, lore,
+        rarity_upgrades, art_of_war_count, art_of_peace, wood_singularity_count,
+        farming_for_dummies_count, tuned_transmission, mana_disintegrator_count,
+        ethermerge, ability_scroll, drill_part_engine, drill_part_fuel_tank,
+        drill_part_upgrade_module, skin, dye_item, rune, gems, pet_held_item,
+        donated_museum, dungeon_item_level, count.
         """
         item_info = {}
         while True:
@@ -1250,24 +1255,64 @@ class NBTReader:
             name = self.read_string()
             if tag_type == 8 and name == "id":
                 val = self.read_string()
-                # SkyBlock item IDs are uppercase (e.g., SHADOW_ASSASSIN_BOOTS)
-                # Minecraft IDs are lowercase namespaced (e.g., minecraft:diamond_sword)
                 if val and val[0].isupper():
                     item_info["id"] = val
             elif tag_type == 8 and name == "modifier":
                 item_info["reforge"] = self.read_string()
             elif tag_type == 3 and name == "upgrade_level":
                 item_info["stars"] = self.read_int()
+            elif tag_type == 3 and name == "dungeon_item_level":
+                item_info["dungeon_item_level"] = self.read_int()
             elif tag_type == 3 and name == "hot_potato_count":
                 item_info["hpb"] = self.read_int()
+            elif tag_type == 3 and name == "rarity_upgrades":
+                item_info["rarity_upgrades"] = self.read_int()
+            elif tag_type == 3 and name == "art_of_war_count":
+                item_info["art_of_war_count"] = self.read_int()
+            elif tag_type == 3 and name == "wood_singularity_count":
+                item_info["wood_singularity_count"] = self.read_int()
+            elif tag_type == 3 and name == "farming_for_dummies_count":
+                item_info["farming_for_dummies_count"] = self.read_int()
+            elif tag_type == 3 and name == "tuned_transmission":
+                item_info["tuned_transmission"] = self.read_int()
+            elif tag_type == 3 and name == "mana_disintegrator_count":
+                item_info["mana_disintegrator_count"] = self.read_int()
+            elif tag_type == 1 and name == "ethermerge":
+                item_info["ethermerge"] = self.read_byte()
+            elif tag_type == 1 and name == "art_of_peace":
+                item_info["art_of_peace"] = self.read_byte()
+            elif tag_type == 1 and name == "donated_museum":
+                item_info["donated_museum"] = self.read_byte()
             elif tag_type == 10 and name == "enchantments":
                 item_info["enchants"] = self._read_compound_as_dict()
             elif tag_type == 9 and name == "Lore":
                 item_info["lore"] = self._read_string_list()
+            elif tag_type == 9 and name == "ability_scroll":
+                item_info["ability_scroll"] = self._read_string_list()
+            elif tag_type == 10 and name == "gems":
+                item_info["gems"] = self._read_compound_as_dict()
+            elif tag_type == 10 and name == "runes":
+                item_info["rune"] = self._read_compound_as_dict()
+            elif tag_type == 8 and name == "drill_part_engine":
+                item_info["drill_part_engine"] = self.read_string()
+            elif tag_type == 8 and name == "drill_part_fuel_tank":
+                item_info["drill_part_fuel_tank"] = self.read_string()
+            elif tag_type == 8 and name == "drill_part_upgrade_module":
+                item_info["drill_part_upgrade_module"] = self.read_string()
+            elif tag_type == 8 and name == "skin":
+                item_info["skin"] = self.read_string()
+            elif tag_type == 8 and name == "dye_item":
+                item_info["dye_item"] = self.read_string()
+            elif tag_type == 8 and name == "petInfo":
+                # Pet info is a JSON string embedded in NBT
+                item_info["pet_info_str"] = self.read_string()
+            elif tag_type == 2 and name == "Count":
+                item_info["count"] = self.read_short()
+            elif tag_type == 1 and name == "Count":
+                item_info["count"] = self.read_byte()
             elif tag_type == 10:
                 nested = self.read_compound_find_id()
                 if nested:
-                    # Merge nested results, but don't overwrite existing
                     for k, v in nested.items():
                         if k not in item_info:
                             item_info[k] = v

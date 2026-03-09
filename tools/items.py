@@ -578,7 +578,9 @@ def check_requirements(item_id, member=None):
 
         elif rtype == "HEART_OF_THE_MOUNTAIN":
             tier_needed = r.get("tier", 0)
-            hotm_xp = member.get("mining_core", {}).get("experience", 0) or 0
+            # HotM XP moved from mining_core.experience to skill_tree.experience.mining
+            hotm_xp = (member.get("skill_tree", {}).get("experience", {}).get("mining", 0)
+                        or member.get("mining_core", {}).get("experience", 0) or 0)
             hotm_table = leveling.get("HOTM", [])
             current_tier = _xp_to_level(hotm_xp, hotm_table)
             r["met"] = current_tier >= tier_needed
