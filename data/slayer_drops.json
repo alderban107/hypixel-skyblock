@@ -1,0 +1,556 @@
+{
+  "_meta": {
+    "sources": [
+      "Luckalyzer (Mabi19, MIT) — RNG drop probabilities and RNG meter boss counts",
+      "Hypixel SkyBlock Fandom Wiki — common/guaranteed drops, boss stats, spawn costs"
+    ],
+    "notes": "RNG meter boss counts are for the reference tier (highest at time of Luckalyzer data). For lower tiers, scale by XP ratio."
+  },
+  "zombie": {
+    "name": "Revenant Horror",
+    "tiers": {
+      "1": {"cost": 2000, "xp": 5, "combat_xp": 150, "level": 10, "kph": 120},
+      "2": {"cost": 7500, "xp": 25, "combat_xp": 1440, "level": 70, "kph": 80},
+      "3": {"cost": 20000, "xp": 100, "combat_xp": 2400, "level": 310, "kph": 40},
+      "4": {"cost": 50000, "xp": 500, "combat_xp": 4800, "level": 610, "kph": 20},
+      "5": {"cost": 100000, "xp": 1500, "combat_xp": 6000, "level": 1580, "kph": 8}
+    },
+    "rng_meter_ref_tier": "5",
+    "drops": [
+      {
+        "id": "REVENANT_FLESH", "name": "Revenant Flesh", "type": "guaranteed",
+        "tiers": {"1": [1,3], "2": [9,18], "3": [30,50], "4": [50,64], "5": [63,64]}
+      },
+      {
+        "id": "FOUL_FLESH", "name": "Foul Flesh", "type": "common",
+        "npc_sell": 25000,
+        "tiers": {
+          "2": [1, 1, 0.1616],
+          "3": [1, 2, 0.1608],
+          "4": [2, 3, 0.1622],
+          "5": [3, 4, 0.1377]
+        }
+      },
+      {
+        "id": "UNDEAD_CATALYST", "name": "Undead Catalyst", "type": "common",
+        "tiers": {
+          "2": [1, 1, 0.0202],
+          "3": [1, 1, 0.0201],
+          "4": [1, 1, 0.006],
+          "5": [1, 1, 0.0169]
+        }
+      },
+      {
+        "id": "REVENANT_CATALYST", "name": "Revenant Catalyst", "type": "common",
+        "tiers": {
+          "2": [1, 1, 0.0101],
+          "3": [1, 1, 0.0101],
+          "4": [1, 1, 0.0101],
+          "5": [1, 1, 0.0086]
+        }
+      },
+      {
+        "id": "REVENANT_VISCERA", "name": "Revenant Viscera", "type": "common",
+        "tiers": {"5": [1, 2, 0.1377]}
+      },
+      {
+        "id": "SEVERED_HAND", "name": "Severed Hand", "type": "common",
+        "tiers": {
+          "3": [1, 1, 0.004],
+          "4": [1, 1, 0.0081],
+          "5": [1, 1, 0.0074]
+        }
+      },
+      {
+        "id": "REVENANT_SHARD", "name": "Revenant Shard", "type": "common",
+        "tiers": {
+          "3": [1, 1, 0.008],
+          "4": [1, 1, 0.0121],
+          "5": [1, 1, 0.0136]
+        }
+      },
+      {
+        "id": "BEHEADED_HORROR", "name": "Beheaded Horror", "type": "rng",
+        "prob": [2, 1233], "meter": 220,
+        "tiers": {
+          "3": [1, 1, 0.0008],
+          "4": [1, 1, 0.0016],
+          "5": [1, 1, 0.0016]
+        }
+      },
+      {
+        "id": "SCYTHE_BLADE", "name": "Scythe Blade", "type": "rng",
+        "prob": [1, 968], "meter": 323,
+        "tiers": {
+          "4": [1, 1, 0.0006],
+          "5": [1, 1, 0.001]
+        }
+      },
+      {
+        "id": "SHARD_OF_THE_SHREDDED", "name": "Shard of the Shredded", "type": "rng",
+        "prob": [1, 1816], "meter": 605,
+        "tiers": {"5": [1, 1, 0.0006]}
+      },
+      {
+        "id": "ENCHANTMENT_SMITE_6", "name": "Smite VI", "type": "rng",
+        "prob": [1, 581], "meter": 41,
+        "tiers": {
+          "3": [1, 1, 0.0041],
+          "4": [1, 1, 0.0083],
+          "5": [1, 1, 0.0017]
+        }
+      },
+      {
+        "id": "ENCHANTMENT_SMITE_7", "name": "Smite VII", "type": "rng",
+        "prob": [7, 14527], "meter": 692,
+        "tiers": {"5": [1, 1, 0.00048]}
+      },
+      {
+        "id": "SNAKE_RUNE;1", "name": "Snake Rune I", "type": "rng",
+        "prob": [20, 14527], "meter": 220,
+        "tiers": {
+          "4": [1, 1, 0.0016],
+          "5": [1, 1, 0.0014]
+        }
+      },
+      {
+        "id": "WARDEN_HEART", "name": "Warden Heart", "type": "rng",
+        "prob": [2, 14527], "meter": 2421,
+        "tiers": {"5": [1, 1, 0.0001]}
+      }
+    ]
+  },
+  "spider": {
+    "name": "Tarantula Broodfather",
+    "tiers": {
+      "1": {"cost": 2000, "xp": 5, "combat_xp": 250, "level": 10, "kph": 100},
+      "2": {"cost": 7500, "xp": 25, "combat_xp": 650, "level": 90, "kph": 60},
+      "3": {"cost": 20000, "xp": 100, "combat_xp": 1500, "level": 470, "kph": 30},
+      "4": {"cost": 50000, "xp": 500, "combat_xp": 3000, "level": 770, "kph": 15},
+      "5": {"cost": 100000, "xp": 1500, "combat_xp": 6000, "level": 2012, "kph": 6}
+    },
+    "rng_meter_ref_tier": "4",
+    "drops": [
+      {
+        "id": "TARANTULA_WEB", "name": "Tarantula Web", "type": "guaranteed",
+        "tiers": {"1": [2,4], "2": [4,8], "3": [16,32], "4": [32,48], "5": [64,64]}
+      },
+      {
+        "id": "TOXIC_ARROW_POISON", "name": "Toxic Arrow Poison", "type": "common",
+        "tiers": {
+          "1": [4, 8, 0.18],
+          "2": [6, 8, 0.1525],
+          "3": [16, 32, 0.1485],
+          "4": [32, 48, 0.1497],
+          "5": [64, 64, 0.1282]
+        }
+      },
+      {
+        "id": "SPIDER_CATALYST", "name": "Spider Catalyst", "type": "common",
+        "tiers": {
+          "2": [1, 1, 0.02],
+          "3": [1, 1, 0.0206],
+          "4": [1, 1, 0.0062],
+          "5": [1, 1, 0.0018]
+        }
+      },
+      {
+        "id": "TARANTULA_CATALYST", "name": "Tarantula Catalyst", "type": "common",
+        "tiers": {
+          "3": [1, 1, 0.0025],
+          "4": [1, 1, 0.0038],
+          "5": [1, 1, 0.0043]
+        }
+      },
+      {
+        "id": "TARANTULA_SILK", "name": "Tarantula Silk", "type": "common",
+        "tiers": {"5": [1, 1, 0.20]}
+      },
+      {
+        "id": "ENCHANTMENT_BANE_OF_ARTHROPODS_6", "name": "Bane of Arthropods VI", "type": "rng",
+        "prob": [5, 601], "meter": 120,
+        "tiers": {
+          "3": [1, 1, 0.0021],
+          "4": [1, 1, 0.0042],
+          "5": [1, 1, 0.0036]
+        }
+      },
+      {
+        "id": "FLY_SWATTER", "name": "Fly Swatter", "type": "rng",
+        "prob": [1, 601], "meter": 601,
+        "tiers": {
+          "3": [1, 1, 0.0008],
+          "4": [1, 1, 0.0017],
+          "5": [1, 1, 0.0021]
+        }
+      },
+      {
+        "id": "TARANTULA_TALISMAN", "name": "Tarantula Talisman", "type": "rng",
+        "prob": [1, 601], "meter": 601,
+        "tiers": {
+          "3": [1, 1, 0.0008],
+          "4": [1, 1, 0.0017],
+          "5": [1, 1, 0.0021]
+        }
+      },
+      {
+        "id": "VIAL_OF_VENOM", "name": "Vial of Venom", "type": "common",
+        "tiers": {
+          "4": [1, 1, 0.0008],
+          "5": [1, 1, 0.0014]
+        }
+      },
+      {
+        "id": "DIGESTED_MOSQUITO", "name": "Digested Mosquito", "type": "rng",
+        "prob": [1, 1717], "meter": 1717,
+        "tiers": {
+          "4": [1, 1, 0.0006],
+          "5": [1, 1, 0.0007]
+        }
+      },
+      {
+        "id": "SHRIVELED_WASP", "name": "Shriveled Wasp", "type": "rng",
+        "tiers": {"5": [1, 1, 0.001]}
+      },
+      {
+        "id": "ENSNARED_SNAIL", "name": "Ensnared Snail", "type": "rng",
+        "tiers": {"5": [1, 1, 0.0006]}
+      },
+      {
+        "id": "PRIMORDIAL_EYE", "name": "Primordial Eye", "type": "rng",
+        "tiers": {"5": [1, 1, 0.0002]}
+      }
+    ]
+  },
+  "wolf": {
+    "name": "Sven Packmaster",
+    "tiers": {
+      "1": {"cost": 2000, "xp": 5, "combat_xp": 250, "level": 20, "kph": 100},
+      "2": {"cost": 7500, "xp": 25, "combat_xp": 650, "level": 100, "kph": 60},
+      "3": {"cost": 20000, "xp": 100, "combat_xp": 1500, "level": 430, "kph": 30},
+      "4": {"cost": 50000, "xp": 500, "combat_xp": 3000, "level": 700, "kph": 15}
+    },
+    "rng_meter_ref_tier": "4",
+    "drops": [
+      {
+        "id": "WOLF_TOOTH", "name": "Wolf Tooth", "type": "guaranteed",
+        "tiers": {"1": [1,3], "2": [9,18], "3": [30,50], "4": [50,64]}
+      },
+      {
+        "id": "HAMSTER_WHEEL", "name": "Hamster Wheel", "type": "common",
+        "tiers": {
+          "2": [1, 1, 0.1667],
+          "3": [2, 4, 0.1645],
+          "4": [4, 5, 0.1635]
+        }
+      },
+      {
+        "id": "FURBALL", "name": "Furball", "type": "rng",
+        "prob": [8, 493], "meter": 61,
+        "tiers": {
+          "3": [1, 1, 0.0082],
+          "4": [1, 1, 0.0162]
+        }
+      },
+      {
+        "id": "ENCHANTMENT_CRITICAL_6", "name": "Critical VI", "type": "rng",
+        "prob": [4, 493], "meter": 123,
+        "tiers": {
+          "3": [1, 1, 0.0041],
+          "4": [1, 1, 0.0081]
+        }
+      },
+      {
+        "id": "RED_CLAW_EGG", "name": "Red Claw Egg", "type": "rng",
+        "prob": [1, 822], "meter": 821,
+        "tiers": {
+          "3": [1, 1, 0.0004],
+          "4": [1, 1, 0.0012]
+        }
+      },
+      {
+        "id": "COUTURE_RUNE;1", "name": "Couture Rune I", "type": "rng",
+        "prob": [1, 412], "meter": 439,
+        "tiers": {"4": [1, 1, 0.0024]}
+      },
+      {
+        "id": "GRIZZLY_BAIT", "name": "Grizzly Bait", "type": "rng",
+        "prob": [1, 1761], "meter": 1761,
+        "tiers": {"4": [1, 1, 0.0006]}
+      },
+      {
+        "id": "OVERFLUX_CAPACITOR", "name": "Overflux Capacitor", "type": "rng",
+        "prob": [5, 12327], "meter": 2465,
+        "tiers": {"4": [1, 1, 0.0004]}
+      }
+    ]
+  },
+  "enderman": {
+    "name": "Voidgloom Seraph",
+    "tiers": {
+      "1": {"cost": 2000, "xp": 5, "combat_xp": 2750, "level": 270, "kph": 30},
+      "2": {"cost": 7500, "xp": 25, "combat_xp": 6600, "level": 1936, "kph": 15},
+      "3": {"cost": 20000, "xp": 100, "combat_xp": 11000, "level": 4080, "kph": 10},
+      "4": {"cost": 50000, "xp": 500, "combat_xp": 22000, "level": 8660, "kph": 6}
+    },
+    "rng_meter_ref_tier": "4",
+    "drops": [
+      {
+        "id": "NULL_SPHERE", "name": "Null Sphere", "type": "guaranteed",
+        "tiers": {"1": [2,3], "2": [14,24], "3": [60,80], "4": [105,155]}
+      },
+      {
+        "id": "TWILIGHT_ARROW_POISON", "name": "Twilight Arrow Poison", "type": "common",
+        "tiers": {
+          "2": [16, 16, 0.1515],
+          "3": [24, 32, 0.1341],
+          "4": [60, 64, 0.127]
+        }
+      },
+      {
+        "id": "SUMMONING_EYE", "name": "Summoning Eye", "type": "common",
+        "tiers": {
+          "2": [1, 1, 0.0067],
+          "3": [1, 1, 0.006],
+          "4": [1, 1, 0.0056]
+        }
+      },
+      {
+        "id": "ENCHANTMENT_MANA_STEAL_1", "name": "Mana Steal I", "type": "common",
+        "tiers": {
+          "3": [1, 1, 0.0447],
+          "4": [1, 1, 0.0423]
+        }
+      },
+      {
+        "id": "TRANSMISSION_TUNER", "name": "Transmission Tuner", "type": "common",
+        "tiers": {
+          "3": [1, 1, 0.0223],
+          "4": [1, 1, 0.0211]
+        }
+      },
+      {
+        "id": "NULL_ATOM", "name": "Null Atom", "type": "common",
+        "tiers": {
+          "3": [1, 1, 0.0373],
+          "4": [1, 1, 0.0594]
+        }
+      },
+      {
+        "id": "HAZMAT_ENDERMAN", "name": "Hazmat Enderman", "type": "common",
+        "tiers": {
+          "3": [1, 1, 0.0104],
+          "4": [1, 1, 0.0155]
+        }
+      },
+      {
+        "id": "POCKET_ESPRESSO_MACHINE", "name": "Pocket Espresso Machine", "type": "rng",
+        "prob": [13, 3349], "meter": 258,
+        "tiers": {"4": [1, 1, 0.0039]}
+      },
+      {
+        "id": "ENCHANTMENT_SMARTY_PANTS_1", "name": "Smarty Pants I", "type": "common",
+        "tiers": {"4": [1, 1, 0.0176]}
+      },
+      {
+        "id": "END_RUNE;1", "name": "End Rune I", "type": "rng",
+        "prob": [1, 143], "meter": 151,
+        "tiers": {"4": [1, 1, 0.007]}
+      },
+      {
+        "id": "HANDY_BLOOD_CHALICE", "name": "Handy Blood Chalice", "type": "rng",
+        "prob": [4, 2267], "meter": 567,
+        "tiers": {"4": [1, 1, 0.0018]}
+      },
+      {
+        "id": "SINFUL_DICE", "name": "Sinful Dice", "type": "rng",
+        "prob": [1, 218], "meter": 218,
+        "tiers": {"4": [1, 1, 0.0046]}
+      },
+      {
+        "id": "EXCEEDINGLY_RARE_ENDER_ARTIFACT_UPGRADER", "name": "Ender Artifact Upgrader", "type": "rng",
+        "prob": [4, 14169], "meter": 3542,
+        "tiers": {"4": [1, 1, 0.0003]}
+      },
+      {
+        "id": "VOID_CONQUEROR_ENDERMAN_SKIN", "name": "Void Conqueror Skin", "type": "rng",
+        "prob": [3, 1702], "meter": 604,
+        "tiers": {"4": [1, 1, 0.0018]}
+      },
+      {
+        "id": "ETHERWARP_MERGER", "name": "Etherwarp Merger", "type": "rng",
+        "prob": [7, 1653], "meter": 236,
+        "tiers": {"4": [1, 1, 0.0042]}
+      },
+      {
+        "id": "JUDGEMENT_CORE", "name": "Judgement Core", "type": "rng",
+        "prob": [8, 14169], "meter": 1771,
+        "tiers": {"4": [1, 1, 0.0006]}
+      },
+      {
+        "id": "ENCHANT_RUNE;1", "name": "Enchant Rune I", "type": "rng",
+        "prob": [7, 14176], "meter": 2157,
+        "tiers": {"4": [1, 1, 0.0005]}
+      },
+      {
+        "id": "ENCHANTMENT_ENDER_SLAYER_7", "name": "Ender Slayer VII", "type": "rng",
+        "prob": [1, 14169], "meter": 7085,
+        "tiers": {"4": [1, 1, 0.0001]}
+      }
+    ]
+  },
+  "blaze": {
+    "name": "Inferno Demonlord",
+    "tiers": {
+      "1": {"cost": 10000, "xp": 5, "combat_xp": 6000, "level": 0, "kph": 20},
+      "2": {"cost": 25000, "xp": 25, "combat_xp": 14400, "level": 0, "kph": 12},
+      "3": {"cost": 60000, "xp": 100, "combat_xp": 18000, "level": 0, "kph": 8},
+      "4": {"cost": 150000, "xp": 500, "combat_xp": 36000, "level": 0, "kph": 4}
+    },
+    "rng_meter_ref_tier": "4",
+    "drops": [
+      {
+        "id": "DERELICT_ASHE", "name": "Derelict Ashe", "type": "guaranteed",
+        "tiers": {"1": [6,8], "2": [12,22], "3": [60,80], "4": [110,155]}
+      },
+      {
+        "id": "ENCHANTED_BLAZE_POWDER", "name": "Enchanted Blaze Powder", "type": "common",
+        "tiers": {
+          "1": [1, 1, 0.2126],
+          "2": [2, 3, 0.1317],
+          "3": [4, 8, 0.1256],
+          "4": [16, 40, 0.1173]
+        }
+      },
+      {
+        "id": "POTION_WISP_ICE;1", "name": "Wisp's Ice-Flavored Water", "type": "common",
+        "tiers": {
+          "2": [1, 1, 0.0282],
+          "3": [2, 2, 0.027],
+          "4": [5, 5, 0.0254]
+        }
+      },
+      {
+        "id": "ARROW_BUNDLE_MAGMA", "name": "Bundle of Magma Arrows", "type": "common",
+        "tiers": {
+          "2": [1, 1, 0.0847],
+          "3": [1, 1, 0.0811],
+          "4": [1, 1, 0.0762]
+        }
+      },
+      {
+        "id": "MANA_DISINTEGRATOR", "name": "Mana Disintegrator", "type": "common",
+        "tiers": {
+          "2": [1, 1, 0.0395],
+          "3": [1, 1, 0.0378],
+          "4": [1, 1, 0.0356]
+        }
+      },
+      {
+        "id": "SCORCHED_BOOKS", "name": "Scorched Books", "type": "common",
+        "tiers": {
+          "2": [1, 1, 0.0226],
+          "3": [1, 1, 0.0216],
+          "4": [1, 1, 0.0203]
+        }
+      },
+      {
+        "id": "KELVIN_INVERTER", "name": "Kelvin Inverter", "type": "common",
+        "tiers": {
+          "2": [1, 1, 0.0282],
+          "3": [1, 1, 0.027],
+          "4": [1, 1, 0.0254]
+        }
+      },
+      {
+        "id": "BLAZE_ROD_DISTILLATE", "name": "Blaze Rod Distillate", "type": "common",
+        "tiers": {
+          "2": [2, 2, 0.0508],
+          "3": [6, 10, 0.0486],
+          "4": [16, 24, 0.0457]
+        }
+      },
+      {
+        "id": "GLOWSTONE_DUST_DISTILLATE", "name": "Glowstone Distillate", "type": "common",
+        "tiers": {
+          "2": [2, 2, 0.0508],
+          "3": [6, 10, 0.0486],
+          "4": [16, 24, 0.0457]
+        }
+      },
+      {
+        "id": "MAGMA_CREAM_DISTILLATE", "name": "Magma Cream Distillate", "type": "common",
+        "tiers": {
+          "2": [2, 2, 0.0508],
+          "3": [6, 10, 0.0486],
+          "4": [16, 24, 0.0457]
+        }
+      },
+      {
+        "id": "NETHER_STALK_DISTILLATE", "name": "Nether Wart Distillate", "type": "common",
+        "tiers": {
+          "2": [2, 2, 0.0508],
+          "3": [6, 10, 0.0486],
+          "4": [16, 24, 0.0457]
+        }
+      },
+      {
+        "id": "CRUDE_GABAGOOL_DISTILLATE", "name": "Gabagool Distillate", "type": "common",
+        "tiers": {
+          "2": [2, 2, 0.0282],
+          "3": [6, 10, 0.027],
+          "4": [16, 24, 0.0254]
+        }
+      },
+      {
+        "id": "SCORCHED_POWER_CRYSTAL", "name": "Scorched Power Crystal", "type": "common",
+        "tiers": {
+          "3": [1, 1, 0.0324],
+          "4": [1, 1, 0.0305]
+        }
+      },
+      {
+        "id": "ARCHFIEND_DICE", "name": "Archfiend Dice", "type": "rng",
+        "prob": [5, 492], "meter": 93,
+        "tiers": {
+          "3": [1, 1, 0.0108],
+          "4": [1, 1, 0.0102]
+        }
+      },
+      {
+        "id": "ENCHANTMENT_FIRE_ASPECT_3", "name": "Fire Aspect III", "type": "rng",
+        "prob": [4, 315], "meter": 79,
+        "tiers": {"4": [1, 1, 0.0127]}
+      },
+      {
+        "id": "FLAWED_OPAL_GEM", "name": "Flawed Opal Gemstone", "type": "common",
+        "tiers": {"4": [240, 400, 0.0279]}
+      },
+      {
+        "id": "ENCHANTMENT_ULTIMATE_DUPLEX_1", "name": "Duplex I", "type": "rng",
+        "prob": [4, 225], "meter": 57,
+        "tiers": {"4": [1, 1, 0.0179]}
+      },
+      {
+        "id": "HIGH_CLASS_ARCHFIEND_DICE", "name": "High Class Archfiend Dice", "type": "rng",
+        "prob": [3, 1184], "meter": 404,
+        "tiers": {"4": [1, 1, 0.0025]}
+      },
+      {
+        "id": "WILSON_ENGINEERING_PLANS", "name": "Wilson's Engineering Plans", "type": "rng",
+        "prob": [8, 9263], "meter": 1158,
+        "tiers": {"4": [1, 1, 0.0009]}
+      },
+      {
+        "id": "SUBZERO_INVERTER", "name": "Subzero Inverter", "type": "rng",
+        "prob": [8, 9263], "meter": 1158,
+        "tiers": {"4": [1, 1, 0.0009]}
+      },
+      {
+        "id": "FIERY_BURST_RUNE;1", "name": "Fiery Burst Rune I", "type": "rng",
+        "prob": [1, 493], "meter": 506,
+        "tiers": {"4": [1, 1, 0.002]}
+      }
+    ]
+  }
+}

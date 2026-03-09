@@ -14,6 +14,7 @@ tools/          Python scripts (run from this dir or project root)
   networth.py   Networth calculator (all storage locations, modifier pricing, soulbound)
   dungeons.py   Dungeon profit calculator (per-chest EV, Kismet analysis, RNG drops)
   accessories.py Missing accessories finder (MP efficiency, upgrade chains, inactive detection)
+  slayers.py    Slayer profit calculator (per-boss EV, RNG meter, tier comparison, MF/Aatrox)
   kat.py        Kat upgrade calculator (materials, coins, time, profit)
   sbxp.py       SkyBlock XP analyzer — 25 formula sources, 692 tasks, smart recs (essence/collections/garden)
   minions.py    Minion profit calculator (live Bazaar pricing, 50+ minion types)
@@ -28,6 +29,7 @@ data/           Reference data and generated output
   last_profile.json   Latest profile API fetch
   dungeon_loot.json   Cached dungeon loot tables (24hr TTL, from fandom wiki)
   sbxp_tasks.json    SBXP task database (25 formula sources + 692 individual tasks across 17 categories)
+  slayer_drops.json  Slayer drop data (5 types, all tiers, Luckalyzer RNG + wiki common drops)
   price_cache.json    Cached market prices
   craft_cache.json    Cached craft flip data (Moulberry)
 .env            API credentials (HYPIXEL_API_KEY)
@@ -73,6 +75,14 @@ python3 accessories.py --upgrades-only    # only show upgrade opportunities
 python3 accessories.py --inactive         # focus on inactive/duplicate cleanup
 python3 accessories.py --available-only   # hide locked/unobtainable
 python3 accessories.py --json             # machine-readable output
+python3 slayers.py                         # all slayer types summary + tier comparisons
+python3 slayers.py --type zombie           # detailed Revenant breakdown (best tier)
+python3 slayers.py --type zombie --tier 5  # detailed T5 Revenant
+python3 slayers.py --type wolf --tier 4    # T4 Sven
+python3 slayers.py --magic-find 200        # factor in Magic Find
+python3 slayers.py --aatrox                # apply Aatrox mayor bonuses
+python3 slayers.py --kills-per-hour 12     # override kill speed estimate
+python3 slayers.py --json                  # machine-readable output
 python3 minions.py                          # ranked profit table, default setup (25× T11)
 python3 minions.py --item snow --roi        # detailed breakdown + setup cost + ROI
 python3 minions.py --tier 12 --top 10       # top 10 T12 minions

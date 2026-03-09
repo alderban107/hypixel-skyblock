@@ -28,7 +28,7 @@ Interactive features: localStorage-backed checkboxes with per-section progress t
 
 ### `tools/` — Python Scripts
 
-Thirteen standalone scripts. No dependencies beyond the standard library. Run from the `tools/` directory (scripts import from each other via relative imports).
+Fourteen standalone scripts. No dependencies beyond the standard library. Run from the `tools/` directory (scripts import from each other via relative imports).
 
 ---
 
@@ -173,6 +173,32 @@ python3 accessories.py --upgrades-only    # only show upgrade opportunities
 python3 accessories.py --inactive         # focus on inactive/duplicate cleanup
 python3 accessories.py --available-only   # hide locked/unobtainable
 python3 accessories.py --json             # machine-readable output
+```
+
+---
+
+**`slayers.py`** — Calculates expected **profit per boss** for all 5 slayer types (Revenant, Tarantula, Sven, Voidgloom, Inferno) across all tiers with live market pricing. Drop data curated from two sources: [Luckalyzer](https://mabi.land/luckalyzer/) (Mabi19, MIT licensed) for precise RNG drop probabilities and RNG meter boss counts, and the [fandom wiki](https://hypixel-skyblock.fandom.com/) for common/guaranteed drops and boss stats.
+
+Features:
+- **Three drop categories** — guaranteed drops (Revenant Flesh, etc.), common weight-based drops with per-tier probabilities, and RNG drops with exact fractional probabilities from data mining
+- **RNG Meter optimization** — for each eligible drop, calculates coins per slayer XP to identify the optimal meter target. Shows meter value per boss as a separate income line (often the largest profit contributor for high-tier bosses)
+- **Magic Find support** — `--magic-find` flag applies the weight-based MF system where only drops with <5% base chance are boosted
+- **Aatrox mayor detection** — `--aatrox` flag applies 25% cost discount and Pathfinder MF bonus (`MF × 1.2 + 20`)
+- **Scavenger & Champion coins** — mob-level-based income from enchants (Scavenger 5 = `level × 0.18`)
+- **Per-tier comparison table** — shows profit/boss, coins/XP efficiency, and profit/hr across all tiers to answer "which tier should I grind?"
+- **NPC sell price fallback** — items like Foul Flesh use `max(market_price, npc_sell)` for accurate valuation
+
+Drop data is stored in `data/slayer_drops.json` with per-tier quantities and probabilities. All prices are fetched live via `pricing.py`.
+
+```bash
+python3 slayers.py                         # all slayer types summary + tier comparisons
+python3 slayers.py --type zombie           # detailed Revenant breakdown (best tier)
+python3 slayers.py --type zombie --tier 5  # detailed T5 Revenant
+python3 slayers.py --type wolf --tier 4    # T4 Sven
+python3 slayers.py --magic-find 200        # factor in Magic Find
+python3 slayers.py --aatrox                # apply Aatrox mayor bonuses
+python3 slayers.py --kills-per-hour 12     # override kill speed estimate
+python3 slayers.py --json                  # machine-readable output
 ```
 
 ---
@@ -332,6 +358,7 @@ Large and/or generated files that don't belong in version control. Everything he
 | `price_cache.json` | ~300 KB | `pricing.py` | Bazaar + auction price cache with TTL timestamps |
 | `craft_cache.json` | ~240 KB | `crafts.py` | Moulberry bulk price data cache |
 | `dungeon_loot.json` | ~300 KB | `dungeons.py` | Parsed dungeon loot tables from fandom wiki (24hr TTL) |
+| `slayer_drops.json` | ~18 KB | curated | Drop data for 5 slayer types (Luckalyzer RNG probs + wiki common drops) |
 
 ## Setup
 

@@ -459,7 +459,7 @@ python3 accessories.py --json             # machine-readable output
 
 ---
 
-## 4. Slayer Profit Calculator (`slayers.py`)
+## 4. ~~Slayer Profit Calculator (`slayers.py`)~~ ✅ COMPLETE
 
 Calculate expected profit per boss for each slayer type and tier, with live pricing and RNG meter optimization.
 
