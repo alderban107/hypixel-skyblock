@@ -28,7 +28,7 @@ Interactive features: localStorage-backed checkboxes with per-section progress t
 
 ### `tools/` — Python Scripts
 
-Eleven standalone scripts. No dependencies beyond the standard library. Run from the `tools/` directory (scripts import from each other via relative imports).
+Twelve standalone scripts. No dependencies beyond the standard library. Run from the `tools/` directory (scripts import from each other via relative imports).
 
 ---
 
@@ -124,6 +124,33 @@ python3 networth.py --no-cosmetic     # exclude cosmetic items (dyes, skins, run
 python3 networth.py --json            # machine-readable output
 python3 networth.py --verbose         # list every priced item
 ```
+
+---
+
+**`dungeons.py`** — Calculates expected profit per run for each **dungeon floor** based on live drop tables and current market prices. Parses loot data from the fandom wiki (local cache or live scrape), maps wiki item names to priceable IDs using a comprehensive mapping (based on [FluxCapacitor2's dungeon-loot-calculator](https://github.com/FluxCapacitor2/dungeon-loot-calculator)), and prices everything via Bazaar weighted average + Moulberry LBIN.
+
+Uses a **per-item cost model** matching how dungeon chests actually work: players see the chest contents before deciding to pay, so EV only counts items where market price exceeds the claim cost (`EV = Σ(chance × max(price - cost, 0))`). This gives more realistic values than the naive `EV - flat_cost` approach.
+
+Features:
+- **Per-chest breakdown** — EV with and without RNG drops, OPEN/SKIP verdict
+- **All 14 floors** — F1-F7 normal and M1-M7 Master Mode
+- **Kismet Feather analysis** — whether rerolling each chest is profitable at current Kismet prices
+- **RNG drop section** — high-value rare drops listed with per-item chance, price, cost, and EV contribution
+- **Guaranteed essence** — per-floor essence drops priced via Bazaar
+- **Hourly rate** — configurable runs/hour with conservative defaults per floor
+- **Smart caching** — loot data cached as `data/dungeon_loot.json` with 24hr TTL; uses local wiki dump if available, falls back to live fandom wiki API scrape
+
+```bash
+python3 dungeons.py                           # all floors summary (sorted by hourly rate)
+python3 dungeons.py --floor f7                # detailed F7 breakdown
+python3 dungeons.py --floor m5                # Master Mode 5
+python3 dungeons.py --no-splus                # base score rates instead of S+
+python3 dungeons.py --runs-per-hour 6         # override runs/hr estimate
+python3 dungeons.py --json                    # machine-readable output
+python3 dungeons.py --refresh                 # force re-scrape wiki data
+```
+
+Accepts `--talisman` and `--luck` flags (reserved for future data sources — the fandom wiki currently only provides Default/S+ rates, not per-modifier breakdowns).
 
 ---
 
@@ -281,6 +308,7 @@ Large and/or generated files that don't belong in version control. Everything he
 | `last_profile.json` | ~400 KB | `profile.py` | Latest API fetch (profile, garden, museum, prices) |
 | `price_cache.json` | ~300 KB | `pricing.py` | Bazaar + auction price cache with TTL timestamps |
 | `craft_cache.json` | ~240 KB | `crafts.py` | Moulberry bulk price data cache |
+| `dungeon_loot.json` | ~300 KB | `dungeons.py` | Parsed dungeon loot tables from fandom wiki (24hr TTL) |
 
 ## Setup
 
