@@ -1,6 +1,6 @@
 # SkyBlock Toolkit — TODO
 
-## 1. Networth Calculator (`networth.py`)
+## 1. ~~Networth Calculator (`networth.py`)~~ ✅ COMPLETE
 
 Calculate total profile value by pricing every item across all storage locations.
 
@@ -166,7 +166,7 @@ python3 networth.py --verbose         # list every item with price, not just sum
 
 ---
 
-## 2. Dungeon Profit Calculator (`dungeons.py`)
+## 2. ~~Dungeon Profit Calculator (`dungeons.py`)~~ ✅ COMPLETE
 
 Calculate expected profit per run for each dungeon floor based on drop tables and current market prices.
 
