@@ -983,78 +983,504 @@
           </ul>
         </div>
 
+        <!-- ===== COMBAT ===== -->
         <div data-tab="Combat">
           <h2>Combat (Cap 60)</h2>
-          <p><strong>Per level:</strong> +0.5% Crit Chance, +4% damage to mobs. <strong>At 60:</strong> +30% CC, +240% damage.</p>
-          <p><strong>Best methods:</strong> Slayer bosses (late), dungeon mobs, Bestiary milestones, Zealots in The End (mid), Graveyard zombies (early). No XP from Private Island kills.</p>
+          <p><strong>Per level:</strong> +0.5% Crit Chance, +4% damage to mobs. <strong>At 60:</strong> +30% CC, +240% damage. The Warrior bonus adds a further +210% mob damage (4% per level 1&ndash;50, 1% per level 51&ndash;60).</p>
+
+          <h3>Leveling Methods by Stage</h3>
+          <table>
+            <thead><tr><th>Stage</th><th>Method</th><th>XP/hr Estimate</th><th>Notes</th></tr></thead>
+            <tbody>
+              <tr><td><strong>Early (1&ndash;15)</strong></td><td>Graveyard Zombies</td><td>1&ndash;5K</td><td>Hub Island, no gear needed. Transition to Spider&rsquo;s Den at Combat 1</td></tr>
+              <tr><td></td><td>Deep Caverns mobs</td><td>5&ndash;10K</td><td>Requires Mining access. Diamond Zombies give more XP</td></tr>
+              <tr><td><strong>Mid (15&ndash;35)</strong></td><td>Zealot farming (The End)</td><td>30&ndash;50K</td><td>Requires Combat 12. High spawn rate, consistent XP</td></tr>
+              <tr><td></td><td>Slayer T1&ndash;T2</td><td>50&ndash;100K</td><td>Start Zombie Slayer early, Spider Slayer after Zombie 4</td></tr>
+              <tr><td></td><td>Dungeon F1&ndash;F4</td><td>50&ndash;100K</td><td>Grants Combat XP + dungeon XP + gear simultaneously</td></tr>
+              <tr><td><strong>Late (35&ndash;60)</strong></td><td>Slayer T3&ndash;T5</td><td>150&ndash;300K</td><td>Enderman Slayer T3+ is top tier. Wolf 5 unlocks Eman</td></tr>
+              <tr><td></td><td>Dungeon F5&ndash;F7</td><td>200&ndash;500K</td><td>F7 is highest XP/hr with proper gear (Cata 24+ required)</td></tr>
+            </tbody>
+          </table>
+          <p><strong>Important:</strong> Mobs killed on your Private Island give <strong>no Combat XP</strong>. Always grind in public areas.</p>
+
+          <h3>Bestiary Milestones</h3>
+          <p>The Bestiary tracks kills across 214 mob types. Every 5 milestones grants escalating Combat XP &mdash; from 5K at milestone V up to 1M at milestone C (100), then 1M per 10 milestones repeating. Bestiary credit is shared in dungeon parties for specific mobs (Shadow Assassin, Mimic, Wither Guard, etc.).</p>
+
+          <h3>Gear Progression</h3>
+          <table>
+            <thead><tr><th>Stage</th><th>Armor</th><th>Weapon</th><th>Notes</th></tr></thead>
+            <tbody>
+              <tr><td>1&ndash;12</td><td>Squire Armor</td><td>Mercenary Sword</td><td>Both unlock at Combat 4</td></tr>
+              <tr><td>12&ndash;20</td><td>Ender Armor</td><td>End Sword / Hyper Cleaver</td><td>Ender Armor is a solid stepping stone</td></tr>
+              <tr><td>20&ndash;35</td><td>Young &rarr; Strong Dragon</td><td>Livid Dagger (Spider Slayer 5)</td><td>Dungeonize dragon armor at Cata 12&ndash;14</td></tr>
+              <tr><td>35&ndash;60</td><td>3/4 Necron (F7)</td><td>Hyperion / Giant&rsquo;s Sword / Juju Shortbow</td><td>Cata 24 for Necron, Cata 23 for Hyperion. Juju requires Eman 5</td></tr>
+            </tbody>
+          </table>
+
+          <div class="callout warning">
+            <div class="callout-title">Trap Items</div>
+            <p><strong>Aspect of the Dragons (AOTD)</strong> is outdated and overpriced for what it offers &mdash; Hyper Cleaver is better. <strong>One For All</strong> enchant is an NPC-sell trap. Avoid both.</p>
+          </div>
+
+          <h3>Key Pets</h3>
+          <ul>
+            <li><strong>Ender Dragon</strong> &mdash; +10% all stats. Best-in-slot for most builds. Extremely expensive</li>
+            <li><strong>Baby Yeti</strong> &mdash; Defense/survival focused. Great for Enderman Slayer T3+ (Ice Shields)</li>
+            <li><strong>Black Cat</strong> &mdash; +100 speed cap, pairs with Warden Helmet for +40% damage</li>
+            <li><strong>Griffin</strong> &mdash; Diana mayor content. Scales well at higher rarity</li>
+            <li><strong>Enderman / Tarantula / Hound</strong> &mdash; Family-specific bonuses for their respective slayers</li>
+          </ul>
+
+          <h3>Slayer Progression</h3>
+          <p>Slayers provide both Combat XP and unique weapon/armor unlocks. Start <strong>Zombie Slayer</strong> early (T1&ndash;T2 are cheap), progress to <strong>Spider Slayer</strong> after Zombie 4, then <strong>Wolf Slayer</strong> to level 5 to unlock <strong>Enderman Slayer</strong>. Blaze Slayer is Crimson Isle endgame content. Slayer T3+ quests spawn minibosses for bonus XP.</p>
         </div>
 
+        <!-- ===== FARMING ===== -->
         <div data-tab="Farming">
           <h2>Farming (Cap 60)</h2>
-          <p><strong>Per level:</strong> +4 HP, +4 Farming Fortune. Default cap 50 &mdash; raised to 60 by achieving Gold bracket in Jacob's Contests for 10 different crops, then purchasing from Anita.</p>
-          <p><strong>Best methods:</strong> Garden farming (primary &mdash; requires SB Level 5). Sugar Cane, Nether Wart, Pumpkin/Melon are the top crops. Farming Fortune is disabled on Private Island.</p>
+          <p><strong>Per level:</strong> +4 HP, +4 Farming Fortune (via Farmhand ability). Default cap 50 &mdash; raised to 60 by achieving Gold medals in Jacob&rsquo;s Contests for 10 different crops, then purchasing upgrades from Anita at the Farmhouse.</p>
+
+          <h3>Garden Mechanics</h3>
+          <p>The Garden (unlocked at SB Level 5) is the primary farming location. Plots are unlocked with Compost. <strong>Critical fact:</strong> Farming XP is awarded <strong>per crop block broken</strong>, not per item obtained &mdash; Farming Fortune does NOT affect XP gain.</p>
+          <table>
+            <thead><tr><th>Crop</th><th>XP/Block</th><th>Notes</th></tr></thead>
+            <tbody>
+              <tr><td><strong>Mushroom (Red/Brown)</strong></td><td>+6</td><td>Best XP. Spread naturally, no replanting. Garden Level 9 unlock</td></tr>
+              <tr><td><strong>Pumpkin</strong></td><td>+4.5</td><td>Best common crop for XP. Use Delicate enchant to protect stems</td></tr>
+              <tr><td>Wheat, Carrot, Potato, Melon, Cocoa, Nether Wart</td><td>+4</td><td>Standard rate for most crops</td></tr>
+              <tr><td>Sugar Cane, Cactus</td><td>+2</td><td>Lower XP but fast growth cycles</td></tr>
+            </tbody>
+          </table>
+
+          <h3>Farming Fortune Explained</h3>
+          <p>Farming Fortune (&female;) increases crop drops (not XP). Every 100 FF = 1 guaranteed extra drop. Example: 260 FF = 2 guaranteed extra drops + 60% chance for a 3rd. Sources stack additively:</p>
+          <ul>
+            <li><strong>Skill level:</strong> +4 per level via Farmhand (+240 at 60)</li>
+            <li><strong>Anita perks:</strong> Up to +60 FF (15 tiers)</li>
+            <li><strong>Armor:</strong> Farm (+40) &rarr; Rabbit (+70) &rarr; Cropie (+90) &rarr; Squash (+110) &rarr; Fermento (+130) &rarr; Helianthus (+150)</li>
+            <li><strong>Tool enchants:</strong> Harvesting/Sunder VI (+75), Turbo-Crop V (+25), Cultivating X (+20), Dedication IV (variable)</li>
+            <li><strong>Pets:</strong> Elephant (+150), Mooshroom Cow (+110 + Strength scaling), Rose Dragon (+300)</li>
+            <li><strong>Accessories:</strong> Helianthus Relic (+40), Fermento Artifact (+30), Squash Ring (+20)</li>
+          </ul>
+
+          <h3>Jacob&rsquo;s Contests &amp; Cap Raising</h3>
+          <p>Win Gold medals in 10 different crop types, then buy level cap upgrades from Anita. Levels 51&ndash;55 cost 1 Gold each + escalating Jacob&rsquo;s Tickets. Levels 56&ndash;60 need 2&ndash;3 Golds each + 150&ndash;500 Tickets. Stack Farming Wisdom (Booster Cookie + Rabbit Pet + God Pot) for contests. Rancher&rsquo;s Boots (Farming 21 unlock) let you cap movement speed for precision farming.</p>
+
+          <h3>Key Pets</h3>
+          <ul>
+            <li><strong>Rabbit</strong> &mdash; +25&ndash;30 Farming Wisdom at L100. Best for XP grinding and cap raising</li>
+            <li><strong>Elephant</strong> &mdash; +150 FF at L100. Best for coin generation</li>
+            <li><strong>Mooshroom Cow</strong> &mdash; +110 FF at L100 + Strength scaling. Pairs with God Potions</li>
+            <li><strong>Bee</strong> &mdash; +20&ndash;30 FF. Budget option</li>
+          </ul>
+
+          <h3>Progression Path</h3>
+          <table>
+            <thead><tr><th>Stage</th><th>Level</th><th>Gear</th><th>Focus</th></tr></thead>
+            <tbody>
+              <tr><td>Early</td><td>1&ndash;20</td><td>Farm Armor, Rookie Hoe &rarr; Advanced Gardening Hoe, Rabbit Pet</td><td>Unlock Garden, plant all crops for milestones, reach Garden L9 for mushrooms</td></tr>
+              <tr><td>Mid</td><td>20&ndash;40</td><td>Melon/Cropie Armor, Rancher&rsquo;s Boots, crop-specific tools</td><td>Mushroom grinding for XP. Melon/Pumpkin for coins (~1.5M/hr). Begin Jacob&rsquo;s contests</td></tr>
+              <tr><td>Late</td><td>40&ndash;60</td><td>Fermento (40) &rarr; Helianthus (45), Elephant/Mooshroom Pet</td><td>Fermento is a major FF spike. 10 Gold medals for cap raises. Endgame: 3&ndash;5M/hr</td></tr>
+            </tbody>
+          </table>
+
+          <div class="callout tip">
+            <div class="callout-title">Key Insight</div>
+            <p><strong>Garden Level 9 is a critical checkpoint</strong> &mdash; it unlocks mushroom farming, which at +6 XP/block is the fastest way to level Farming. Prioritize reaching it.</p>
+          </div>
         </div>
 
+        <!-- ===== MINING ===== -->
         <div data-tab="Mining">
           <h2>Mining (Cap 60)</h2>
-          <p><strong>Per level:</strong> +2 Defense, +2 Mining Fortune. <strong>At 60:</strong> +106 DEF, +240 Mining Fortune.</p>
-          <p><strong>Best methods:</strong> Crystal Hollows gemstones (late), Dwarven Mines mithril + commissions (mid), Deep Caverns ores (early). XP per ore: Cobblestone 1, Coal 5, Iron 5, Gold 6, Diamond 10, Dwarven Gold 20.</p>
+          <p><strong>Per level:</strong> +4 Mining Fortune (via Spelunker ability). <strong>At 60:</strong> +240 Mining Fortune. The Spelunker ability also grants ore multipliers: 2x drops at 1&ndash;25, 3x at 26&ndash;50, 4x at 51&ndash;60.</p>
+
+          <h3>XP by Ore Type</h3>
+          <table>
+            <thead><tr><th>Block</th><th>XP</th><th>Block</th><th>XP</th></tr></thead>
+            <tbody>
+              <tr><td>Cobblestone</td><td>1</td><td>Lapis/Redstone Ore</td><td>7</td></tr>
+              <tr><td>Sand</td><td>3</td><td>Emerald Ore</td><td>9</td></tr>
+              <tr><td>Coal/Iron Ore</td><td>5</td><td>Diamond Ore</td><td>10</td></tr>
+              <tr><td>Gold Ore</td><td>6</td><td>Obsidian / Dwarven Gold</td><td>20</td></tr>
+              <tr><td>Block of Diamond</td><td>15</td><td><strong>Mithril</strong></td><td><strong>45</strong></td></tr>
+              <tr><td><strong>Gemstone</strong></td><td><strong>70</strong></td><td><strong>Titanium</strong></td><td><strong>100</strong></td></tr>
+            </tbody>
+          </table>
+
+          <h3>Heart of the Mountain (HOTM)</h3>
+          <p>The HOTM tree is a mining-specific perk system unlocked in the Dwarven Mines (pay Rhys 15 Enchanted items). You level it by completing commissions and grinding powder. Key perks by stage:</p>
+          <ul>
+            <li><strong>HOTM 1&ndash;5:</strong> Mining Speed, Mining Fortune, Titanium Insanium, Efficient Miner, Pickonimbus</li>
+            <li><strong>HOTM 7:</strong> Powder Buff (+50% powder rates at max &mdash; <strong>most important perk for gemstones</strong>)</li>
+            <li><strong>HOTM 7+:</strong> Mole (tunnel spawning), Great Explorer, Gemstone Lover, Fortunate</li>
+          </ul>
+
+          <h3>Mining Locations</h3>
+          <table>
+            <thead><tr><th>Location</th><th>Stage</th><th>Key Resources</th><th>Notes</th></tr></thead>
+            <tbody>
+              <tr><td>Mushroom Desert</td><td>Mining 1&ndash;12</td><td>Sand (+3 XP)</td><td>Fastest early leveling with Efficiency 3 Golden Shovel</td></tr>
+              <tr><td>Deep Caverns</td><td>Mining 12</td><td>Mixed ores</td><td>Transitional. Pay Rhys 15 Enchanted items to access Dwarven Mines</td></tr>
+              <tr><td>Dwarven Mines</td><td>HOTM 1&ndash;6</td><td>Mithril (+45), Titanium (+100)</td><td>Commissions are best HOTM XP. First 4 daily = +50% bonus</td></tr>
+              <tr><td>Crystal Hollows</td><td>HOTM 3+</td><td>Gemstones (+70), Hardstone</td><td>Gemstone mining starts here. Ruby (BP 6) &rarr; Jasper (BP 9)</td></tr>
+              <tr><td>Glacite Tunnels</td><td>HOTM 12+</td><td>High-tier gemstones</td><td>Endgame. Requires Divan&rsquo;s-tier gear</td></tr>
+            </tbody>
+          </table>
+
+          <h3>Pickaxe &amp; Drill Progression</h3>
+          <table>
+            <thead><tr><th>Tool</th><th>Mining Fortune</th><th>Stage</th><th>Notes</th></tr></thead>
+            <tbody>
+              <tr><td>Golden Shovel (Eff. 3)</td><td>&mdash;</td><td>Mining 1&ndash;12</td><td>For sand in Mushroom Desert. ~1K coins</td></tr>
+              <tr><td>Fractured Mithril Pickaxe</td><td>+2</td><td>Dwarven Mines entry</td><td>First real pick. ~50K coins</td></tr>
+              <tr><td>Titanium Pickaxe</td><td>+50</td><td>Mid Dwarven Mines</td><td>For Titanium ore. Transition to drills after</td></tr>
+              <tr><td>Ruby Drill TX-15</td><td>+60 Gemstone</td><td>HOTM 4+</td><td>First gemstone drill. BP 6. ~10&ndash;15M</td></tr>
+              <tr><td>Gemstone Drill LT-522</td><td>+80 Gemstone</td><td>HOTM 5&ndash;7</td><td>BP 8 (most gems). ~20&ndash;30M</td></tr>
+              <tr><td>Jasper Drill X</td><td>+120 Gemstone</td><td>HOTM 7+</td><td>BP 9 (all gems incl. Jasper). ~80M+</td></tr>
+              <tr><td>Divan&rsquo;s Drill</td><td>+150</td><td>HOTM 12+</td><td>Endgame. +1800 Mining Speed base. 400M+ full build</td></tr>
+            </tbody>
+          </table>
+
+          <h3>Key Pets</h3>
+          <ul>
+            <li><strong>Mithril Golem</strong> &mdash; Increases Mithril powder drops. Best for HOTM 1&ndash;6 Mithril grinding</li>
+            <li><strong>Scatha</strong> &mdash; +Titanium chance, chest opening bonus. Good for mixed ore mining</li>
+            <li><strong>Mole</strong> (Legendary) &mdash; Massive powder multiplier. Essential for endgame gemstone grinding. ~100M+</li>
+            <li><strong>Silverfish</strong> &mdash; Mining Wisdom boost. Best for leveling Mining 50&ndash;60</li>
+            <li><strong>Bal</strong> &mdash; Ability cooldown reduction. Good for active mining with pickaxe ability spam</li>
+          </ul>
+
+          <h3>Powder &amp; Commissions</h3>
+          <p><strong>Commissions:</strong> Complete 4 from the King (Dwarven Mines) + 4 from Emissary Cisco (Crystal Hollows) daily for +50% bonus HOTM XP each. This is the most efficient way to level HOTM.</p>
+          <p><strong>Powder rates:</strong> 50&ndash;100K/hr Mithril (HOTM 1&ndash;6), 50&ndash;150K/hr Gemstone (HOTM 7&ndash;10), 150K+/hr optimized (HOTM 12+). Prioritize maxing Powder Buff at HOTM 7 before heavy gemstone grinding.</p>
+
+          <div class="callout tip">
+            <div class="callout-title">Key Threshold</div>
+            <p><strong>3104 Mining Speed</strong> lets you break Blue Mithril in 14 ticks &mdash; the optimal threshold for Mithril grinding. Don&rsquo;t over-invest past this until you&rsquo;re moving to gemstones.</p>
+          </div>
         </div>
 
+        <!-- ===== FORAGING ===== -->
         <div data-tab="Foraging">
           <h2>Foraging (Cap 54)</h2>
-          <p><strong>Per level:</strong> +2 Strength, +4 Foraging Fortune. Levels 51&ndash;54 unlocked via Fig/Mangrove collections and Agatha's shop.</p>
-          <p><strong>Best methods:</strong> Mangrove logs (20 XP each, Galatea), Fig logs (15 XP each, Galatea), standard logs (6 XP each, The Park). Use Treecapitator for AoE chopping.</p>
+          <p><strong>Per level:</strong> +2 Strength, +4 Foraging Fortune (via Logger ability). <strong>At 54:</strong> +94 STR, +216 Foraging Fortune. Levels 51&ndash;54 unlocked via Fig Log Collection T9, Mangrove Log Collection T9, and Agatha&rsquo;s Milestone 4 shop.</p>
+
+          <h3>XP by Log Type</h3>
+          <table>
+            <thead><tr><th>Log Type</th><th>XP</th><th>Location</th></tr></thead>
+            <tbody>
+              <tr><td>Flowers</td><td>+1</td><td>Flower House, Park, Jungle</td></tr>
+              <tr><td>Oak, Birch, Spruce, Jungle, Acacia, Dark Oak</td><td>+6</td><td>Hub zones, The Park</td></tr>
+              <tr><td>Fig Logs</td><td>+15</td><td>Galatea (Foraging 25)</td></tr>
+              <tr><td><strong>Mangrove Logs</strong></td><td><strong>+20</strong></td><td>Galatea (Foraging 25)</td></tr>
+            </tbody>
+          </table>
+
+          <h3>Gear &amp; Pets</h3>
+          <ul>
+            <li><strong>Treecapitator</strong> &mdash; AoE axe that chops entire trees. Essential for efficient leveling</li>
+            <li><strong>Ocelot Pet</strong> &mdash; +30 Foraging Wisdom (Epic+). Best XP-boosting pet for Foraging</li>
+            <li><strong>Canopy Armor</strong> &mdash; Recommended for Galatea. Sweep +8 for full set</li>
+            <li><strong>Moonglade reforge</strong> on axes &mdash; +Foraging Fortune and Foraging Wisdom</li>
+          </ul>
+
+          <h3>Progression Path</h3>
+          <ol>
+            <li><strong>Level 1&ndash;25:</strong> Hub Island logging (Oak/Birch/Spruce, +6 XP each). Use Treecapitator once available. Goal: unlock Galatea access at Foraging 25</li>
+            <li><strong>Level 25&ndash;50:</strong> Galatea &mdash; farm Mangrove Logs (+20 XP) with Booster Cookie + Ocelot Pet + God Pot for Foraging Wisdom stacking</li>
+            <li><strong>Level 50&ndash;54:</strong> Continue Mangrove farming. Need Fig Log T9 + Mangrove Log T9 collections (~150K logs each) plus Agatha Milestone 4 purchases to unlock the final levels</li>
+          </ol>
+          <p><strong>Tips:</strong> Stack XP multipliers before grinding &mdash; Booster Cookie (+25 Foraging Wisdom), Ocelot Pet (+30), God Pot for maximum efficiency. Foraging is straightforward but time-intensive; expect 10&ndash;20 hours to reach 50.</p>
         </div>
 
+        <!-- ===== FISHING ===== -->
         <div data-tab="Fishing">
           <h2>Fishing (Cap 60)</h2>
-          <p><strong>Per level:</strong> +4 HP, +1% Treasure Chance. <strong>Best methods:</strong> Jerry's Workshop (winter event &mdash; fast spawns), lava fishing (Crimson Isle), trophy fishing, open water (early). Sea creature kills also grant Fishing XP.</p>
+          <p><strong>Per level:</strong> +1 HP, +0.1% Treasure Chance. Sea creature kills also grant Fishing XP. Fishing has two distinct paths: <strong>water fishing</strong> (Hub, Park, Jerry&rsquo;s Workshop) and <strong>lava fishing</strong> (Crimson Isle), each with their own rods, gear, and creatures.</p>
+
+          <h3>Rod Progression</h3>
+          <h4>Water Rods</h4>
+          <table>
+            <thead><tr><th>Level</th><th>Rod</th><th>Fishing Speed</th><th>SCC</th><th>Notes</th></tr></thead>
+            <tbody>
+              <tr><td>10</td><td>Challenging Rod</td><td>+75</td><td>+2%</td><td>First real rod. Buy from Junker Joel</td></tr>
+              <tr><td>15</td><td>Rod of Champions</td><td>+90</td><td>+4%</td><td>Crafted (Lily Pad VII)</td></tr>
+              <tr><td>20</td><td>Rod of Legends</td><td>+105</td><td>+6%</td><td>Crafted (Lily Pad IX)</td></tr>
+              <tr><td>24</td><td><strong>Rod of the Sea</strong></td><td><strong>+110</strong></td><td><strong>+7%</strong></td><td>Best water rod. Fishing Festival craft</td></tr>
+            </tbody>
+          </table>
+
+          <h4>Lava Rods (Crimson Isle)</h4>
+          <table>
+            <thead><tr><th>Level</th><th>Rod</th><th>Fishing Speed</th><th>SCC</th><th>Trophy %</th><th>Notes</th></tr></thead>
+            <tbody>
+              <tr><td>10</td><td>Starter Lava Rod</td><td>+8</td><td>+0%</td><td>&mdash;</td><td>Entry lava rod from Odger</td></tr>
+              <tr><td>27</td><td>Magma Rod</td><td>+40</td><td>+6%</td><td>+10%</td><td>Requires Magmafish IV collection</td></tr>
+              <tr><td>30</td><td>Inferno Rod</td><td>+60</td><td>+10%</td><td>+15%</td><td>Requires Magmafish VIII</td></tr>
+              <tr><td>35</td><td><strong>Hellfire Rod</strong></td><td><strong>+75</strong></td><td><strong>+14%</strong></td><td><strong>+20%</strong></td><td>Endgame. Magmafish XII</td></tr>
+            </tbody>
+          </table>
+
+          <h3>Fishing Speed</h3>
+          <p>Fishing Speed (&female;) determines how quickly fish approach your bobber. <strong>Caps:</strong> 300 (water), 350 (lava/Crimson Isle). Bait bonuses are invisible in the stats menu &mdash; Fish Bait adds +45 FS that doesn&rsquo;t show up.</p>
+          <p><strong>Key sources:</strong> Rods (biggest), Flying Fish pet (+60&ndash;80), equipment (Ichthyic +4/Finwave +8/Gillsplash +12 per piece), reforges, Piscary enchant, +0.5 per Fishing level.</p>
+
+          <h3>Sea Creature Chance (SCC)</h3>
+          <p>SCC determines your chance to hook a sea creature instead of a regular catch. Base is 5%. Sources: rods (+2&ndash;14%), armor sets (Angler +1%/piece up to Shark Scale +2.5%/piece), accessories (Sea Creature Talisman/Ring/Artifact), Spiked Bait (+6%).</p>
+
+          <h3>Bait Guide</h3>
+          <table>
+            <thead><tr><th>Bait</th><th>Effect</th><th>Best Use</th></tr></thead>
+            <tbody>
+              <tr><td>Fish Bait</td><td>+45 FS (hidden)</td><td>All-purpose until you hit the FS cap</td></tr>
+              <tr><td>Whale Bait</td><td>+30 FS, +10% double catch</td><td>Best all-around if affordable</td></tr>
+              <tr><td>Spiked Bait</td><td>+6% sea creature spawn</td><td>Sea creature farming</td></tr>
+              <tr><td>Shark Bait</td><td>+20% sharks</td><td>Fishing Festival only</td></tr>
+              <tr><td>Hot Bait</td><td>+5% trophy fish</td><td>Lava fishing at max FS cap</td></tr>
+              <tr><td>Worm Bait</td><td>+60 FS (Crystal Hollows only)</td><td>Crystal Hollows worm fishing</td></tr>
+            </tbody>
+          </table>
+
+          <h3>Key Pets</h3>
+          <ul>
+            <li><strong>Flying Fish</strong> &mdash; +60&ndash;80 FS depending on rarity. Highest single-pet speed bonus. Best for solo fishing</li>
+            <li><strong>Dolphin</strong> &mdash; +FS per nearby player (up to 5). Best for party/group fishing</li>
+            <li><strong>Ammonite</strong> &mdash; +0.5 FS per Mining level + HOTM level. Great for Crystal Hollows worm fishing</li>
+            <li><strong>Megalodon</strong> &mdash; Stats double during Fishing Festival. Best for festival grinding</li>
+          </ul>
+
+          <h3>Trophy Fishing (Crimson Isle)</h3>
+          <p>16 special trophy fish caught only in lava, with 4 tiers each (Bronze/Silver/Gold/Diamond). Bring catches to <strong>Odger</strong> to fillet for Magmafish (needed for rod upgrades). Progress through 4 Trophy Fisher tiers: Novice (15 Bronze) &rarr; Adept (all Silver) &rarr; Expert (all Gold) &rarr; Master (all Diamond). Each tier unlocks Trophy Hunter Armor with +5&ndash;30% Trophy Fish Chance.</p>
+          <p>Some trophy fish require specific locations (Karate Fish &rarr; Dojo, Skeleton Fish &rarr; Burning Desert, Soul Fish &rarr; Stronghold) or conditions (Vanille requires unenchanted Starter Lava Rod, Mana Ray needs 1200+ Mana).</p>
+
+          <h3>Armor Progression</h3>
+          <table>
+            <thead><tr><th>Set</th><th>SCC/Piece</th><th>Stage</th><th>Notes</th></tr></thead>
+            <tbody>
+              <tr><td>Angler</td><td>+1%</td><td>Starter</td><td>Buy from Fishing Merchant</td></tr>
+              <tr><td>Salmon</td><td>+1.5%</td><td>F13</td><td>Water Burst ability</td></tr>
+              <tr><td>Diver&rsquo;s</td><td>+2%</td><td>F20</td><td>Fast movement + water breathing</td></tr>
+              <tr><td>Shark Scale</td><td>+2.5%</td><td>F24</td><td>Best water armor. Crafted from Fishing Festival shark drops</td></tr>
+              <tr><td>Thunder</td><td>+4%</td><td>F36</td><td>First full lava set</td></tr>
+              <tr><td>Magma Lord</td><td>+4.5%</td><td>F45</td><td>Endgame lava armor</td></tr>
+            </tbody>
+          </table>
+
+          <h3>Progression Path</h3>
+          <table>
+            <thead><tr><th>Stage</th><th>Level</th><th>Focus</th></tr></thead>
+            <tbody>
+              <tr><td>Early</td><td>0&ndash;15</td><td>Fish at The Park. Angler Armor, Fish Bait. Challenging Rod (10) &rarr; Rod of Champions (15)</td></tr>
+              <tr><td>Mid</td><td>15&ndash;30</td><td>Rod of Legends (20) &rarr; Rod of the Sea (24). Shark Scale Armor. Start lava fishing at 10, push for Magma Rod at 27. Novice Trophy tier</td></tr>
+              <tr><td>Late</td><td>30&ndash;60</td><td>Inferno Rod (30) &rarr; Hellfire Rod (35). Thunder &rarr; Magma Lord Armor. Max 350 FS cap. Farm Jawbus (50&ndash;60M vials), Ragnarok (20M). 15&ndash;50M/hr endgame</td></tr>
+            </tbody>
+          </table>
+
+          <h3>Fishing Festival</h3>
+          <p>Occurs during Marina&rsquo;s mayoral term &mdash; 12 festivals per term, each lasting ~1 real hour. Four shark types spawn based on Fishing level (Nurse at 5, Blue at 10, Tiger at 18, Great White at 24). Drops include Shark Fins, Shark Teeth, and rare Megalodon Pet. Craft Rod of the Sea and Shark Scale Armor from festival materials.</p>
         </div>
 
+        <!-- ===== ENCHANTING ===== -->
         <div data-tab="Enchanting">
           <h2>Enchanting (Cap 60)</h2>
           <p><strong>Per level:</strong> +2 Intelligence, +0.5 Ability Damage. <strong>At 60:</strong> +106 INT, +30 Ability Damage.</p>
-          <p><strong>Primary method:</strong> Experimentation Table (daily, resets midnight GMT). Also: enchanting items at the table (XP = 3.5 &times; levels_spent^1.5). Guardian Pet boosts Enchanting XP.</p>
+
+          <h3>Leveling Methods</h3>
+          <p>The <strong>Experimentation Table</strong> is the primary leveling method (unlocked at Enchanting 10). It resets daily at midnight GMT and offers three mini-games:</p>
+          <ul>
+            <li><strong>Superpairs</strong> &mdash; Memory tile-matching. Main source of XP and rewards. Can drop Tier 6&ndash;7 enchant books worth 100M+</li>
+            <li><strong>Chronometron</strong> &mdash; Grants Enchanting XP + bonus clicks for Superpairs</li>
+            <li><strong>Ultra Sequencer</strong> &mdash; Same as above, different pattern game</li>
+          </ul>
+          <p>You get 3 free daily charges plus up to 3 purchasable resets (150, 300, 500 Bits). Manual enchanting at the table also works (XP = 3.5 &times; levels_spent<sup>1.5</sup>) but has a 500K XP/day cap that the Experimentation Table bypasses.</p>
+
+          <h3>Experimentation Table Optimization</h3>
+          <ul>
+            <li><strong>Guardian Pet (Mythic)</strong> &mdash; +7% chance for ultra-rare books in Superpairs, +30 Enchanting Wisdom. Essential for serious profit</li>
+            <li><strong>Enderman Slayer Level 8</strong> &mdash; Unlocks +15% rare enchant chance in Superpairs. Major progression gate</li>
+            <li><strong>Metaphysical Stake</strong> &mdash; +1% base chance for ultra-rare drops. Always select this if available</li>
+            <li><strong>RNG Meter</strong> &mdash; 1 point per 1,000 Enchanting XP. Select target enchant before starting for increased drop odds</li>
+          </ul>
+
+          <h3>Progression Path</h3>
+          <ol>
+            <li><strong>Level 1&ndash;10:</strong> Enchant cheap items (Protection I&ndash;III) at the Enchanting Table</li>
+            <li><strong>Level 10&ndash;30:</strong> Mix table enchanting + Experimentation Table daily</li>
+            <li><strong>Level 30&ndash;60:</strong> Prioritize Experimentation Table + buy daily resets. This is also a money-maker &mdash; Tier 6&ndash;7 books sell for millions to hundreds of millions</li>
+          </ol>
+          <p><strong>Estimated time to 50:</strong> 15&ndash;30 hours (largely time-gated by daily resets). One of the more passive skills.</p>
         </div>
 
+        <!-- ===== ALCHEMY ===== -->
         <div data-tab="Alchemy">
           <h2>Alchemy (Cap 60)</h2>
-          <p><strong>Per level:</strong> +2 Intelligence, +1% potion duration. A "buy levels" skill &mdash; brew potions with purchased materials.</p>
-          <p><strong>Best methods:</strong> Enchanted Blaze Rod (Strength pots, best XP, expensive), Enchanted Sugar Cane (Speed pots, accessible), Enchanted Melon (Regen pots, best XP-to-coin ratio for budget).</p>
+          <p><strong>Per level:</strong> +2 Intelligence, +1% potion duration (via Brewer ability). <strong>At 60:</strong> +86 INT, +50% potion duration. A &ldquo;buy levels&rdquo; skill &mdash; brew potions with purchased materials.</p>
+
+          <h3>Best Brewing Methods</h3>
+          <table>
+            <thead><tr><th>Ingredient</th><th>Potion</th><th>XP/Potion</th><th>Cost Efficiency</th><th>Notes</th></tr></thead>
+            <tbody>
+              <tr><td><strong>Enchanted Sugar Cane</strong></td><td>Speed</td><td>~15,000</td><td>Best overall</td><td>Fastest to 50 (~9.5 hrs non-stop). Farmable</td></tr>
+              <tr><td>Enchanted Sugar</td><td>Strength</td><td>~360</td><td>Moderate</td><td>Potions sell well on Bazaar</td></tr>
+              <tr><td>Enchanted Melon</td><td>Regen</td><td>~300</td><td>Best budget</td><td>0.97 XP per coin. Best for limited budget</td></tr>
+              <tr><td>Enchanted Blaze Rod</td><td>Strength</td><td>Very high</td><td>Expensive</td><td>Only if coins are unlimited</td></tr>
+            </tbody>
+          </table>
+          <p><strong>Tips:</strong> Use Cheap/Decent Coffee as a base instead of Awkward Potions (same XP, faster). Set up an autobrew farm (~19 Brewing Stands) for continuous collection. Stack Alchemy Wisdom (Booster Cookie + God Pot) before bulk brewing sessions.</p>
+          <p><strong>Estimated time to 50:</strong> 5&ndash;10 hours. One of the easiest and fastest skills to max.</p>
         </div>
 
+        <!-- ===== TAMING ===== -->
         <div data-tab="Taming">
           <h2>Taming (Cap 60)</h2>
-          <p><strong>Per level:</strong> +1 Pet Luck, +1% Pet XP gain. Default cap 50, raised to 60 by donating specific pets to George (consumed permanently).</p>
-          <p><strong>Key milestone:</strong> Taming 25 unlocks Mythic pet upgrades at Kat. Taming XP comes passively from pet XP &mdash; keep a pet active at all times.</p>
-          <p><strong>Kat level gates:</strong> Rare&rarr;Epic = Taming 10, Epic&rarr;Legendary = Taming 20, Legendary&rarr;Mythic = Taming 25.</p>
+          <p><strong>Per level:</strong> +1 Pet Luck, +1% Pet XP gain (via Zoologist ability). <strong>At 60:</strong> +60 Pet Luck, +60% Pet XP. Default cap 50 &mdash; raised to 60 by donating 10 specific pets to George (consumed permanently).</p>
+
+          <h3>How It Works</h3>
+          <p>Taming XP is earned passively from <strong>any Skill XP gained while a pet is active</strong>. Keep a pet equipped at all times. XP rate varies by pet type &mdash; matching the pet to the skill being trained is most efficient (Combat pet while fighting, Mining pet while mining, etc.).</p>
+
+          <h3>Kat Upgrade Level Gates</h3>
+          <table>
+            <thead><tr><th>Upgrade</th><th>Required Taming Level</th></tr></thead>
+            <tbody>
+              <tr><td>Rare &rarr; Epic</td><td>Taming 10</td></tr>
+              <tr><td>Epic &rarr; Legendary</td><td>Taming 20</td></tr>
+              <tr><td>Legendary &rarr; Mythic</td><td>Taming 25</td></tr>
+            </tbody>
+          </table>
+
+          <h3>Cap Raise &mdash; George&rsquo;s Trades</h3>
+          <p>Donate these 10 pets (any rarity at or above their base, <strong>not returned</strong>): Rift Ferret, Slug, Spirit, Giraffe, Jellyfish, Bal, Baby Yeti, Black Cat, Frost Wisp, Enderman. Use Level 1 cheapest versions to minimize cost.</p>
+
+          <h3>Progression Path</h3>
+          <ol>
+            <li><strong>Level 1&ndash;10:</strong> Keep any pet active. Earn passively through dungeons (fastest Taming XP source) or combat</li>
+            <li><strong>Level 10&ndash;25:</strong> Unlock Epic pet upgrades via Kat. Mix dungeons + slayers. Farm materials for Kat upgrades</li>
+            <li><strong>Level 25&ndash;50:</strong> Mythic pet upgrades unlocked. Dedicated dungeon grinding is fastest path</li>
+            <li><strong>Level 50&ndash;60:</strong> George trades to unlock cap. Continue dungeons for cosmetic levels</li>
+          </ol>
+          <p><strong>Key insight:</strong> Taming levels passively alongside whatever else you&rsquo;re doing. The only active decision is keeping a pet equipped and choosing pets that match your current activity. Estimated 20&ndash;40 hours to 50.</p>
         </div>
 
+        <!-- ===== CARPENTRY ===== -->
         <div data-tab="Carpentry">
           <h2>Carpentry (Cap 60)</h2>
-          <p><strong>Per level:</strong> +1 HP. XP = 3% of combined NPC sell price of ingredients. Most vanilla recipes do NOT give Carpentry XP &mdash; use SkyBlock recipes. Quick Crafting unlocks at Carpentry 3 (VIP+ rank required).</p>
+          <p><strong>Per level:</strong> +1 HP. XP formula: <strong>3% of the combined NPC sell price</strong> of ingredients used. Only <strong>SkyBlock-specific recipes</strong> grant XP &mdash; vanilla Minecraft crafts (sticks, planks, etc.) give nothing.</p>
+
+          <h3>Leveling Methods</h3>
+          <ul>
+            <li><strong>Power Scroll crafting</strong> &mdash; Best ROI. Grants Carpentry XP and the scrolls sell on AH for profit</li>
+            <li><strong>Tier-up crafts</strong> &mdash; Items that increase rarity (Perfect Armor pieces, Griffin Upgrade Stones) give high XP</li>
+            <li><strong>Calculators</strong> &mdash; Use community XP calculators to find the best XP/coin recipes at current Bazaar prices</li>
+          </ul>
+
+          <h3>Key Unlocks</h3>
+          <ul>
+            <li><strong>Carpentry 3:</strong> Quick Crafting (instantly craft with inventory materials, no animation)</li>
+            <li><strong>Furniture recipes:</strong> Unlock cosmetic Private Island furniture at various levels</li>
+          </ul>
+          <p><strong>Estimated time to 50:</strong> 10&ndash;20 hours. Very easy skill. No specialized gear needed &mdash; just a Carpentry Table (trade 64 Wool to the Carpenter NPC) and materials. Must use the Carpentry Table, not the 2&times;2 inventory grid.</p>
         </div>
 
+        <!-- ===== RUNECRAFTING ===== -->
         <div data-tab="Runecrafting">
           <h2>Runecrafting (Cap 25, Cosmetic)</h2>
-          <p>Does NOT count toward Skill Average. Leveled by killing Runic mobs and fusing runes. Unranked players capped at level 3. Low priority &mdash; level passively through normal mob grinding.</p>
+          <p>Does NOT count toward Skill Average. Leveled by killing Runic mobs (50% chance for rune drops) and fusing runes at the Runic Pedestal. Unranked players are capped at level 3 &mdash; higher ranks raise the cap (VIP 1.1x, VIP+ 1.25x, MVP 1.5x, MVP+ 2x, MVP++ 3x XP multiplier).</p>
+          <p><strong>Priority:</strong> Very low. Levels passively through normal mob grinding. No meaningful stat rewards. Don&rsquo;t actively grind this.</p>
         </div>
 
+        <!-- ===== SOCIAL ===== -->
         <div data-tab="Social">
           <h2>Social (Cap 25, Cosmetic)</h2>
           <p>Does NOT count toward Skill Average. Leveled by island visits: 10 XP per unique guest, 2 XP/min with guests present, 1 XP/min visiting others. Very passive &mdash; levels slowly through normal gameplay.</p>
+          <p><strong>Priority:</strong> Very low. No meaningful stat rewards. Will level naturally over time without any active effort.</p>
         </div>
 
+        <!-- ===== DUNGEONEERING ===== -->
         <div data-tab="Dungeoneering">
           <h2>Dungeoneering (Cap 50)</h2>
-          <p>Also called Catacombs level. Leveled by completing dungeon floors &mdash; higher floors give more XP. Cata level determines dungeon stat scaling and gear requirements. Each class also has its own level.</p>
+          <p>Also called Catacombs level. Leveled by completing dungeon floors &mdash; higher floors give more XP. Your Cata level determines the <strong>dungeon stat multiplier</strong> applied to gear inside The Catacombs (465% at Cata 50). This multiplier ONLY works inside dungeons &mdash; dungeon gear has no bonus outside.</p>
+
+          <h3>5 Classes</h3>
+          <p>Each class has its own separate level and unique abilities:</p>
+          <table>
+            <thead><tr><th>Class</th><th>Role</th><th>Key Perks (at 25)</th></tr></thead>
+            <tbody>
+              <tr><td><strong>Healer</strong></td><td>Support, shields, revives</td><td>+25% Renew Healing, Healing Circle, -25s Revive CD</td></tr>
+              <tr><td><strong>Mage</strong></td><td>Ranged magic DPS</td><td>+75 INT, +12% Cooldown Reduction, Guided Sheep/Fireball</td></tr>
+              <tr><td><strong>Berserker</strong></td><td>Melee DPS</td><td>+10% Melee Damage, Bloodlust, Throwing Axe, Ragnarok</td></tr>
+              <tr><td><strong>Archer</strong></td><td>Ranged physical DPS</td><td>+25 Extra Arrow Chance, +20% Arrow Damage, Bouncy/Explosive arrows</td></tr>
+              <tr><td><strong>Tank</strong></td><td>Defense, absorption</td><td>+25 DEF, +5% Total Defense, Seismic Wave, Absorption shields</td></tr>
+            </tbody>
+          </table>
+
+          <h3>XP Scaling</h3>
+          <p>Dungeoneering XP scales exponentially. The grind from 40&ndash;50 dwarfs everything before it:</p>
+          <table>
+            <thead><tr><th>Level</th><th>Cumulative XP</th><th>Milestone</th></tr></thead>
+            <tbody>
+              <tr><td>10</td><td>4,385</td><td>Floor access opens up</td></tr>
+              <tr><td>20</td><td>135,640</td><td>Mid-tier dungeon content</td></tr>
+              <tr><td>30</td><td>3,084,640</td><td>F6&ndash;F7 farming range</td></tr>
+              <tr><td>40</td><td>51,559,640</td><td>Serious endgame</td></tr>
+              <tr><td>50</td><td>868,059,640</td><td>Max stat multiplier (465%)</td></tr>
+            </tbody>
+          </table>
+          <p>Beyond 50, cosmetic levels continue (every ~200M XP). Server record: Cata 140.</p>
+
+          <h3>Progression Path</h3>
+          <ol>
+            <li><strong>Cata 1&ndash;14:</strong> Floors 1&ndash;3. Build starter gear, try all 5 classes to find your preference. Don&rsquo;t linger on F4 (&ldquo;F4 is rough&rdquo;)</li>
+            <li><strong>Cata 14&ndash;24:</strong> Farm F5 consistently. Specialize in 1&ndash;2 classes. Start acquiring mid-tier dungeon gear</li>
+            <li><strong>Cata 24+:</strong> Unlock and farm F7. This is the endgame &mdash; best XP/hr, best drops (Necron Armor, Hyperion, Giant&rsquo;s Sword). Single-class optimization</li>
+          </ol>
+
+          <div class="callout tip">
+            <div class="callout-title">Key Gear Gates</div>
+            <p>Cata 12: Young Dragon dungeonization. Cata 14: Strong Dragon + F5 access. Cata 23: Hyperion equip. Cata 24: Full Necron + F7 unlock. <strong>Non-dungeonized armor gets ZERO stat scaling inside dungeons.</strong></p>
+          </div>
         </div>
 
+        <!-- ===== HUNTING ===== -->
         <div data-tab="Hunting">
           <h2>Hunting (Cap 25)</h2>
-          <p>Added June 2025. <strong>Not cosmetic</strong> &mdash; grants Hunter Fortune and charm chance. Uses the standard XP table.</p>
-          <p>Three hunting styles: Forest (Abysmal Lasso), Water (Fishing Net), Combat (Worn Huntaxe + Pocket Black Hole). XP from shards: Common 75, Uncommon 150, Rare 300, Epic 500, Legendary 1,000.</p>
+          <p>Added June 2025. <strong>Not cosmetic</strong> &mdash; grants +1 Hunter Fortune per level. Located on <strong>Galatea</strong> (requires Foraging 12 + SB Level 7). Uses the standard XP table.</p>
+
+          <h3>Three Hunting Styles</h3>
+          <table>
+            <thead><tr><th>Style</th><th>Equipment</th><th>Mechanic</th></tr></thead>
+            <tbody>
+              <tr><td><strong>Forest</strong></td><td>Abysmal Lasso (or better)</td><td>Cast lasso &rarr; deplete stamina bar &rarr; &ldquo;REEL&rdquo; appears &rarr; collect shard. Some mobs have multiple stamina bars</td></tr>
+              <tr><td><strong>Water</strong></td><td>Fishing Net (Basic or better)</td><td>Cast net &rarr; deplete creature health &rarr; collect shard. Damage scales with Pull stat</td></tr>
+              <tr><td><strong>Combat</strong></td><td>Worn Huntaxe + Pocket Black Hole</td><td>Insert any melee weapon into Huntaxe. Damage mob to ~1 HP &rarr; Pocket Black Hole captures shard. Most flexible (uses existing combat gear)</td></tr>
+            </tbody>
+          </table>
+
+          <h3>XP from Shards</h3>
+          <table>
+            <thead><tr><th>Rarity</th><th>Hunting XP</th></tr></thead>
+            <tbody>
+              <tr><td>Common</td><td>75</td></tr>
+              <tr><td>Uncommon</td><td>150</td></tr>
+              <tr><td>Rare</td><td>300</td></tr>
+              <tr><td>Epic</td><td>500</td></tr>
+              <tr><td>Legendary</td><td>1,000</td></tr>
+            </tbody>
+          </table>
+
+          <h3>Fastest Leveling: Bazaar Shard Fusion</h3>
+          <p>Buy cheap Common/Uncommon shards on the Bazaar and <strong>fuse them together</strong> for XP. This bypasses the time-gated hunting gameplay entirely and can reach level 25 in days instead of weeks. Syphoning shards also grants XP but at a much lower rate (~10 XP vs 75 XP for Common).</p>
+
+          <h3>Attributes &amp; Heart of the Forest</h3>
+          <p><strong>Attributes</strong> are permanent stat bonuses from captured shards (175+ types). They provide global stat increases (Strength, Crit Damage, Mining Speed, etc.) that affect all content. The <strong>Heart of the Forest</strong> is a perk tree (like HOTM for mining) where you spend Forest Whispers to unlock Hunting Fortune, Foraging Wisdom, Sweep bonuses, and other Galatea-specific multipliers.</p>
+
+          <h3>Additional Methods</h3>
+          <ul>
+            <li><strong>Salt Hunts:</strong> Equip a Salt consumable while hunting &rarr; ~5% chance to charm and capture extra shards</li>
+            <li><strong>Trap Hunts:</strong> Place Huntraps &rarr; passively capture 1&ndash;2 shards per day with no active input</li>
+            <li><strong>Collection milestones:</strong> Lushlilac T4, Tender Wood T8, Vinesap T8 grant bonus Hunting XP</li>
+          </ul>
+          <p><strong>Estimated time to 25:</strong> 3&ndash;7 hours (via Bazaar fusion). One of the fastest skills to max.</p>
         </div>
 
         <div class="callout tip" data-tab="Overview">
