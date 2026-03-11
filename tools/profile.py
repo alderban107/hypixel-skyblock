@@ -1416,6 +1416,23 @@ def parse_rarity_from_lore(lore):
     return cleaned if cleaned else None
 
 
+# Enchantments where the API internal ID differs from the current in-game display name.
+# These are renames/reworks where the API kept the old ID.
+ENCHANT_DISPLAY_NAMES = {
+    "dragon_hunter": "Gravity",       # Renamed July 31 2025, now affects Airborne mobs
+    "syphon": "Drain",                # Reworked + renamed, now scales with Crit Damage
+    "arcane": "Woodsplitter",         # Foraging enchant, internal ID is "arcane"
+    "ultimate_reiterate": "Duplex",   # Bow enchant
+}
+
+
+def _enchant_display_name(internal_name):
+    """Convert an internal enchantment ID to its in-game display name."""
+    if internal_name in ENCHANT_DISPLAY_NAMES:
+        return ENCHANT_DISPLAY_NAMES[internal_name]
+    return internal_name.replace('_', ' ').title()
+
+
 def format_item(item_info, detailed=True):
     """Format an item dict into a display string.
 
@@ -1445,7 +1462,7 @@ def format_item(item_info, detailed=True):
 
         enchants = item_info.get("enchants")
         if enchants:
-            enc_strs = [f"{k.replace('_', ' ').title()} {v}" for k, v in sorted(enchants.items())]
+            enc_strs = [f"{_enchant_display_name(k)} {v}" for k, v in sorted(enchants.items())]
             # Show up to 5 enchants inline, summarize rest
             if len(enc_strs) <= 5:
                 parts.append(f"[{', '.join(enc_strs)}]")
