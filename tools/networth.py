@@ -34,6 +34,12 @@ DATA_DIR = Path(__file__).parent.parent / "data"
 LAST_PROFILE_PATH = DATA_DIR / "last_profile.json"
 NEU_ITEMS_DIR = DATA_DIR / "neu-repo" / "items"
 ESSENCECOSTS_PATH = DATA_DIR / "neu-repo" / "constants" / "essencecosts.json"
+GEMSTONECOSTS_PATH = DATA_DIR / "neu-repo" / "constants" / "gemstonecosts.json"
+EXTERNAL_DIR = DATA_DIR / "external"
+ENCHANT_RULES_PATH = EXTERNAL_DIR / "enchant_rules.json"
+STACKING_ENCHANTS_PATH = EXTERNAL_DIR / "StackingEnchants.json"
+PRESTIGE_COSTS_PATH = EXTERNAL_DIR / "prestige_costs.json"
+GOOD_ROLLS_PATH = EXTERNAL_DIR / "AttributeGoodRolls.json"
 
 # ─── Application Worth Multipliers ────────────────────────────────────
 # How much of a modifier's market price counts toward item value.
@@ -199,6 +205,101 @@ def load_essence_costs():
         return {}
 
 
+def _load_json(path):
+    """Load a JSON file, returning {} on failure."""
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text())
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+
+# Lazy-loaded external data (module-level singletons)
+_enchant_rules = None
+_stacking_thresholds = None
+_prestige_costs = None
+_gemstone_costs = None
+_good_rolls = None
+
+
+def get_enchant_rules():
+    global _enchant_rules
+    if _enchant_rules is None:
+        _enchant_rules = _load_json(ENCHANT_RULES_PATH)
+    return _enchant_rules
+
+
+def get_stacking_thresholds():
+    global _stacking_thresholds
+    if _stacking_thresholds is None:
+        _stacking_thresholds = _load_json(STACKING_ENCHANTS_PATH)
+    return _stacking_thresholds
+
+
+def get_prestige_costs():
+    global _prestige_costs
+    if _prestige_costs is None:
+        _prestige_costs = _load_json(PRESTIGE_COSTS_PATH)
+    return _prestige_costs
+
+
+def get_gemstone_costs():
+    global _gemstone_costs
+    if _gemstone_costs is None:
+        _gemstone_costs = _load_json(GEMSTONECOSTS_PATH)
+    return _gemstone_costs
+
+
+def get_good_rolls():
+    global _good_rolls
+    if _good_rolls is None:
+        _good_rolls = _load_json(GOOD_ROLLS_PATH)
+    return _good_rolls
+
+
+# ─── Pet Level Estimation ─────────────────────────────────────────────
+
+# Cumulative XP thresholds per pet rarity to reach each level (1-100/200)
+# Simplified: use the standard XP curve. SkyHelper prices use level anchors
+# (LVL_1, LVL_100, LVL_200) so we just need approximate level.
+_PET_XP_TABLE = None
+
+
+def _estimate_pet_level(xp, rarity_num):
+    """Estimate pet level from XP. Returns level 1-100 (or 200 for Golden Dragon)."""
+    # Rarity offsets: Common starts at level 1 needing 0 XP
+    # Each rarity skips some early levels' worth of XP
+    # This is an approximation — SkyHelper uses specific level anchors anyway
+    rarity_offsets = {0: 0, 1: 6, 2: 11, 3: 16, 4: 20, 5: 20}
+    offset = rarity_offsets.get(rarity_num, 0)
+
+    # Approximate XP per level (grows roughly exponentially)
+    # Using simplified thresholds for level estimation
+    level = 1
+    cumulative = 0
+    for lvl in range(1, 201):
+        if lvl <= 10:
+            needed = 660 + lvl * 340
+        elif lvl <= 20:
+            needed = 2_000 + (lvl - 10) * 2_000
+        elif lvl <= 50:
+            needed = 20_000 + (lvl - 20) * 10_000
+        elif lvl <= 100:
+            needed = 300_000 + (lvl - 50) * 50_000
+        else:
+            needed = 3_000_000 + (lvl - 100) * 100_000
+
+        if lvl <= offset:
+            continue
+        cumulative += needed
+        if xp < cumulative:
+            break
+        level = lvl - offset + 1
+
+    return min(level, 200 if rarity_num == 5 else 100)
+
+
 # ─── Soulbound Detection ─────────────────────────────────────────────
 
 
@@ -337,21 +438,90 @@ def price_recombobulator(item, price_cache):
 
 
 def price_enchantments(item, price_cache):
-    """Price enchantments by looking up each enchanted book on AH."""
+    """Price enchantments with edge case handling.
+
+    Handles: always-active (skip), endcap (price via special item),
+    only_tier_one/five (use specific tier), stacking (value by counter level),
+    ignored (skip at threshold), per-enchant multiplier overrides.
+    """
     enchants = item.get("enchants", {})
     if not enchants:
         return 0, ""
 
+    rules = get_enchant_rules()
+    always_active = rules.get("always_active", {})
+    only_t1 = rules.get("only_tier_one_prices", [])
+    only_t5 = rules.get("only_tier_five_prices", [])
+    endcaps = rules.get("endcap_enchants", {})
+    ignored = rules.get("ignored_enchants", {})
+    multiplier_overrides = rules.get("enchant_multiplier_overrides", {})
+    stacking_list = rules.get("stacking_enchants", [])
+
+    item_id = item.get("id", "")
+
     total = 0
+    counted = 0
     for ench_name, level in enchants.items():
-        # Enchanted book ID format: ENCHANTMENT_{NAME}_{LEVEL}
-        book_id = f"ENCHANTMENT_{ench_name.upper()}_{level}"
+        ench_lower = ench_name.lower()
+        ench_upper = ench_name.upper()
+
+        # 1. Always-active: skip if this enchant comes free on this item
+        active_rule = always_active.get(ench_lower)
+        if active_rule:
+            if level <= active_rule.get("level", 0) and item_id in active_rule.get("items", []):
+                continue
+
+        # 2. Stacking enchants: don't price by book value (value comes from usage)
+        if ench_lower in stacking_list:
+            continue
+
+        # 3. Ignored enchants: skip at or above threshold
+        ignore_threshold = ignored.get(ench_upper)
+        if ignore_threshold is not None and level >= ignore_threshold:
+            continue
+
+        # 4. Endcap enchants: at max level, price via special item
+        endcap = endcaps.get(ench_lower)
+        if endcap and level >= endcap.get("required_level", 999):
+            endcap_item = endcap.get("endcap_item")
+            if endcap_item:
+                p = price_cache.weighted(endcap_item)
+                if p:
+                    mult = multiplier_overrides.get(ench_lower, MULTIPLIERS["enchantments"])
+                    total += p * mult
+                    counted += 1
+                continue
+
+        # 5. Only-tier-one: price at tier 1 regardless of actual level
+        if ench_lower in only_t1:
+            book_id = f"ENCHANTMENT_{ench_upper}_1"
+            p = price_cache.weighted(book_id)
+            if p:
+                mult = multiplier_overrides.get(ench_lower, MULTIPLIERS["enchantments"])
+                total += p * mult
+                counted += 1
+            continue
+
+        # 6. Only-tier-five: price at tier 5
+        if ench_lower in only_t5:
+            book_id = f"ENCHANTMENT_{ench_upper}_5"
+            p = price_cache.weighted(book_id)
+            if p:
+                mult = multiplier_overrides.get(ench_lower, MULTIPLIERS["enchantments"])
+                total += p * mult
+                counted += 1
+            continue
+
+        # 7. Standard: price the book at its actual level
+        book_id = f"ENCHANTMENT_{ench_upper}_{level}"
         p = price_cache.weighted(book_id)
         if p:
-            total += p * MULTIPLIERS["enchantments"]
+            mult = multiplier_overrides.get(ench_lower, MULTIPLIERS["enchantments"])
+            total += p * mult
+            counted += 1
 
     if total > 0:
-        return total, f"Enchants({len(enchants)}): {_fmt(total)}"
+        return total, f"Enchants({counted}): {_fmt(total)}"
     return 0, ""
 
 
@@ -552,6 +722,192 @@ def price_mana_disintegrator(item, price_cache):
     return value, f"Mana Disintegrator(×{count}): {_fmt(value)}"
 
 
+# ─── Phase 1 New Modifier Handlers ────────────────────────────────────
+
+
+def price_gemstone_slots(item, price_cache):
+    """Price gemstone slot unlock costs (Divan's, Crimson Isle armor).
+
+    Uses gemstonecosts.json to sum the material costs for unlocked slots.
+    """
+    gems = item.get("gems", {})
+    if not gems:
+        return 0, ""
+
+    item_id = item.get("id", "")
+    costs_data = get_gemstone_costs()
+    item_costs = costs_data.get(item_id, {})
+    if not item_costs:
+        return 0, ""
+
+    # Determine which slots are unlocked by checking which slots have data
+    total = 0
+    unlocked_count = 0
+    for slot_key in gems:
+        if slot_key.endswith("_gem"):
+            continue
+        # Find matching cost entry (e.g., "COMBAT_0" matches costs key)
+        slot_cost = item_costs.get(slot_key, [])
+        if not slot_cost:
+            continue
+        slot_value = 0
+        for cost_entry in slot_cost:
+            if isinstance(cost_entry, str) and ":" in cost_entry:
+                mat_id, qty_str = cost_entry.rsplit(":", 1)
+                try:
+                    qty = int(qty_str)
+                except ValueError:
+                    continue
+                if mat_id == "SKYBLOCK_COIN":
+                    slot_value += qty
+                else:
+                    p = price_cache.weighted(mat_id)
+                    if p:
+                        slot_value += p * qty
+        if slot_value > 0:
+            total += slot_value
+            unlocked_count += 1
+
+    if total > 0:
+        # Use 0.8x multiplier — slots are expensive to unlock, partially recoverable
+        value = total * 0.8
+        return value, f"Gem Slots(×{unlocked_count}): {_fmt(value)}"
+    return 0, ""
+
+
+def price_prestige(item, price_cache):
+    """Price Kuudra/Crimson prestige upgrade chain.
+
+    Detects prestige tier from item ID prefix (HOT_, BURNING_, FIERY_, INFERNAL_)
+    and sums the material costs for each tier applied.
+    """
+    item_id = item.get("id", "")
+    prestige_data = get_prestige_costs()
+    if not prestige_data:
+        return 0, ""
+
+    tier_order = prestige_data.get("tier_order", [])
+    armor_sets = prestige_data.get("armor_sets", [])
+    costs = prestige_data.get("costs", {})
+
+    # Check if this item is a prestiged crimson armor piece
+    item_tier = None
+    for tier in tier_order:
+        if item_id.startswith(f"{tier}_"):
+            item_tier = tier
+            break
+
+    if not item_tier:
+        return 0, ""
+
+    # Verify it's from a valid armor set
+    remainder = item_id[len(item_tier) + 1:]  # e.g., "CRIMSON_CHESTPLATE"
+    valid = False
+    for armor_set in armor_sets:
+        if remainder.startswith(armor_set + "_"):
+            valid = True
+            break
+    if not valid:
+        return 0, ""
+
+    # Sum costs for all tiers up to and including this one
+    total = 0
+    for tier in tier_order:
+        tier_costs = costs.get(tier, {})
+        for mat_id, qty in tier_costs.items():
+            if mat_id == "SKYBLOCK_COIN":
+                total += qty
+            elif mat_id == "CRIMSON_ESSENCE":
+                p = price_cache.weighted("ESSENCE_CRIMSON") or 0
+                total += p * qty
+            else:
+                p = price_cache.weighted(mat_id)
+                if p:
+                    total += p * qty
+                else:
+                    # Try override price (e.g., HEAVY_PEARL, KUUDRA_TEETH)
+                    override = price_cache.get_override_price(mat_id)
+                    if override:
+                        total += override * qty
+        if tier == item_tier:
+            break
+
+    if total > 0:
+        return total, f"Prestige({item_tier.title()}): {_fmt(total)}"
+    return 0, ""
+
+
+def price_enrichment(item, price_cache):
+    """Price talisman enrichment (0.5× — applied to accessories)."""
+    enrichment = item.get("talisman_enrichment")
+    if not enrichment:
+        return 0, ""
+    # All enrichments have similar prices; use the specific one if available
+    enrich_id = f"TALISMAN_ENRICHMENT_{enrichment.upper()}"
+    p = price_cache.weighted(enrich_id)
+    if not p:
+        # Try generic "cheapest enrichment" approach — use attack speed as baseline
+        p = price_cache.weighted("TALISMAN_ENRICHMENT_ATTACK_SPEED")
+    if not p:
+        return 0, ""
+    value = p * 0.5
+    return value, f"Enrichment({enrichment.replace('_', ' ').title()}): {_fmt(value)}"
+
+
+def price_jalapeno_book(item, price_cache):
+    """Price Jalapeno Book (0.8×)."""
+    count = item.get("jalapeno_count", 0)
+    if not count:
+        return 0, ""
+    p = price_cache.weighted("JALAPENO_BOOK")
+    if not p:
+        return 0, ""
+    value = count * p * 0.8
+    return value, f"Jalapeño(×{count}): {_fmt(value)}"
+
+
+def price_polarvoid_book(item, price_cache):
+    """Price Polarvoid Book (1.0×)."""
+    count = item.get("polarvoid", 0)
+    if not count:
+        return 0, ""
+    p = price_cache.weighted("POLARVOID_BOOK")
+    if not p:
+        return 0, ""
+    value = count * p * 1.0
+    return value, f"Polarvoid(×{count}): {_fmt(value)}"
+
+
+def price_runes(item, price_cache):
+    """Price applied runes (0.6× — cosmetic but tradeable)."""
+    runes = item.get("rune")
+    if not runes or not isinstance(runes, dict):
+        return 0, ""
+    total = 0
+    for rune_type, rune_level in runes.items():
+        rune_id = f"RUNE_{rune_type.upper()}_{rune_level}"
+        p = price_cache.weighted(rune_id)
+        if p:
+            total += p * 0.6
+    if total > 0:
+        return total, f"Rune: {_fmt(total)}"
+    return 0, ""
+
+
+def price_midas(item, price_cache):
+    """Price Midas weapons based on winning bid amount."""
+    item_id = item.get("id", "")
+    if "MIDAS" not in item_id:
+        return 0, ""
+    bid = item.get("winning_bid", 0)
+    if not bid:
+        return 0, ""
+    # Midas items have value based on the coins paid at Dark Auction
+    # The bid amount IS the base value (replaces normal base price)
+    # We return 0 here since the bid affects base price, handled in price_single_item
+    return 0, ""
+
+
 # All modifier pricing functions
 MODIFIER_PRICERS = [
     price_stars,        # needs essence_costs arg
@@ -561,6 +917,7 @@ MODIFIER_PRICERS = [
     price_enchantments,
     price_reforge,
     price_gemstones,
+    price_gemstone_slots,  # Phase 1: slot unlock costs
     price_scrolls,
     price_art_of_war,
     price_art_of_peace,
@@ -571,6 +928,11 @@ MODIFIER_PRICERS = [
     price_etherwarp,
     price_transmission_tuners,
     price_mana_disintegrator,
+    price_prestige,        # Phase 1: Kuudra prestige chain
+    price_enrichment,      # Phase 1: talisman enrichment
+    price_jalapeno_book,   # Phase 1
+    price_polarvoid_book,  # Phase 1
+    price_runes,           # Phase 1
 ]
 
 
@@ -637,9 +999,12 @@ def calculate_recursive_craft_cost(item_id, price_cache, recipes=None, visited=N
 def price_single_item(item, price_cache, essence_costs, recipes=None, no_cosmetic=False):
     """Price a single item with base value + modifiers.
 
+    Uses variant-aware pricing (SkyHelper) for attribute rolls, skins,
+    shiny items, and editioned items. Falls back to standard pricing.
+
     Returns dict with:
         id, name, base_value, modifier_value, total_value, soulbound,
-        cosmetic, breakdown, source, count
+        cosmetic, breakdown, source, count, variant_key, good_roll
     """
     item_id = item.get("id", "")
     if not item_id:
@@ -658,31 +1023,56 @@ def price_single_item(item, price_cache, essence_costs, recipes=None, no_cosmeti
             "base_value": 0, "modifier_value": 0, "total_value": 0,
             "soulbound": soulbound, "cosmetic": True,
             "breakdown": [], "source": "excluded", "count": count,
+            "variant_key": None, "good_roll": None,
         }
 
-    # Get base item price
+    # Get base item price — try variant pricing first
     base_value = 0
     source = "unknown"
+    variant_key = None
+    good_roll = None
 
-    if soulbound:
+    # Check for Midas weapon special pricing
+    if "MIDAS" in item_id:
+        bid = item.get("winning_bid", 0)
+        if bid and bid > 0:
+            base_value = bid
+            source = "midas_bid"
+
+    if base_value == 0:
+        # Try variant pricing (attribute rolls, skins, shiny, editioned)
+        variant_price, vk = price_cache.variant_price(item_id, item)
+        if vk:
+            base_value = variant_price
+            source = "skyhelper_variant"
+            variant_key = vk
+        elif variant_price:
+            base_value = variant_price
+            pi = price_cache.get_price(item_id)
+            source = pi.get("source", "unknown")
+
+    if base_value == 0 and soulbound:
         # Try craft cost for soulbound items
         craft_cost = calculate_recursive_craft_cost(item_id, price_cache, recipes)
         if craft_cost is not None:
             base_value = craft_cost
             source = "craft_cost"
         else:
-            # Fallback: try market price anyway (some soulbound items have
-            # tradeable versions, gives a reference value)
             p = price_cache.weighted(item_id)
             if p:
                 base_value = p
                 source = "market_ref"
-    else:
+    elif base_value == 0:
         p = price_cache.weighted(item_id)
         if p:
             base_value = p
             pi = price_cache.get_price(item_id)
             source = pi.get("source", "unknown")
+
+    # Check for good attribute rolls (informational)
+    attributes = item.get("attributes")
+    if attributes and isinstance(attributes, dict) and len(attributes) >= 2:
+        good_roll = _check_good_roll(item_id, attributes)
 
     # Price modifiers
     modifier_value, breakdown = price_item_modifiers(item, price_cache, essence_costs)
@@ -700,7 +1090,42 @@ def price_single_item(item, price_cache, essence_costs, recipes=None, no_cosmeti
         "breakdown": breakdown,
         "source": source,
         "count": count,
+        "variant_key": variant_key,
+        "good_roll": good_roll,
     }
+
+
+def _check_good_roll(item_id, attributes):
+    """Check if an item's attribute combo is a 'good roll' per SkyHanni data.
+
+    Returns a short description string if good, or None.
+    """
+    good_rolls_data = get_good_rolls()
+    if not good_rolls_data:
+        return None
+
+    sorted_attrs = sorted(attributes.keys())
+    attr_pair = tuple(sorted_attrs[:2])
+
+    # AttributeGoodRolls.json maps display name patterns to good combos
+    # We need to match item_id against the patterns
+    for pattern_name, roll_data in good_rolls_data.items():
+        if not isinstance(roll_data, dict):
+            continue
+        # Check regex patterns against item_id
+        for regex_pattern, combos in roll_data.items():
+            try:
+                if re.match(regex_pattern, item_id):
+                    for combo in combos:
+                        if isinstance(combo, list) and len(combo) >= 2:
+                            combo_sorted = tuple(sorted(c.lower() for c in combo))
+                            attr_sorted = tuple(a.lower() for a in attr_pair)
+                            if combo_sorted == attr_sorted:
+                                nice_names = [a.replace("_", " ").title() for a in attr_pair]
+                                return f"{nice_names[0]}+{nice_names[1]}"
+            except re.error:
+                continue
+    return None
 
 
 # ─── Inventory Extraction ────────────────────────────────────────────
@@ -786,13 +1211,18 @@ def extract_all_items(member, profile, raw_data):
             rarity = pet.get("tier", "")
             rarity_num = RARITY_NUM.get(rarity.lower(), -1)
             if pet_type and rarity_num >= 0:
+                # Calculate pet level from XP (approximate — SkyHelper uses specific anchors)
+                pet_xp = pet.get("exp", 0)
+                pet_level = _estimate_pet_level(pet_xp, rarity_num)
                 pet_item = {
                     "id": f"{pet_type};{rarity_num}",
                     "count": 1,
                     "pet_held_item": pet.get("heldItem"),
                     "pet_candy_used": pet.get("candyUsed", 0),
                     "pet_active": pet.get("active", False),
-                    "lore": [],  # pets don't have lore in this format
+                    "pet_level": pet_level,
+                    "skin": pet.get("skin"),
+                    "lore": [],
                 }
                 pet_items.append(pet_item)
         if pet_items:
@@ -816,9 +1246,51 @@ def extract_all_items(member, profile, raw_data):
 
 
 def price_pet_item(item, price_cache):
-    """Price a pet with its held item and candy. Returns priced item dict."""
+    """Price a pet with its held item and candy.
+
+    Tries SkyHelper pet-level pricing first (e.g., LVL_100_LEGENDARY_RABBIT),
+    falls back to Moulberry LBIN for the base pet ID.
+    """
     item_id = item.get("id", "")
-    base = price_cache.weighted(item_id) or 0
+    base = 0
+    source = "unknown"
+    variant_key = None
+
+    # Try SkyHelper level-specific pricing
+    if ";" in item_id:
+        pet_type, rarity_str = item_id.split(";", 1)
+        try:
+            rarity_num = int(rarity_str)
+        except ValueError:
+            rarity_num = -1
+
+        pet_level = item.get("pet_level")
+        pet_skin = item.get("skin")
+
+        # Try level+skin, then level only, then base
+        if pet_level is not None and rarity_num >= 0:
+            rarity_name = RARITY_NAME.get(rarity_num, "")
+            if pet_skin:
+                skin_key = f"LVL_{pet_level}_{rarity_name}_{pet_type}_SKINNED_{pet_skin}"
+                sh = price_cache.get_skyhelper_price(skin_key)
+                if sh and sh > 0:
+                    base = sh
+                    source = "skyhelper_variant"
+                    variant_key = skin_key
+
+            if base == 0:
+                lvl_key = f"LVL_{pet_level}_{rarity_name}_{pet_type}"
+                sh = price_cache.get_skyhelper_price(lvl_key)
+                if sh and sh > 0:
+                    base = sh
+                    source = "skyhelper_variant"
+                    variant_key = lvl_key
+
+    if base == 0:
+        base = price_cache.weighted(item_id) or 0
+        if base > 0:
+            pi = price_cache.get_price(item_id)
+            source = pi.get("source", "unknown")
 
     modifier_value = 0
     breakdown = []
@@ -841,10 +1313,17 @@ def price_pet_item(item, price_cache):
             modifier_value += val
             breakdown.append(f"Candy(×{candy}): {_fmt(val)}")
 
-    total = base + modifier_value
+    # Pet skin (if not already priced via variant key)
+    skin = item.get("skin")
+    if skin and not variant_key:
+        skin_id = f"PET_SKIN_{skin}"
+        p = price_cache.weighted(skin_id)
+        if p:
+            val = p * MULTIPLIERS.get("pet_skin", 0.9)
+            modifier_value += val
+            breakdown.append(f"Skin: {_fmt(val)}")
 
-    pi = price_cache.get_price(item_id)
-    source = pi.get("source", "unknown") if base > 0 else "unknown"
+    total = base + modifier_value
 
     return {
         "id": item_id,
@@ -857,6 +1336,8 @@ def price_pet_item(item, price_cache):
         "breakdown": breakdown,
         "source": source,
         "count": 1,
+        "variant_key": variant_key,
+        "good_roll": None,
     }
 
 
@@ -1084,6 +1565,12 @@ def print_networth(result, player_name, top_n=10, category_filter=None,
                 bd_str = " | ".join(item["breakdown"])
                 base_str = f"Base: {_fmt(item['base_value'])}"
                 print(f"         {base_str} | {bd_str}")
+
+            # Show variant pricing and good roll info
+            if item.get("variant_key"):
+                print(f"         Variant: {item['variant_key']}")
+            if item.get("good_roll"):
+                print(f"         ✓ Good roll: {item['good_roll']}")
 
         print()
 

@@ -25,10 +25,15 @@ BAZAAR_URL = "https://api.hypixel.net/v2/skyblock/bazaar"
 MOULBERRY_LBIN_URL = "https://moulberry.codes/lowestbin.json"
 MOULBERRY_AVG_LBIN_URL = "https://moulberry.codes/auction_averages_lbin/3day.json"
 MOULBERRY_AVG_URL = "https://moulberry.codes/auction_averages/3day.json"
+SKYHELPER_PRICES_URL = "https://raw.githubusercontent.com/SkyHelperBot/Prices/main/pricesV2.json"
 
 BAZAAR_TTL = 300       # 5 minutes
 MOULBERRY_TTL = 300    # 5 minutes
+SKYHELPER_TTL = 600    # 10 minutes
 MOULBERRY_EVICT = 3600 # 1 hour — drop stale bulk data on load
+
+EXTERNAL_DIR = DATA_DIR / "external"
+PRICE_OVERRIDES_PATH = EXTERNAL_DIR / "PriceOverrides.json"
 
 # Pet rarity name → numeric ID used in pet item IDs (e.g., RABBIT;4 = legendary)
 RARITY_NUM = {
@@ -58,7 +63,15 @@ def _fmt(n):
 
 
 class PriceCache:
-    """Fetches and caches SkyBlock item prices."""
+    """Fetches and caches SkyBlock item prices.
+
+    Price resolution order:
+    1. SkyHelper variant price (attribute rolls, skins, shiny, editioned, pet level)
+    2. Bazaar weighted average
+    3. Moulberry LBIN / avg_lbin_3d
+    4. PriceOverrides (NPC prices, manual overrides for untradeable items)
+    5. Craft cost (handled externally by networth.py)
+    """
 
     def __init__(self):
         self._bazaar = {}       # item_id -> {buy, sell, buy_volume, sell_volume, ts}
@@ -68,6 +81,11 @@ class PriceCache:
         self._moulberry_avg_lbin = {}   # item_id -> price
         self._moulberry_avg = {}        # item_id -> {price, count, sales, ...}
         self._moulberry_fetched = 0
+        # SkyHelper prices (variant-aware: attribute rolls, skins, pets by level)
+        self._skyhelper = {}            # variant_key -> price
+        self._skyhelper_fetched = 0
+        # PriceOverrides (NPC prices, manual overrides)
+        self._price_overrides = None    # lazy loaded from disk
         self._dirty = False
         self._name_to_bz_id = None  # lazy: display name -> bazaar product ID
         self._load_cache()
@@ -90,6 +108,13 @@ class PriceCache:
                 self._moulberry_fetched = mb.get("ts", 0)
             elif mb:
                 self._dirty = True  # will save cleaned cache on next flush
+            # Load SkyHelper data, evicting if stale
+            sh = data.get("skyhelper", {})
+            if sh and now - sh.get("ts", 0) < MOULBERRY_EVICT:
+                self._skyhelper = sh.get("prices", {})
+                self._skyhelper_fetched = sh.get("ts", 0)
+            elif sh:
+                self._dirty = True
         except (json.JSONDecodeError, KeyError):
             pass
 
@@ -109,6 +134,10 @@ class PriceCache:
                 "avg_lbin": self._moulberry_avg_lbin,
                 "auction_averages": self._moulberry_avg,
                 "ts": self._moulberry_fetched,
+            },
+            "skyhelper": {
+                "prices": self._skyhelper,
+                "ts": self._skyhelper_fetched,
             },
         }
         try:
@@ -178,6 +207,101 @@ class PriceCache:
 
         self._moulberry_fetched = now
         self._dirty = True
+
+    def _fetch_skyhelper(self):
+        """Fetch SkyHelper variant-aware prices (attribute rolls, skins, pets by level)."""
+        now = time.time()
+        if now - self._skyhelper_fetched < SKYHELPER_TTL:
+            return
+
+        try:
+            req = Request(SKYHELPER_PRICES_URL, headers={"User-Agent": "SkyblockTools/1.0"})
+            with urlopen(req, timeout=30) as resp:
+                self._skyhelper = json.loads(resp.read())
+            self._skyhelper_fetched = now
+            self._dirty = True
+        except (HTTPError, URLError, OSError) as e:
+            print(f"  [SkyHelper prices error: {e}]", file=sys.stderr)
+
+    def _load_price_overrides(self):
+        """Load NPC/manual price overrides from disk (lazy, once).
+
+        PriceOverrides.json has two sections:
+        - "manual": manually set prices (e.g., KUUDRA_TEETH=10K, HEAVY_PEARL=10K)
+        - "automatic": NPC sell prices for vanilla items (DIAMOND=8, GOLD_INGOT=4)
+        """
+        if self._price_overrides is not None:
+            return
+        self._price_overrides = {}
+        if PRICE_OVERRIDES_PATH.exists():
+            try:
+                data = json.loads(PRICE_OVERRIDES_PATH.read_text())
+                for section_name in ("manual", "automatic"):
+                    section = data.get(section_name, {})
+                    if isinstance(section, dict):
+                        for item_id, price in section.items():
+                            if isinstance(price, (int, float)) and price > 0:
+                                self._price_overrides[item_id] = price
+            except (json.JSONDecodeError, OSError):
+                pass
+
+    def get_override_price(self, item_id):
+        """Get NPC/manual override price for an item. Returns price or None."""
+        self._load_price_overrides()
+        return self._price_overrides.get(item_id)
+
+    def get_skyhelper_price(self, variant_key):
+        """Get SkyHelper variant price. Returns price or None."""
+        self._fetch_skyhelper()
+        return self._skyhelper.get(variant_key)
+
+    @staticmethod
+    def build_variant_key(item_id, item_nbt=None):
+        """Build a SkyHelper variant key from item ID and NBT data.
+
+        Checks for attribute rolls, skins, shiny flag, and edition.
+        Returns the most specific variant key, or None if no variant applies.
+        """
+        if not item_nbt:
+            return None
+
+        keys = []
+
+        # Attribute rolls (Kuudra gear): ITEM_ROLL_ATTR1_ROLL_ATTR2
+        attributes = item_nbt.get("attributes")
+        if attributes and isinstance(attributes, dict) and len(attributes) >= 2:
+            # Sort attributes alphabetically for consistent key
+            sorted_attrs = sorted(attributes.keys())
+            roll_suffix = "_".join(f"ROLL_{a.upper()}" for a in sorted_attrs[:2])
+            keys.append(f"{item_id}_{roll_suffix}")
+
+        # Skinned: ITEM_SKINNED_SKINNAME
+        skin = item_nbt.get("skin")
+        if skin:
+            keys.append(f"{item_id}_SKINNED_{skin}")
+
+        # Shiny: ITEM_SHINY
+        if item_nbt.get("is_shiny"):
+            keys.append(f"{item_id}_SHINY")
+
+        # Editioned: ITEM_EDITIONED
+        if item_nbt.get("edition") is not None:
+            keys.append(f"{item_id}_EDITIONED")
+
+        return keys if keys else None
+
+    @staticmethod
+    def build_pet_variant_key(pet_type, rarity_num, level=None):
+        """Build SkyHelper pet variant key with level.
+
+        Returns keys like LVL_100_LEGENDARY_RABBIT.
+        """
+        rarity_name = RARITY_NAME.get(rarity_num, "").upper()
+        if not rarity_name:
+            return None
+        if level is not None:
+            return f"LVL_{level}_{rarity_name}_{pet_type}"
+        return None
 
     def _resolve_bazaar_id(self, item_id):
         """Resolve an item ID to its Bazaar product ID.
@@ -271,6 +395,17 @@ class PriceCache:
                 "sell_volume": None,
             }
 
+        # Fall back to PriceOverrides (NPC prices, manual overrides)
+        override = self.get_override_price(item_id)
+        if override is not None and override > 0:
+            return {
+                "source": "override",
+                "buy": None, "sell": None,
+                "lowest_bin": int(override),
+                "avg_bin": None, "sales_day": None,
+                "buy_volume": None, "sell_volume": None,
+            }
+
         return {"source": "unknown", "buy": None, "sell": None,
                 "lowest_bin": None, "avg_bin": None, "sales_day": None,
                 "buy_volume": None, "sell_volume": None}
@@ -291,6 +426,8 @@ class PriceCache:
             if p.get("sales_day") is not None:
                 parts.append(f"{p['sales_day']:.0f}/day")
             return "  ".join(parts)
+        if p["source"] == "override":
+            return f"NPC/Override: {_fmt(p['lowest_bin'])}"
         return "No price data"
 
     def weighted(self, item_id):
@@ -300,6 +437,7 @@ class PriceCache:
             weighted = (buy_price × buy_volume + sell_price × sell_volume)
                        / (buy_volume + sell_volume)
         For AH items: returns LBIN, falling back to avg_lbin.
+        For overrides: returns the override price.
         Returns None if no price data.
         """
         p = self.get_price(item_id)
@@ -312,14 +450,34 @@ class PriceCache:
             if total_vol > 0 and (buy > 0 or sell > 0):
                 return (buy * bv + sell * sv) / total_vol
             return buy or sell or None
-        if p["source"] == "auction":
+        if p["source"] in ("auction", "override"):
             return p.get("lowest_bin") or p.get("avg_bin") or None
         return None
+
+    def variant_price(self, item_id, item_nbt=None):
+        """Get the best price for an item, checking variant-specific pricing first.
+
+        Tries SkyHelper variant keys (attribute rolls, skins, shiny, editioned)
+        before falling back to standard weighted price.
+
+        Returns (price, variant_key_used) or (price, None) if base price used.
+        """
+        if item_nbt:
+            variant_keys = self.build_variant_key(item_id, item_nbt)
+            if variant_keys:
+                self._fetch_skyhelper()
+                for vk in variant_keys:
+                    sh_price = self._skyhelper.get(vk)
+                    if sh_price is not None and sh_price > 0:
+                        return sh_price, vk
+        # Fall back to standard pricing
+        return self.weighted(item_id), None
 
     def get_prices_bulk(self, item_ids):
         """Get prices for multiple items. Returns {item_id: price_info}."""
         self._fetch_bazaar()  # single request for all bazaar items
         self._fetch_moulberry()  # single bulk fetch for all auction items
+        self._fetch_skyhelper()  # single bulk fetch for variant prices
         results = {}
         for item_id in item_ids:
             results[item_id] = self.get_price(item_id)
@@ -331,8 +489,10 @@ class PriceCache:
         return {
             "bazaar_products": len(self._bazaar),
             "auction_items": len(self._moulberry_lbin),
+            "skyhelper_items": len(self._skyhelper),
             "bazaar_fetched": self._bazaar_fetched,
             "moulberry_fetched": self._moulberry_fetched,
+            "skyhelper_fetched": self._skyhelper_fetched,
             "bazaar": {k: {"buy": v["buy"], "sell": v["sell"]}
                        for k, v in self._bazaar.items()
                        if v.get("buy", 0) > 0 or v.get("sell", 0) > 0},

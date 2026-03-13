@@ -1,0 +1,178 @@
+{
+  "always_active": {
+    "scavenger": {
+      "level": 5,
+      "items": [
+        "CRYPT_DREADLORD_SWORD",
+        "ZOMBIE_SOLDIER_CUTLASS",
+        "CONJURING_SWORD",
+        "EARTH_SHARD",
+        "ZOMBIE_KNIGHT_SWORD",
+        "SILENT_DEATH",
+        "ZOMBIE_COMMANDER_WHIP",
+        "ICE_SPRAY_WAND"
+      ]
+    },
+    "replenish": {
+      "level": 1,
+      "items": [
+        "ADVANCED_GARDENING_HOE",
+        "ADVANCED_GARDENING_AXE"
+      ]
+    }
+  },
+  "only_tier_one_prices": [
+    "ultimate_chimera",
+    "ultimate_fatal_tempo",
+    "smoldering",
+    "ultimate_flash",
+    "divine_gift",
+    "ice_cold"
+  ],
+  "only_tier_five_prices": [
+    "ferocious_mana",
+    "hardened_mana",
+    "mana_vampire",
+    "strong_mana"
+  ],
+  "endcap_enchants": {
+    "pesterminator": {
+      "required_level": 5,
+      "endcap_item": "PESTHUNTING_GUIDE"
+    },
+    "charm": {
+      "required_level": 5,
+      "endcap_item": "CHAIN_END_TIMES"
+    },
+    "ender_slayer": {
+      "required_level": 6,
+      "endcap_item": "ENDSTONE_IDOL"
+    },
+    "bane_of_arthropods": {
+      "required_level": 6,
+      "endcap_item": "ENSNARED_SNAIL"
+    },
+    "luck_of_the_sea": {
+      "required_level": 6,
+      "endcap_item": "GOLD_BOTTLE_CAP"
+    },
+    "scavenger": {
+      "required_level": 5,
+      "endcap_item": "GOLDEN_BOUNTY"
+    },
+    "spiked_hook": {
+      "required_level": 6,
+      "endcap_item": "OCTOPUS_TENDRIL"
+    },
+    "smite": {
+      "required_level": 6,
+      "endcap_item": "SEVERED_HAND"
+    },
+    "frail": {
+      "required_level": 6,
+      "endcap_item": "SEVERED_PINCER"
+    },
+    "piscary": {
+      "required_level": 6,
+      "endcap_item": "TROUBLED_BUBBLE"
+    },
+    "venomous": {
+      "required_level": 6,
+      "endcap_item": "FATEFUL_STINGER"
+    }
+  },
+  "ignored_enchants": {
+    "THORNS": 10,
+    "SILK_TOUCH": 10,
+    "ULTIMATE_BANK": 10,
+    "FIRE_PROTECTION": 10,
+    "PIERCING": 10,
+    "FLAME": 10,
+    "FIRE_ASPECT": 10,
+    "KNOCKBACK": 10,
+    "BLAST_PROTECTION": 10,
+    "FEATHER_FALLING": 5,
+    "INFINITE_QUIVER": 5,
+    "PUNCH": 10,
+    "GIANT_KILLER": 5,
+    "ULTIMATE_JERRY": 10,
+    "TITAN_KILLER": 5,
+    "GROWTH": 5,
+    "FROST_WALKER": 10,
+    "CASTER": 5,
+    "THUNDERLORD": 5,
+    "HARVESTING": 5,
+    "ENDER_SLAYER": 5,
+    "VENOMOUS": 5,
+    "IMPALING": 3,
+    "TELEKINESIS": 10,
+    "DEPTH_STRIDER": 10,
+    "FORTUNE": 3,
+    "SHARPNESS": 5,
+    "SMITE": 5,
+    "PROJECTILE_PROTECTION": 10,
+    "TRIPLE_STRIKE": 4,
+    "EFFICIENCY": 5,
+    "CHANCE": 4,
+    "SMELTING_TOUCH": 10,
+    "BANE_OF_ARTHROPODS": 5,
+    "LURE": 10,
+    "POWER": 5,
+    "LUCK_OF_THE_SEA": 10,
+    "AIMING": 10,
+    "MAGNET": 10,
+    "EXECUTE": 5,
+    "AQUA_AFFINITY": 10,
+    "LUCK": 5,
+    "CRITICAL": 5,
+    "FRAIL": 10,
+    "BLESSING": 5,
+    "LIFE_STEAL": 3,
+    "SNIPE": 3,
+    "FIRST_STRIKE": 4,
+    "CUBISM": 5,
+    "RESPIRATION": 10,
+    "RESPITE": 3,
+    "PROTECTION": 5,
+    "THUNDERBOLT": 5,
+    "VAMPIRISM": 5,
+    "LETHALITY": 5,
+    "EXPERIENCE": 3,
+    "SCAVENGER": 4,
+    "LOOTING": 4,
+    "SPIKED_HOOK": 10,
+    "ANGLER": 10,
+    "SYPHON": 3,
+    "PROSECUTE": 5,
+    "CLEAVE": 5
+  },
+  "enchant_multiplier_overrides": {
+    "infinite_quiver": 0.03,
+    "counter_strike": 0.2,
+    "big_brain": 0.35,
+    "ultimate_inferno": 0.35,
+    "overload": 0.35,
+    "ultimate_soul_eater": 0.35,
+    "ultimate_fatal_tempo": 0.65
+  },
+  "book_bundle_amounts": {
+    "big_brain": 5,
+    "pristine": 1,
+    "quantum": 1,
+    "rainbow": 1,
+    "reflection": 3,
+    "small_brain": 1,
+    "ultimate_chimera": 1,
+    "ultimate_the_one": 1,
+    "vicious": 5
+  },
+  "stacking_enchants": [
+    "expertise",
+    "compact",
+    "cultivating",
+    "champion",
+    "hecatomb",
+    "toxophilite",
+    "absorb"
+  ]
+}
