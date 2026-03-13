@@ -17,6 +17,12 @@ data/wiki-official/
 data/neu-repo/
 data/vault/
 
+# Research files (working notes, not for distribution)
+guide/research/
+
+# Backups
+*.bak
+
 # Python
 __pycache__/
 *.pyc

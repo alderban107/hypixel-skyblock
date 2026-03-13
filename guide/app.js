@@ -181,7 +181,14 @@
       if (link) {
         e.preventDefault();
         const hash = link.getAttribute('href').slice(1);
-        navigateTo(hash);
+        // Check if it's an in-page anchor (element ID within current page)
+        const target = document.getElementById(hash);
+        if (target && pages[currentPage]?.el.contains(target)) {
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          history.replaceState(null, '', `#${currentPage}`);
+        } else {
+          navigateTo(hash);
+        }
       }
     });
   }

@@ -881,6 +881,48 @@ li::marker {
   }
 }
 
+/* --- Money-making TOC --- */
+.mm-toc {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin: 20px 0 8px;
+}
+.mm-toc h4 {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+.mm-toc ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  columns: 2;
+  column-gap: 24px;
+}
+.mm-toc li {
+  margin-bottom: 6px;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  break-inside: avoid;
+}
+.mm-toc li a {
+  color: var(--teal);
+  font-weight: 500;
+}
+.mm-toc li a::after {
+  content: none !important;
+}
+
+@media (max-width: 600px) {
+  .mm-toc ul { columns: 1; }
+}
+
 /* --- Section dividers --- */
 .section-divider {
   border: none;
