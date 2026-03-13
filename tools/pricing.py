@@ -34,6 +34,7 @@ MOULBERRY_EVICT = 3600 # 1 hour — drop stale bulk data on load
 
 EXTERNAL_DIR = DATA_DIR / "external"
 PRICE_OVERRIDES_PATH = EXTERNAL_DIR / "PriceOverrides.json"
+BIT_PRICES_PATH = EXTERNAL_DIR / "BitPrices.json"
 
 # Pet rarity name → numeric ID used in pet item IDs (e.g., RABBIT;4 = legendary)
 RARITY_NUM = {
@@ -86,6 +87,8 @@ class PriceCache:
         self._skyhelper_fetched = 0
         # PriceOverrides (NPC prices, manual overrides)
         self._price_overrides = None    # lazy loaded from disk
+        # BitPrices (bits shop item costs)
+        self._bit_prices = None         # lazy loaded from disk
         self._dirty = False
         self._name_to_bz_id = None  # lazy: display name -> bazaar product ID
         self._load_cache()
@@ -250,6 +253,44 @@ class PriceCache:
         self._load_price_overrides()
         return self._price_overrides.get(item_id)
 
+    def _load_bit_prices(self):
+        """Load bits shop costs from disk (lazy, once)."""
+        if self._bit_prices is not None:
+            return
+        self._bit_prices = {}
+        if BIT_PRICES_PATH.exists():
+            try:
+                data = json.loads(BIT_PRICES_PATH.read_text())
+                if isinstance(data, dict):
+                    for item_id, bits in data.items():
+                        if isinstance(bits, (int, float)) and bits > 0:
+                            self._bit_prices[item_id] = int(bits)
+            except (json.JSONDecodeError, OSError):
+                pass
+
+    def get_bit_cost(self, item_id):
+        """Get bits shop cost for an item. Returns bit cost or None."""
+        self._load_bit_prices()
+        return self._bit_prices.get(item_id)
+
+    def coins_per_bit(self, item_id):
+        """Get coins-per-bit value for a bits shop item.
+
+        Returns (coins_per_bit, market_price, bit_cost) or (None, None, None).
+        """
+        bit_cost = self.get_bit_cost(item_id)
+        if not bit_cost:
+            return None, None, None
+        market_price = self.weighted(item_id)
+        if not market_price or market_price <= 0:
+            return None, None, None
+        return market_price / bit_cost, market_price, bit_cost
+
+    def get_all_bit_items(self):
+        """Get all bits shop items with their costs. Returns dict of item_id → bit_cost."""
+        self._load_bit_prices()
+        return dict(self._bit_prices)
+
     def get_skyhelper_price(self, variant_key):
         """Get SkyHelper variant price. Returns price or None."""
         self._fetch_skyhelper()
@@ -413,22 +454,30 @@ class PriceCache:
     def format_price(self, item_id):
         """Return a human-readable price string for an item."""
         p = self.get_price(item_id)
+        base = ""
         if p["source"] == "bazaar":
             vol = min(p.get("buy_volume", 0) or 0, p.get("sell_volume", 0) or 0)
-            price = f"Bazaar: {_fmt(p['buy'])} buy / {_fmt(p['sell'])} sell"
+            base = f"Bazaar: {_fmt(p['buy'])} buy / {_fmt(p['sell'])} sell"
             if vol < 1000:
-                price += " (thin market)"
-            return price
-        if p["source"] == "auction":
+                base += " (thin market)"
+        elif p["source"] == "auction":
             parts = [f"Lowest BIN: {_fmt(p['lowest_bin'])}"]
             if p.get("avg_bin") is not None:
                 parts.append(f"avg: {_fmt(p['avg_bin'])}")
             if p.get("sales_day") is not None:
                 parts.append(f"{p['sales_day']:.0f}/day")
-            return "  ".join(parts)
-        if p["source"] == "override":
-            return f"NPC/Override: {_fmt(p['lowest_bin'])}"
-        return "No price data"
+            base = "  ".join(parts)
+        elif p["source"] == "override":
+            base = f"NPC/Override: {_fmt(p['lowest_bin'])}"
+        else:
+            base = "No price data"
+
+        # Append bits info if available
+        cpb, market_price, bit_cost = self.coins_per_bit(item_id)
+        if cpb is not None:
+            base += f"  │  Bits: {bit_cost:,} → {cpb:,.1f} coins/bit"
+
+        return base
 
     def weighted(self, item_id):
         """Get weighted average price for an item.

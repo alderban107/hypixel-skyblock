@@ -79,7 +79,8 @@ REFORGE_STONES = {
     "bountiful": "GOLDEN_BALL", "bulky": "BULKY_STONE",
     "bustling": "SKYMART_BROCHURE", "buzzing": "CLIPPED_WINGS",
     "calcified": "CALCIFIED_HEART", "candied": "CANDY_CORN",
-    "chomp": "KUUDRA_MANDIBLE", "coldfused": "ENTROPY_SUPPRESSOR",
+    "chomp": "KUUDRA_MANDIBLE",
+    "coldfused": "ENTROPY_SUPPRESSOR", "coldfusion": "ENTROPY_SUPPRESSOR",
     "cubic": "MOLTEN_CUBE", "dimensional": "TITANIUM_TESSERACT",
     "dirty": "DIRT_BOTTLE", "earthy": "LARGE_WALNUT",
     "empowered": "SADAN_BROOCH", "erudite": "DAEDALUS_NOTES",
@@ -108,8 +109,11 @@ REFORGE_STONES = {
     "sunny": "SUNSTONE", "suspicious": "SUSPICIOUS_VIAL",
     "toil": "TOIL_LOG", "trashy": "OVERFLOWING_TRASH_CAN",
     "treacherous": "RUSTY_ANCHOR", "undead": "PREMIUM_FLESH",
-    "warped": "AOTE_STONE", "waxed": "BLAZE_WAX",
-    "withered": "WITHER_BLOOD",
+    "warped": "AOTE_STONE", "aote_stone": "AOTE_STONE",
+    "waxed": "BLAZE_WAX", "withered": "WITHER_BLOOD",
+    # Additional reforge stones from SkyHelper
+    "pitchin": "PITCHIN_KOI", "blood_soaked": "PRESUMED_GALLON_OF_RED_PAINT",
+    "jerry_stone": "JERRY_STONE", "greater_spook": "BOO_STONE",
 }
 
 # Basic reforges that don't use a stone (free from reforge anvil)

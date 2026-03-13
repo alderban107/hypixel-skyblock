@@ -30,6 +30,7 @@ from profile import decode_nbt_inventory_slots
 DATA_DIR = Path(__file__).parent.parent / "data"
 LAST_PROFILE_PATH = DATA_DIR / "last_profile.json"
 NEU_ITEMS_DIR = DATA_DIR / "neu-repo" / "items"
+EXTERNAL_DIR = DATA_DIR / "external"
 
 # ─── Magical Power per rarity ─────────────────────────────────────────
 
@@ -49,6 +50,7 @@ MP_PER_RARITY = {
 # ─── Upgrade chains (ported from SkyCrypt) ─────────────────────────────
 
 UPGRADE_CHAINS = [
+    # ─── Classic chains (ported from SkyCrypt) ─────────────────
     ["WOLF_TALISMAN", "WOLF_RING"],
     ["POTION_AFFINITY_TALISMAN", "RING_POTION_AFFINITY", "ARTIFACT_POTION_AFFINITY"],
     ["FEATHER_TALISMAN", "FEATHER_RING", "FEATHER_ARTIFACT"],
@@ -96,13 +98,12 @@ UPGRADE_CHAINS = [
     ["WHITE_GIFT_TALISMAN", "GREEN_GIFT_TALISMAN", "BLUE_GIFT_TALISMAN",
      "PURPLE_GIFT_TALISMAN", "GOLD_GIFT_TALISMAN"],
     ["GLACIAL_TALISMAN", "GLACIAL_RING", "GLACIAL_ARTIFACT"],
-    ["CROPIE_TALISMAN", "SQUASH_RING", "FERMENTO_ARTIFACT"],
     ["KUUDRA_FOLLOWER_ARTIFACT", "KUUDRA_FOLLOWER_RELIC"],
     ["AGARIMOO_TALISMAN", "AGARIMOO_RING", "AGARIMOO_ARTIFACT"],
     ["BLOOD_DONOR_TALISMAN", "BLOOD_DONOR_RING", "BLOOD_DONOR_ARTIFACT"],
     ["LUSH_TALISMAN", "LUSH_RING", "LUSH_ARTIFACT"],
     ["ANITA_TALISMAN", "ANITA_RING", "ANITA_ARTIFACT"],
-    ["PESTHUNTER_BADGE", "PESTHUNTER_RING", "PESTHUNTER_ARTIFACT"],
+    ["PESTHUNTER_BADGE", "PESTHUNTER_RING", "PESTHUNTER_ARTIFACT", "PESTHUNTER_RELIC"],
     ["NIBBLE_CHOCOLATE_STICK", "SMOOTH_CHOCOLATE_BAR", "RICH_CHOCOLATE_CHUNK",
      "GANACHE_CHOCOLATE_SLAB", "PRESTIGE_CHOCOLATE_REALM"],
     ["COIN_TALISMAN", "RING_OF_COINS", "ARTIFACT_OF_COINS", "RELIC_OF_COINS"],
@@ -110,6 +111,30 @@ UPGRADE_CHAINS = [
     ["EMERALD_RING", "EMERALD_ARTIFACT"],
     ["MINERAL_TALISMAN", "GLOSSY_MINERAL_TALISMAN"],
     ["HASTE_RING", "HASTE_ARTIFACT"],
+    # ─── Newer chains (from Hypixel API + SkyHelper + skyblock-plus-data) ──
+    ["ANGUISH_TALISMAN", "ANGUISH_RING", "ANGUISH_ARTIFACT"],
+    ["BIOANALYSIS_TALISMAN", "BIOANALYSIS_RING", "BIOANALYSIS_ARTIFACT"],
+    ["CENTURY_TALISMAN", "CENTURY_RING"],
+    ["EMPEROR_TALISMAN", "EMPEROR_RING", "EMPEROR_ARTIFACT"],
+    ["JUNK_TALISMAN", "JUNK_RING", "JUNK_ARTIFACT"],
+    ["MOONGLADE_TALISMAN", "MOONGLADE_RING", "MOONGLADE_ARTIFACT"],
+    ["ORGAN_DONOR_TALISMAN", "ORGAN_DONOR_RING", "ORGAN_DONOR_ARTIFACT"],
+    ["PRESSURE_TALISMAN", "PRESSURE_RING", "PRESSURE_ARTIFACT"],
+    ["RESPIRATION_TALISMAN", "RESPIRATION_RING", "RESPIRATION_ARTIFACT"],
+    ["RUNEBLADE_TALISMAN", "RUNEBLADE_RING", "RUNEBLADE_ARTIFACT"],
+    ["SEAL_TALISMAN", "SEAL_RING"],
+    ["WITCH_TALISMAN", "WITCH_RING", "WITCH_ARTIFACT"],
+    ["TARANTULA_TALISMAN", "TARANTULA_RING"],
+    ["POTATO_TALISMAN", "POTATO_RING"],
+    ["VOTER_BADGE", "VOTER_BADGE_VIP", "VOTER_BADGE_ELITE", "VOTER_BADGE_SUPREME"],
+    ["FROZEN_CHICKEN", "FRIED_FROZEN_CHICKEN"],
+    ["SMALL_FISH_BOWL", "MEDIUM_FISH_BOWL", "LARGE_FISH_BOWL"],
+    ["IQ_POINT", "TWO_IQ_POINT"],
+    # Soul Campfire — same structure as Campfire Talisman, grouped by rarity tier
+    ["SOUL_CAMPFIRE_TALISMAN_1", "SOUL_CAMPFIRE_TALISMAN_4", "SOUL_CAMPFIRE_TALISMAN_8",
+     "SOUL_CAMPFIRE_TALISMAN_13", "SOUL_CAMPFIRE_TALISMAN_21"],
+    # Cropie→Squash→Fermento→Helianthus (extended chain)
+    ["CROPIE_TALISMAN", "SQUASH_RING", "FERMENTO_ARTIFACT", "HELIANTHUS_RELIC"],
 ]
 
 # ─── Aliases (ported from SkyCrypt) ────────────────────────────────────
@@ -135,6 +160,22 @@ ACCESSORY_ALIASES = {
     "PARTY_HAT_CRAB": ["PARTY_HAT_CRAB_ANIMATED", "PARTY_HAT_SLOTH", "BALLOON_HAT_2024"],
     "PIGGY_BANK": ["BROKEN_PIGGY_BANK", "CRACKED_PIGGY_BANK"],
     "DANTE_TALISMAN": ["DANTE_RING"],
+    # Bluetooth/Bluertooth are the same accessory (API has both IDs)
+    "BLUETOOTH_RING": ["BLUERTOOTH_RING"],
+    # Soul Campfire intermediates (same pattern as Campfire Talisman aliases)
+    "SOUL_CAMPFIRE_TALISMAN_1": ["SOUL_CAMPFIRE_TALISMAN_2", "SOUL_CAMPFIRE_TALISMAN_3"],
+    "SOUL_CAMPFIRE_TALISMAN_4": ["SOUL_CAMPFIRE_TALISMAN_5", "SOUL_CAMPFIRE_TALISMAN_6",
+                                  "SOUL_CAMPFIRE_TALISMAN_7"],
+    "SOUL_CAMPFIRE_TALISMAN_8": ["SOUL_CAMPFIRE_TALISMAN_9", "SOUL_CAMPFIRE_TALISMAN_10",
+                                  "SOUL_CAMPFIRE_TALISMAN_11", "SOUL_CAMPFIRE_TALISMAN_12"],
+    "SOUL_CAMPFIRE_TALISMAN_13": ["SOUL_CAMPFIRE_TALISMAN_14", "SOUL_CAMPFIRE_TALISMAN_15",
+                                   "SOUL_CAMPFIRE_TALISMAN_16", "SOUL_CAMPFIRE_TALISMAN_17",
+                                   "SOUL_CAMPFIRE_TALISMAN_18", "SOUL_CAMPFIRE_TALISMAN_19",
+                                   "SOUL_CAMPFIRE_TALISMAN_20"],
+    "SOUL_CAMPFIRE_TALISMAN_21": ["SOUL_CAMPFIRE_TALISMAN_22", "SOUL_CAMPFIRE_TALISMAN_23",
+                                   "SOUL_CAMPFIRE_TALISMAN_24", "SOUL_CAMPFIRE_TALISMAN_25",
+                                   "SOUL_CAMPFIRE_TALISMAN_26", "SOUL_CAMPFIRE_TALISMAN_27",
+                                   "SOUL_CAMPFIRE_TALISMAN_28", "SOUL_CAMPFIRE_TALISMAN_29"],
 }
 
 # ─── Ignored accessories (ported from SkyCrypt) ───────────────────────
@@ -147,8 +188,9 @@ IGNORED_ACCESSORIES = {
     "OLD_BOOT", "ARGOFAY_TRINKET", "DEFECTIVE_MONITOR", "PUNCHCARD_ARTIFACT",
     "HARMONIOUS_SURGERY_TOOLKIT", "CRUX_TALISMAN_1", "CRUX_TALISMAN_2",
     "CRUX_TALISMAN_3", "CRUX_TALISMAN_4", "CRUX_TALISMAN_5", "CRUX_TALISMAN_6",
+    "CRUX_TALISMAN_7",
     "WARDING_TRINKET", "RING_OF_BROKEN_LOVE", "GARLIC_FLAVORED_GUMMY_BEAR",
-    "GENERAL_MEDALLION",
+    "GENERAL_MEDALLION", "TEST_BUCKET_PLEASE_IGNORE",
 }
 
 # ─── Special accessories ──────────────────────────────────────────────
@@ -695,6 +737,52 @@ def parse_budget(budget_str):
         return None
 
 
+# ─── Maxwell Power Stats ──────────────────────────────────────────────
+
+_POWER_STATS = None
+
+def _load_power_stats():
+    """Load POWER_TO_BASE_STATS from data/external/power_stats.json."""
+    global _POWER_STATS
+    if _POWER_STATS is not None:
+        return _POWER_STATS
+    path = EXTERNAL_DIR / "power_stats.json"
+    try:
+        _POWER_STATS = json.loads(path.read_text())
+    except (json.JSONDecodeError, OSError):
+        _POWER_STATS = {}
+    return _POWER_STATS
+
+
+def get_power_stats(power_name, mp):
+    """Calculate stat bonuses for a Maxwell power at a given MP.
+
+    Formula: stat = base_stat × (MP / 100)
+    """
+    data = _load_power_stats()
+    base = data.get(power_name.lower())
+    if not base:
+        return None
+    multiplier = mp / 100.0
+    return {stat: value * multiplier for stat, value in base.items()}
+
+
+def format_power_delta(power_name, current_mp, new_mp):
+    """Show how power stats change when going from current_mp to new_mp."""
+    data = _load_power_stats()
+    base = data.get(power_name.lower())
+    if not base:
+        return None
+    parts = []
+    for stat, base_val in sorted(base.items(), key=lambda x: -x[1]):
+        old = base_val * (current_mp / 100.0)
+        new = base_val * (new_mp / 100.0)
+        delta = new - old
+        nice_name = stat.replace("_", " ").title()
+        parts.append(f"{nice_name} {old:.1f}→{new:.1f} (+{delta:.1f})")
+    return ", ".join(parts)
+
+
 # ─── Output Formatting ────────────────────────────────────────────────
 
 _RARITY_SHORT = {
@@ -851,24 +939,24 @@ def print_report(active, inactive, missing, upgrades, owned_canonical,
     print(f"    Available now (priced):         {len(all_available)}")
     print(f"    Total MP if all obtained:      +{total_missing_mp} MP (→ {total_mp + total_missing_mp} MP)")
 
+    # Find cheapest ~50 MP
+    cheapest_mp_gain = 0
+    cheapest_cost = 0
+    cheapest_count = 0
     if all_available:
-        # Find cheapest 50 MP
         sorted_by_cpm = sorted(all_available,
                                 key=lambda m: m["coins_per_mp"] if m["coins_per_mp"] is not None else float("inf"))
-        mp_so_far = 0
-        cost_so_far = 0
-        count_so_far = 0
         for m in sorted_by_cpm:
-            if mp_so_far >= 50:
+            if cheapest_mp_gain >= 50:
                 break
             ec = m["incremental_cost"] if m["incremental_cost"] is not None else m["cost"]
             if ec is None:
                 continue
-            mp_so_far += m["mp_gain"]
-            cost_so_far += ec
-            count_so_far += 1
-        if mp_so_far > 0:
-            print(f"    Cheapest {mp_so_far} MP:              ~{_fmt(cost_so_far)} ({count_so_far} accessories)")
+            cheapest_mp_gain += m["mp_gain"]
+            cheapest_cost += ec
+            cheapest_count += 1
+        if cheapest_mp_gain > 0:
+            print(f"    Cheapest {cheapest_mp_gain} MP:              ~{_fmt(cheapest_cost)} ({cheapest_count} accessories)")
 
     if recomb_remaining > 0:
         recomb_price = price_cache_ref.weighted("RECOMBOBULATOR_3000")
@@ -877,6 +965,26 @@ def print_report(active, inactive, missing, upgrades, owned_canonical,
             print(f"    Full recomb potential:          +{recomb_mp} MP"
                   f" ({recomb_remaining} remaining × ~{_fmt(recomb_price)} each"
                   f" = ~{_fmt(total_recomb)})")
+
+    # Maxwell power stats impact
+    accessory_bag = member.get("accessory_bag_storage", {})
+    selected_power = accessory_bag.get("selected_power", "")
+    if selected_power and total_mp > 0:
+        current_stats = get_power_stats(selected_power, total_mp)
+        if current_stats:
+            # Show current power stats
+            stats_str = ", ".join(
+                f"{s.replace('_', ' ').title()} +{v:.1f}"
+                for s, v in sorted(current_stats.items(), key=lambda x: -x[1])
+            )
+            print(f"\n  Maxwell Power: {selected_power.capitalize()} at {total_mp} MP")
+            print(f"    Current stats: {stats_str}")
+
+            # Show what the cheapest ~50 MP gain would do
+            if cheapest_mp_gain > 0:
+                delta_str = format_power_delta(selected_power, total_mp, total_mp + cheapest_mp_gain)
+                if delta_str:
+                    print(f"    After +{cheapest_mp_gain} MP: {delta_str}")
 
 
 def _print_inactive(inactive):

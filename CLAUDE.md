@@ -32,6 +32,9 @@ data/           Reference data and generated output
   sbxp_tasks.json    SBXP task database (23 formula sources + 692 individual tasks across 17 categories)
   slayer_drops.json  Slayer drop data (6 types incl. Bloodfiend, Luckalyzer RNG + SkyHanni drops)
   price_cache.json    Cached market prices
+  external/BitPrices.json       Bits shop item costs (skyblock-plus-data)
+  external/power_stats.json     Maxwell power base stats (skyblock-plus-data POWER_TO_BASE_STATS)
+  external/farming_weight.json  EliteFarmers farming weight constants
   craft_cache.json    Cached craft flip data (Moulberry)
 .env            API credentials (HYPIXEL_API_KEY)
 ```
@@ -45,6 +48,7 @@ cd tools
 python3 profile.py                          # core sections
 python3 profile.py --full                   # all sections
 python3 profile.py -s dungeons,collections  # specific sections
+python3 profile.py -s weight                # Senither + Lily + Farming weight
 python3 pricing.py SHADOW_ASSASSIN_CHESTPLATE ENCHANTED_DIAMOND
 python3 pricing.py "RABBIT;4"              # pet by ID
 python3 pricing.py "rabbit legendary"       # pet by name + rarity

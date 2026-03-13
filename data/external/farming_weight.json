@@ -1,0 +1,54 @@
+{
+  "_source": "EliteFarmers/FarmingWeight (archived, now in EliteFarmers/Website)",
+  "_note": "Crop IDs match Hypixel API collection keys. Divisor = collection per 1 weight.",
+  "crop_weight": {
+    "CACTUS": 178730.65,
+    "CARROT_ITEM": 300000,
+    "INK_SACK:3": 276733.75,
+    "MELON": 488435.88,
+    "MUSHROOM_COLLECTION": 90944.27,
+    "NETHER_STALK": 248606.81,
+    "POTATO_ITEM": 298328.17,
+    "PUMPKIN": 99236.12,
+    "SUGAR_CANE": 198885.45,
+    "WHEAT": 100000,
+    "DOUBLE_PLANT": 200000,
+    "MOONFLOWER": 200000,
+    "WILD_ROSE": 200000
+  },
+  "crop_names": {
+    "CACTUS": "Cactus",
+    "CARROT_ITEM": "Carrot",
+    "INK_SACK:3": "Cocoa Beans",
+    "MELON": "Melon",
+    "MUSHROOM_COLLECTION": "Mushroom",
+    "NETHER_STALK": "Nether Wart",
+    "POTATO_ITEM": "Potato",
+    "PUMPKIN": "Pumpkin",
+    "SUGAR_CANE": "Sugar Cane",
+    "WHEAT": "Wheat",
+    "DOUBLE_PLANT": "Sunflower",
+    "MOONFLOWER": "Moonflower",
+    "WILD_ROSE": "Wild Rose"
+  },
+  "double_break_crops": ["CACTUS", "SUGAR_CANE"],
+  "bonus_weight": {
+    "farming_60_bonus": 250,
+    "farming_50_bonus": 100,
+    "anita_buff_bonus_multiplier": 2,
+    "gold_medal_reward_interval": 50,
+    "minion_reward_tier": 12,
+    "minion_reward_weight": 5,
+    "max_medals_counted": 1000,
+    "weight_per_diamond_medal": 0.75,
+    "weight_per_platinum_medal": 0.5,
+    "weight_per_gold_medal": 0.25
+  },
+  "tier_12_farming_minions": [
+    "WHEAT_12", "CARROT_12", "POTATO_12", "PUMPKIN_12", "MELON_12",
+    "MUSHROOM_12", "COCOA_12", "CACTUS_12", "SUGAR_CANE_12", "NETHER_WARTS_12",
+    "FLOWER_12", "SUNFLOWER_12"
+  ],
+  "farming_60_xp": 111672425,
+  "farming_50_xp": 55172425
+}

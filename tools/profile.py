@@ -42,7 +42,7 @@ CORE_SECTIONS = [
 EXTENDED_SECTIONS = [
     "collections", "minions", "garden", "museum", "rift",
     "sacks", "jacob", "crystals", "bestiary", "stats",
-    "foraging", "chocolate", "community", "misc", "crafts",
+    "foraging", "chocolate", "community", "misc", "weight", "crafts",
 ]
 ALL_SECTIONS = CORE_SECTIONS + EXTENDED_SECTIONS
 
@@ -217,6 +217,37 @@ def xp_to_level_progress(xp, thresholds, max_level=None):
 def format_progress_bar(progress, width=20):
     filled = int(progress * width)
     return f"[{'█' * filled}{'░' * (width - filled)}] {progress * 100:.1f}%"
+
+
+# ─── Power Stats (Maxwell) ────────────────────────────────────────
+
+_POWER_STATS_DATA = None
+
+def _load_power_stats():
+    """Load POWER_TO_BASE_STATS from data/external/power_stats.json."""
+    global _POWER_STATS_DATA
+    if _POWER_STATS_DATA is not None:
+        return _POWER_STATS_DATA
+    path = DATA_DIR / "external" / "power_stats.json"
+    try:
+        _POWER_STATS_DATA = json.loads(path.read_text())
+    except (json.JSONDecodeError, OSError):
+        _POWER_STATS_DATA = {}
+    return _POWER_STATS_DATA
+
+
+def _get_power_stats(power_name, mp):
+    """Calculate stat bonuses for a Maxwell power at a given MP.
+
+    Formula: stat = base_stat × (MP / 100)
+    Base stats are per 100 MP (from skyblock-plus-data POWER_TO_BASE_STATS).
+    """
+    data = _load_power_stats()
+    base = data.get(power_name.lower())
+    if not base:
+        return None
+    multiplier = mp / 100.0
+    return {stat: value * multiplier for stat, value in base.items()}
 
 
 def print_section(title):
@@ -873,12 +904,22 @@ def print_misc(member, profile):
         if highest_mp:
             print(f"  Magical Power:  {highest_mp}")
 
-        # Selected power
+        # Selected power + stat contribution
         selected_power = accessory_bag.get("selected_power", "")
         if selected_power:
             unlocked = accessory_bag.get("unlocked_powers", [])
             unlocked_str = f" (unlocked: {', '.join(p.capitalize() for p in unlocked)})" if unlocked else ""
             print(f"  Power:          {selected_power.capitalize()}{unlocked_str}")
+
+            # Show power stats from POWER_TO_BASE_STATS
+            if highest_mp:
+                power_stats = _get_power_stats(selected_power, highest_mp)
+                if power_stats:
+                    stats_parts = []
+                    for stat_name, value in sorted(power_stats.items(), key=lambda x: -x[1]):
+                        nice_name = stat_name.replace("_", " ").title()
+                        stats_parts.append(f"{nice_name} +{value:.1f}")
+                    print(f"  Power Stats:    {', '.join(stats_parts)}")
 
         # Tuning
         tuning = accessory_bag.get("tuning", {})
@@ -2285,6 +2326,580 @@ UPGRADE_TARGETS = {
 }
 
 
+# ─── Weight Calculator ─────────────────────────────────────────────────
+
+_WEIGHT_DATA = None
+_FARMING_WEIGHT_DATA = None
+
+
+def _load_weight_data():
+    """Load Senither + Lily weight constants from NEU repo."""
+    global _WEIGHT_DATA
+    if _WEIGHT_DATA is not None:
+        return _WEIGHT_DATA
+    path = DATA_DIR / "neu-repo" / "constants" / "weight.json"
+    try:
+        _WEIGHT_DATA = json.loads(path.read_text())
+    except (json.JSONDecodeError, OSError):
+        _WEIGHT_DATA = {"senither": {}, "lily": {}}
+    return _WEIGHT_DATA
+
+
+def _load_farming_weight_data():
+    """Load EliteFarmers farming weight constants."""
+    global _FARMING_WEIGHT_DATA
+    if _FARMING_WEIGHT_DATA is not None:
+        return _FARMING_WEIGHT_DATA
+    path = DATA_DIR / "external" / "farming_weight.json"
+    try:
+        _FARMING_WEIGHT_DATA = json.loads(path.read_text())
+    except (json.JSONDecodeError, OSError):
+        _FARMING_WEIGHT_DATA = {}
+    return _FARMING_WEIGHT_DATA
+
+
+def _calc_senither_skill_weight(member):
+    """Calculate Senither skill weight (base + overflow)."""
+    wd = _load_weight_data()
+    senither = wd.get("senither", {})
+    skill_data = senither.get("skills", {})
+
+    skills = {}
+    for key, val in member.get("player_data", {}).get("experience", {}).items():
+        name = key.replace("SKILL_", "").lower()
+        skills[name] = val
+    if not skills:
+        for key, val in member.items():
+            if key.startswith("experience_skill_"):
+                skills[key.replace("experience_skill_", "")] = val
+
+    total_weight = 0
+    breakdown = {}
+
+    # Skill order matching weight.json
+    skill_names = ["mining", "foraging", "enchanting", "farming",
+                   "combat", "fishing", "alchemy", "taming"]
+
+    for skill_name in skill_names:
+        xp = skills.get(skill_name, 0)
+        params = skill_data.get(skill_name)
+        if not params or not isinstance(params, list) or len(params) < 2:
+            continue
+
+        exponent_base, divider = params
+        max_lvl = SKILL_MAX_LEVELS.get(skill_name, 50)
+        thresholds = SKILL_THRESHOLDS.get(skill_name, _FALLBACK_SKILL_XP)
+        level = xp_to_level(xp, thresholds, max_lvl)
+
+        # Base weight: (level * 10)^(exponent_base + 0.5 + level/100) / 1250
+        if level > 0:
+            exponent = exponent_base + 0.5 + (level / 100.0)
+            base_weight = ((level * 10) ** exponent) / 1250.0
+        else:
+            base_weight = 0
+
+        # Overflow weight
+        overflow_weight = 0
+        max_xp = thresholds[min(max_lvl, len(thresholds) - 1)] if max_lvl < len(thresholds) else thresholds[-1]
+        if xp > max_xp:
+            overflow = xp - max_xp
+            overflow_weight = (overflow / divider) ** 0.968
+
+        weight = base_weight + overflow_weight
+        total_weight += weight
+        breakdown[skill_name] = weight
+
+    return total_weight, breakdown
+
+
+def _calc_senither_slayer_weight(member):
+    """Calculate Senither slayer weight."""
+    wd = _load_weight_data()
+    senither = wd.get("senither", {})
+    slayer_data = senither.get("slayer", {})
+
+    slayer_wrapper = member.get("slayer", {})
+    slayer_bosses = slayer_wrapper.get("slayer_bosses", member.get("slayer_bosses", {}))
+
+    total_weight = 0
+    breakdown = {}
+
+    for slayer_name, params in slayer_data.items():
+        if not isinstance(params, list) or len(params) < 2:
+            continue
+        divider, modifier = params
+        xp = slayer_bosses.get(slayer_name, {}).get("xp", 0)
+
+        if xp <= 1000000:
+            weight = xp / divider if divider else 0
+        else:
+            # Overflow formula for slayers above 1M XP
+            base = 1000000 / divider
+            remaining = xp - 1000000
+            overflow = (remaining / divider) ** modifier
+            weight = base + overflow
+
+        total_weight += weight
+        breakdown[slayer_name] = weight
+
+    return total_weight, breakdown
+
+
+def _calc_senither_dungeon_weight(member):
+    """Calculate Senither dungeon weight (catacombs + class levels)."""
+    wd = _load_weight_data()
+    senither = wd.get("senither", {})
+    dungeon_data = senither.get("dungeons", {})
+
+    dungeons = member.get("dungeons", {})
+    total_weight = 0
+    breakdown = {}
+
+    # Catacombs level weight
+    cata_multiplier = dungeon_data.get("catacombs", 0)
+    if cata_multiplier:
+        cata_xp = dungeons.get("dungeon_types", {}).get("catacombs", {}).get("experience", 0)
+        cata_level = xp_to_level(cata_xp, DUNGEON_XP_THRESHOLDS, 50)
+        if cata_level > 0:
+            weight = (cata_level ** 4.5) * cata_multiplier
+        else:
+            weight = 0
+        total_weight += weight
+        breakdown["catacombs"] = weight
+
+    # Class level weights
+    class_data = dungeon_data.get("classes", {})
+    classes = dungeons.get("player_classes", {})
+    for cls_name, cls_multiplier in class_data.items():
+        cls_xp = classes.get(cls_name, {}).get("experience", 0)
+        cls_level = xp_to_level(cls_xp, DUNGEON_XP_THRESHOLDS, 50)
+        if cls_level > 0:
+            weight = (cls_level ** 4.5) * cls_multiplier
+        else:
+            weight = 0
+        total_weight += weight
+        breakdown[cls_name] = weight
+
+    return total_weight, breakdown
+
+
+def _calc_lily_skill_weight(member):
+    """Calculate Lily skill weight (ratio-based with overflow)."""
+    import math
+
+    wd = _load_weight_data()
+    lily = wd.get("lily", {})
+    skill_section = lily.get("skills", {})
+    ratio_weight = skill_section.get("ratio_weight", {})
+    factors = skill_section.get("factors", {})
+    overflow_mults = skill_section.get("overflow_multipliers", {})
+    overall = skill_section.get("overall", 1.0)
+    skill_max_xp = 111672425  # Max XP for level 60 skills
+
+    skills_xp = {}
+    for key, val in member.get("player_data", {}).get("experience", {}).items():
+        name = key.replace("SKILL_", "").lower()
+        skills_xp[name] = val
+    if not skills_xp:
+        for key, val in member.items():
+            if key.startswith("experience_skill_"):
+                skills_xp[key.replace("experience_skill_", "")] = val
+
+    skill_names = ["enchanting", "taming", "alchemy", "mining",
+                   "farming", "foraging", "combat", "fishing"]
+
+    # Calculate skill average
+    levels = []
+    for sn in skill_names:
+        xp = skills_xp.get(sn, 0)
+        max_lvl = SKILL_MAX_LEVELS.get(sn, 50)
+        thresholds = SKILL_THRESHOLDS.get(sn, _FALLBACK_SKILL_XP)
+        level = xp_to_level(xp, thresholds, max_lvl)
+        levels.append(level)
+
+    skill_avg = sum(levels) / len(levels) if levels else 0
+    n = 12 * ((skill_avg / 60) ** 2.44780217148309)
+    r2 = 2 ** 0.5
+
+    # Base skill weight
+    base_weights = []
+    for i, sn in enumerate(skill_names):
+        rw = ratio_weight.get(sn, {})
+        level = levels[i] if i < len(levels) else 0
+
+        # rw is a dict/list of values indexed by level
+        if isinstance(rw, dict):
+            rw_vals = [rw.get(str(j), 0) for j in range(max(int(k) for k in rw.keys()) + 1)] if rw else [0]
+        elif isinstance(rw, list):
+            rw_vals = rw
+        else:
+            rw_vals = [0]
+
+        level_idx = min(level, len(rw_vals) - 1) if rw_vals else 0
+        max_idx = len(rw_vals) - 1 if rw_vals else 0
+
+        level_val = rw_vals[level_idx] if level_idx < len(rw_vals) else 0
+        max_val = rw_vals[max_idx] if rw_vals else 0
+
+        weight = n * level_val * max_val + max_val * ((level / 60) ** r2)
+        base_weights.append(weight)
+
+    skill_rating = sum(base_weights) * overall
+
+    # Overflow weight
+    overflow_rating = 0
+    for i, sn in enumerate(skill_names):
+        xp = skills_xp.get(sn, 0)
+        if xp > skill_max_xp:
+            factor = factors.get(sn, 0.95)
+            overflow = xp - skill_max_xp
+            effective_over = overflow ** factor
+            rating = effective_over / skill_max_xp
+            mult = overflow_mults.get(sn, 1.0)
+            overflow_rating += overall * (rating * mult)
+
+    return skill_rating, overflow_rating
+
+
+def _calc_lily_slayer_weight(member):
+    """Calculate Lily slayer weight using deprecation scaling."""
+    import math
+
+    wd = _load_weight_data()
+    lily = wd.get("lily", {})
+    slayer_section = lily.get("slayer", {})
+    dep_scaling = slayer_section.get("deprecation_scaling", {})
+
+    slayer_wrapper = member.get("slayer", {})
+    slayer_bosses = slayer_wrapper.get("slayer_bosses", member.get("slayer_bosses", {}))
+
+    # Slayer dividers and multipliers (from lilyweight source)
+    slayer_dividers = {
+        "zombie": 9250, "spider": 7019.57, "wolf": 2982.06,
+        "enderman": 996.3003, "blaze": 935.0455,
+    }
+    slayer_multipliers = {
+        "zombie": 1.0, "spider": 1.6, "wolf": 3.6,
+        "enderman": 10.0, "blaze": 10.0,
+    }
+    slayer_order = ["zombie", "spider", "wolf", "enderman", "blaze"]
+
+    def get_slayer_score(exp):
+        d = exp / 100000
+        if exp >= 6416:
+            D = (d - 3 ** (-5 / 2)) * (d + 3 ** (-5 / 2))
+            if D < 0:
+                D = 0
+            u = (3 * (d + math.sqrt(D))) ** (1 / 3)
+            v_val = d - math.sqrt(D)
+            v = -((-v_val) ** (1 / 3)) if v_val < 0 else v_val ** (1 / 3)
+            return u + v - 1
+        else:
+            val = d * 3 ** (5 / 2)
+            val = max(-1, min(1, val))
+            return math.sqrt(4 / 3) * math.cos(math.acos(val) / 3) - 1
+
+    def get_effective_xp(score, scaling):
+        total = 0
+        for i in range(1, int(score) + 1):
+            total += (i ** 2 + i) * scaling ** i
+        return round(1000000 * total * (0.05 / scaling) * 100) / 100
+
+    def get_actual_xp(score):
+        return ((score ** 3 / 6) + (score ** 2 / 2) + (score / 3)) * 100000
+
+    total_weight = 0
+    individual_sum = 0
+    extra_sum = 0
+
+    for sn in slayer_order:
+        xp = slayer_bosses.get(sn, {}).get("xp", 0)
+        if xp == 0:
+            continue
+        scaling = dep_scaling.get(sn, 0.8)
+        divider = slayer_dividers.get(sn, 1000)
+        multiplier = slayer_multipliers.get(sn, 1.0)
+
+        score = math.floor(get_slayer_score(xp))
+        effective = get_effective_xp(score, scaling)
+        actual = get_actual_xp(score)
+        distance = xp - actual
+        effective_distance = distance * scaling ** score
+        slayer_value = effective + effective_distance
+
+        individual_sum += slayer_value / divider
+        extra_sum += xp * multiplier
+
+    total_weight = 2 * (individual_sum + extra_sum / 1000000)
+    return total_weight
+
+
+def _calc_lily_dungeon_weight(member):
+    """Calculate Lily dungeon weight (experience + completions)."""
+    import math
+
+    wd = _load_weight_data()
+    lily = wd.get("lily", {})
+    dungeon_section = lily.get("dungeons", {})
+    completion_worth = dungeon_section.get("completion_worth", {})
+    completion_buffs = dungeon_section.get("completion_buffs", {})
+    overall = dungeon_section.get("overall", 1.0)
+    dungeon_max_xp = 569809640
+
+    dungeons = member.get("dungeons", {})
+    cata_xp = dungeons.get("dungeon_types", {}).get("catacombs", {}).get("experience", 0)
+
+    # Experience weight
+    cata_level = xp_to_level(cata_xp, DUNGEON_XP_THRESHOLDS, 50)
+    # Add fractional level
+    if cata_level < 50 and cata_level < len(DUNGEON_XP_THRESHOLDS) - 1:
+        curr_threshold = DUNGEON_XP_THRESHOLDS[cata_level]
+        next_threshold = DUNGEON_XP_THRESHOLDS[cata_level + 1]
+        if next_threshold > curr_threshold:
+            frac = (cata_xp - curr_threshold) / (next_threshold - curr_threshold)
+            cata_level_frac = cata_level + int(frac * 1000) / 1000
+        else:
+            cata_level_frac = float(cata_level)
+    else:
+        cata_level_frac = float(cata_level)
+
+    if cata_xp < dungeon_max_xp:
+        n = 0.2 * (cata_level_frac / 50) ** 1.538679118869934
+        if cata_level_frac > 0:
+            exp_weight = overall * ((1.18340401286164044 ** (cata_level_frac + 1) - 1.05994990217254) * (1 + n))
+        else:
+            exp_weight = 0
+    else:
+        part = 142452410
+        extra = 500 * ((cata_xp - dungeon_max_xp) / part) ** (1 / 1.781925776625157)
+        exp_weight = (4100 + extra) * 2
+
+    # Completion weight (normal floors)
+    cata = dungeons.get("dungeon_types", {}).get("catacombs", {})
+    cata_completions = cata.get("tier_completions", {})
+
+    # Map floor numbers to completion_worth keys (0-7 = catacombs_0 to catacombs_7)
+    comp_score = 0
+    max1000 = 0
+    for floor_key, worth_key in [(str(i), f"catacombs_{i}") for i in range(8)]:
+        worth = completion_worth.get(worth_key, 0)
+        max1000 += worth * 1000
+        amount = int(cata_completions.get(floor_key, 0))
+        excess = 0
+        if amount > 1000:
+            excess = amount - 1000
+            amount = 1000
+        floor_score = amount * worth
+        if excess > 0:
+            floor_score *= math.log(excess / 1000 + 1) / math.log(7.5) + 1
+        comp_score += floor_score
+
+    upper_bound = 1500
+    comp_rating = (comp_score / max1000 * upper_bound * 2) if max1000 > 0 else 0
+
+    # Master mode completion weight
+    master = dungeons.get("dungeon_types", {}).get("master_catacombs", {})
+    m_completions = master.get("tier_completions", {})
+
+    # Update upper bound based on master mode completions (buffs)
+    for floor_str, buff in completion_buffs.items():
+        amount = int(m_completions.get(floor_str, 0))
+        threshold = 20
+        if amount >= threshold:
+            upper_bound += buff
+        elif amount > 0:
+            upper_bound += buff * (amount / threshold) ** 1.840896416
+
+    m_max1000 = 0
+    m_score = 0
+    for floor_num in range(1, 8):
+        worth_key = f"master_catacombs_{floor_num}"
+        worth = completion_worth.get(worth_key, 0)
+        m_max1000 += worth * 1000
+        amount = int(m_completions.get(str(floor_num), 0))
+        excess = 0
+        if amount > 1000:
+            excess = amount - 1000
+            amount = 1000
+        floor_score = amount * worth
+        if excess > 0:
+            floor_score *= math.log((excess / 1000) + 1) / math.log(6) + 1
+        m_score += floor_score
+
+    master_rating = (m_score / m_max1000 * upper_bound * 2) if m_max1000 > 0 else 0
+
+    return exp_weight, comp_rating, master_rating
+
+
+def _calc_farming_weight(member, profile):
+    """Calculate EliteFarmers farming weight."""
+    fw = _load_farming_weight_data()
+    if not fw:
+        return 0, {}, {}
+
+    crop_weights = fw.get("crop_weight", {})
+    crop_names = fw.get("crop_names", {})
+    bonus_cfg = fw.get("bonus_weight", {})
+    double_break = set(fw.get("double_break_crops", []))
+    tier12_list = fw.get("tier_12_farming_minions", [])
+
+    # Get collection data
+    collection = member.get("collection", {})
+
+    # Calculate crop weights
+    crop_breakdown = {}
+    total_crop_weight = 0
+    double_break_weight = 0
+
+    for crop_id, divisor in crop_weights.items():
+        if divisor <= 0:
+            continue
+        collected = collection.get(crop_id, 0)
+        if collected <= 0:
+            continue
+        weight = collected / divisor
+        total_crop_weight += weight
+        crop_breakdown[crop_names.get(crop_id, crop_id)] = weight
+        if crop_id in double_break:
+            double_break_weight += weight
+
+    # Mushroom special case (Mooshroom Cow pet dynamic weight)
+    mushroom_id = "MUSHROOM_COLLECTION"
+    mushroom_collected = collection.get(mushroom_id, 0)
+    mushroom_divisor = crop_weights.get(mushroom_id, 90944.27)
+    if mushroom_collected > 0 and total_crop_weight > 0:
+        db_ratio = double_break_weight / total_crop_weight if total_crop_weight else 0
+        normal_ratio = 1 - db_ratio
+        mushroom_weight = (
+            db_ratio * (mushroom_collected / (mushroom_divisor * 2)) +
+            normal_ratio * (mushroom_collected / mushroom_divisor)
+        )
+        crop_breakdown["Mushroom"] = mushroom_weight
+        # Replace the simple calculation with the dynamic one
+        total_crop_weight = sum(crop_breakdown.values())
+
+    # Bonus weights
+    bonus_sources = {}
+
+    # Farming level bonus
+    farming_xp = member.get("player_data", {}).get("experience", {}).get("SKILL_FARMING", 0)
+    farming_60_xp = fw.get("farming_60_xp", 111672425)
+    farming_50_xp = fw.get("farming_50_xp", 55172425)
+    level_cap = member.get("jacobs_contest", {}).get("perks", {}).get("farming_level_cap", 0)
+
+    if farming_xp >= farming_60_xp and level_cap >= 10:
+        bonus_sources["Farming 60"] = bonus_cfg.get("farming_60_bonus", 250)
+    elif farming_xp >= farming_50_xp:
+        bonus_sources["Farming 50"] = bonus_cfg.get("farming_50_bonus", 100)
+
+    # Anita bonus
+    anita_level = member.get("jacobs_contest", {}).get("perks", {}).get("double_drops", 0)
+    if anita_level > 0:
+        bonus_sources["Anita Bonus"] = anita_level * bonus_cfg.get("anita_buff_bonus_multiplier", 2)
+
+    # Tier 12 farming minions
+    all_minions = set()
+    # Check all profile members for minions
+    for mid, mdata in profile.get("members", {}).items():
+        for minion in mdata.get("player_data", {}).get("crafted_generators", []):
+            all_minions.add(minion)
+    t12_count = sum(1 for m in all_minions if m in tier12_list)
+    if t12_count > 0:
+        bonus_sources["T12 Minions"] = t12_count * bonus_cfg.get("minion_reward_weight", 5)
+
+    # Contest medals
+    contests = member.get("jacobs_contest", {}).get("contests", {})
+    diamond_count = 0
+    platinum_count = 0
+    gold_count = 0
+    for contest_key, contest_data in contests.items():
+        medal = contest_data.get("claimed_medal")
+        if medal == "diamond":
+            diamond_count += 1
+        elif medal == "platinum":
+            platinum_count += 1
+        elif medal == "gold":
+            gold_count += 1
+
+    max_medals = bonus_cfg.get("max_medals_counted", 1000)
+    w_diamond = bonus_cfg.get("weight_per_diamond_medal", 0.75)
+    w_platinum = bonus_cfg.get("weight_per_platinum_medal", 0.5)
+    w_gold = bonus_cfg.get("weight_per_gold_medal", 0.25)
+
+    if diamond_count >= max_medals:
+        medal_weight = w_diamond * max_medals
+    else:
+        plat = min(max_medals - diamond_count, platinum_count)
+        gold = min(max_medals - diamond_count - plat, gold_count)
+        medal_weight = diamond_count * w_diamond + plat * w_platinum + gold * w_gold
+
+    if medal_weight > 0:
+        bonus_sources["Contest Medals"] = medal_weight
+
+    return total_crop_weight + sum(bonus_sources.values()), crop_breakdown, bonus_sources
+
+
+def print_weight(member, profile):
+    """Print Senither, Lily, and Farming weight breakdown."""
+    print_section("WEIGHT")
+
+    # Senither Weight
+    s_skill, s_skill_bd = _calc_senither_skill_weight(member)
+    s_slayer, s_slayer_bd = _calc_senither_slayer_weight(member)
+    s_dungeon, s_dungeon_bd = _calc_senither_dungeon_weight(member)
+    s_total = s_skill + s_slayer + s_dungeon
+
+    print(f"  Senither Weight: {s_total:,.1f}")
+    print(f"    Skills:   {s_skill:>10,.1f}")
+    if s_skill_bd:
+        top_skills = sorted(s_skill_bd.items(), key=lambda x: -x[1])[:5]
+        for name, w in top_skills:
+            print(f"      {name.capitalize():14s} {w:>8,.1f}")
+    print(f"    Slayers:  {s_slayer:>10,.1f}")
+    if s_slayer_bd:
+        for name, w in sorted(s_slayer_bd.items(), key=lambda x: -x[1]):
+            if w > 0:
+                print(f"      {name.capitalize():14s} {w:>8,.1f}")
+    print(f"    Dungeons: {s_dungeon:>10,.1f}")
+    if s_dungeon_bd:
+        for name, w in sorted(s_dungeon_bd.items(), key=lambda x: -x[1]):
+            if w > 0:
+                print(f"      {name.capitalize():14s} {w:>8,.1f}")
+
+    # Lily Weight
+    l_skill_base, l_skill_overflow = _calc_lily_skill_weight(member)
+    l_slayer = _calc_lily_slayer_weight(member)
+    l_exp, l_comp, l_master = _calc_lily_dungeon_weight(member)
+    l_total = l_skill_base + l_skill_overflow + l_slayer + l_exp + l_comp + l_master
+
+    print(f"\n  Lily Weight: {l_total:,.1f}")
+    print(f"    Skills:   {l_skill_base + l_skill_overflow:>10,.1f}"
+          f"  (base: {l_skill_base:,.1f}, overflow: {l_skill_overflow:,.1f})")
+    print(f"    Slayers:  {l_slayer:>10,.1f}")
+    print(f"    Dungeons: {l_exp + l_comp + l_master:>10,.1f}"
+          f"  (exp: {l_exp:,.1f}, comp: {l_comp:,.1f}, master: {l_master:,.1f})")
+
+    # Farming Weight
+    f_total, f_crops, f_bonus = _calc_farming_weight(member, profile)
+    if f_total > 0:
+        print(f"\n  Farming Weight: {f_total:,.1f}")
+        if f_crops:
+            top_crops = sorted(f_crops.items(), key=lambda x: -x[1])[:5]
+            crop_w = sum(f_crops.values())
+            print(f"    Crops:    {crop_w:>10,.1f}")
+            for name, w in top_crops:
+                print(f"      {name:14s} {w:>8,.1f}")
+            if len(f_crops) > 5:
+                rest = crop_w - sum(w for _, w in top_crops)
+                if rest > 0:
+                    print(f"      {'(others)':14s} {rest:>8,.1f}")
+        if f_bonus:
+            bonus_w = sum(f_bonus.values())
+            print(f"    Bonus:    {bonus_w:>10,.1f}")
+            for name, w in sorted(f_bonus.items(), key=lambda x: -x[1]):
+                print(f"      {name:14s} {w:>8,.1f}")
+
+
 def print_craft_flips(member, price_cache):
     """Print profitable craft flips filtered by player unlocks."""
     print_section("CRAFT FLIPS")
@@ -2622,6 +3237,7 @@ def main():
     if show("chocolate"):   print_chocolate(member)
     if show("community"):   print_community(active)
     if show("misc"):        print_misc_extras(member)
+    if show("weight"):      print_weight(member, active)
 
     # --- Market prices (always shown) ---
     price_cache = PriceCache()
