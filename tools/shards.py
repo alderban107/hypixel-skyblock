@@ -28,9 +28,6 @@ Fusion mechanics (verified):
 import sys
 from pathlib import Path
 
-TOOLS_DIR = Path(__file__).parent / "tools"
-sys.path.insert(0, str(TOOLS_DIR))
-
 from pricing import PriceCache, _fmt
 
 # ── Complete shard data (141 shards from GiantWizard's Hypixel forum post) ──

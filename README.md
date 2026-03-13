@@ -4,7 +4,7 @@ A collection of tools and resources for playing [Hypixel SkyBlock](https://hypix
 
 [Hypixel SkyBlock](https://hypixel.net/) is an MMORPG-style game mode on Minecraft's largest multiplayer server. Players progress through skills, gear, dungeons, bosses, and a player-driven economy with two distinct markets: the **Bazaar** (bulk commodity exchange with instant buy/sell orders) and **Auctions** (player-to-player item sales, typically using "Buy It Now" fixed prices). Equipment in SkyBlock has hidden properties — reforges, enchantments, star upgrades, hot potato books — stored as compressed [NBT](https://minecraft.wiki/w/NBT_format) data in the API, which the tools here decode and display.
 
-This repo includes a beginner guide, a CLI profile analyzer with live market pricing, a craft flip scanner, a Kat upgrade calculator, a minion profit analyzer, a slayer profit calculator, a dungeon profit calculator, an accessories optimizer, a SkyBlock XP analyzer, a networth calculator, a museum donation optimizer, an event investment tracker, a local wiki mirror, and an Obsidian vault generator that cross-links game data for graph-view exploration.
+This repo includes a beginner guide, a CLI profile analyzer with live market pricing, a craft flip scanner, a Kat upgrade calculator, a minion profit analyzer, a slayer profit calculator, a dungeon profit calculator, an accessories optimizer, a SkyBlock XP analyzer, a networth calculator, a museum donation optimizer, an event investment tracker, a shard fusion advisor, a local wiki mirror, and an Obsidian vault generator that cross-links game data for graph-view exploration.
 
 ## What's Here
 
@@ -20,7 +20,7 @@ Content is organized into tabbed pages with auto-generated navigation:
 - **Core Systems** — Skills (12 types), stats, profiles, collections, bestiary, museum
 - **Early Progression** — Accessories/magic power, equipment slots, fairy souls, minions, garden
 - **Content Areas** — Enchanting, sacks, chocolate factory, slayers (each type individually), dungeons (floor-by-floor), mining/HotM, Rift, Diana, Crimson Isle, events
-- **Economy & Meta** — Money-making strategies (NPC flipping, Bazaar, crafting), mayors, pets
+- **Economy & Meta** — Comprehensive money-making guide (30+ methods across Combat, Farming, Mining, Fishing, Foraging, Hunting, Passive/AFK, Flipping, and Mayor-dependent categories with wiki-verified mechanics, income rates, gear thresholds, and cross-skill comparison tables), mayors, pets
 - **Skill Guides** — Detailed leveling guides for all 12 skills
 - **Reference** — Gear progression tables, tips, external links
 
@@ -28,7 +28,7 @@ Interactive features: localStorage-backed checkboxes with per-section progress t
 
 ### `tools/` — Python Scripts
 
-Fifteen standalone scripts. No dependencies beyond the standard library. Run from the `tools/` directory (scripts import from each other via relative imports).
+Sixteen standalone scripts. No dependencies beyond the standard library. Run from the `tools/` directory (scripts import from each other via relative imports).
 
 ---
 
@@ -323,6 +323,18 @@ python3 museum.py --xp               # Sort by XP/coin ratio
 python3 museum.py --sets             # Show armor sets separately
 python3 museum.py --refresh          # Fetch fresh museum data first
 python3 museum.py --special          # Include special items (no XP/milestones)
+```
+
+---
+
+**`shards.py`** — Shard fusion advisor for the Hunting skill's attribute shard system. Answers the practical questions: "I farmed this shard — should I sell it or fuse it forward?" and "What's the most valuable shard I can target?" Uses live Bazaar pricing to trace full fusion chains, rank farmable shards by chain value, identify the cheapest filler shards per rarity, and flag dead/thin markets to avoid. Covers all 141 shards across 4 rarities with fusion mechanics verified against the wiki (input quantities vary by family: Elementals/Reptiles/Amphibians use 2, most others use 5).
+
+```bash
+python3 shards.py                      # quick summary of all analyses
+python3 shards.py chain molthorn       # trace a shard's full fusion chain with prices
+python3 shards.py farm                 # rank farmable shards by chain value
+python3 shards.py fillers              # cheapest fillers per rarity
+python3 shards.py health               # market health check (dead/thin markets)
 ```
 
 ---
