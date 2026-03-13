@@ -13,8 +13,12 @@ tools/          Python scripts (run from this dir or project root)
   crafts.py     Craft flip scanner + single-item recipe breakdown
   networth.py   Networth calculator (all storage locations, modifier pricing, soulbound)
   dungeons.py   Dungeon profit calculator (per-score-tier drops, RNG meter, Kismet analysis)
+  dragons.py    Dragon profit calculator (EV per fight by dragon type, DragonLoot.json + live pricing)
   accessories.py Missing accessories finder (MP efficiency, upgrade chains, inactive detection)
   slayers.py    Slayer profit calculator (6 types incl. Bloodfiend, RNG meter via rngscore, MF/Aatrox)
+  farming.py    Farming profit calculator (per-crop profit/hr, fortune scaling, NPC vs Bazaar)
+  forge.py      Forge profit calculator (Coflnet pre-computed, Quick Forge perk, HotM filter)
+  validate.py   Cross-validation vs Coflnet (crafts, Kat, fusions, forge — flags divergences)
   kat.py        Kat upgrade calculator (materials, coins, time, profit)
   sbxp.py       SkyBlock XP analyzer — 23 formula sources, 692 tasks, smart recs (essence/collections/garden)
   minions.py    Minion profit calculator (live Bazaar pricing, 50+ minion types)
@@ -116,6 +120,29 @@ python3 investments.py                      # event investment recommendations (
 python3 investments.py --calendar           # SkyBlock calendar + upcoming events
 python3 investments.py --event spooky       # detail view for one event
 python3 investments.py --history GREEN_CANDY # price history for one item
+python3 dragons.py                          # all dragon types summary (EV per fight)
+python3 dragons.py --type superior          # detailed Superior Dragon breakdown
+python3 dragons.py --eyes 4                 # assume 4 eyes placed (affects cost)
+python3 dragons.py --json                   # machine-readable output
+python3 farming.py                          # all crops profit/hr (default 100 fortune)
+python3 farming.py --fortune 500            # set farming fortune
+python3 farming.py --crop wheat             # detailed wheat breakdown
+python3 farming.py --profile                # auto-detect fortune from profile
+python3 farming.py --npc                    # show NPC sell prices in summary
+python3 farming.py --bps 25                 # override blocks/second
+python3 forge.py                            # all profitable forges (sorted by profit/hr)
+python3 forge.py --hotm 5                   # filter by HotM level
+python3 forge.py --top 20                   # show top 20 only
+python3 forge.py --quick-forge 20           # Quick Forge perk level (% time reduction)
+python3 forge.py --profile                  # auto-detect HotM from profile
+python3 forge.py --buy-order                # use buy order costs (cheaper inputs)
+python3 forge.py --item TITANIUM_DRILL_3    # detailed breakdown for specific item
+python3 validate.py                         # run all validations vs Coflnet
+python3 validate.py --crafts                # craft profits only
+python3 validate.py --kat                   # Kat upgrade profits only
+python3 validate.py --fusions               # shard fusion profits only
+python3 validate.py --forge                 # forge recipe profits only
+python3 validate.py --threshold 30          # flag divergences >30% (default: 20%)
 python3 wiki_dump.py --update               # incremental wiki update
 python3 wiki_dump.py --parse                # generate parsed text (expands templates, ~80 min)
 python3 wiki_dump.py --update --parse       # update + re-parse changed pages
