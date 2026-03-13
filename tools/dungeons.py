@@ -3,22 +3,24 @@
 
 Calculates expected profit per run for each dungeon floor based on drop
 tables and current market prices. Shows per-chest EV, OPEN/SKIP verdicts,
-Kismet Feather reroll analysis, and RNG drop breakdown.
+Kismet Feather reroll analysis, RNG drop breakdown, and RNG meter analysis.
 
-Data is parsed from the fandom wiki (hypixel-skyblock.fandom.com), cached
-locally as data/dungeon_loot.json with a 24-hour TTL. Use --refresh to
-force re-scrape.
+Primary data source: DungeonLoot.json from skyblock-plus-data (52K lines,
+per-score-tier drop chances for SA1-SD5 and S+A1-S+D5). Falls back to
+wiki-scraped data with --wiki flag.
+
+RNG meter data from NEU-repo rngscore.json (meter XP per item per floor).
 
 Usage:
-    python3 dungeons.py                           # all floors summary
+    python3 dungeons.py                           # all floors summary (S+D5)
     python3 dungeons.py --floor f7                # detailed F7 breakdown
     python3 dungeons.py --floor m5                # Master Mode 5
-    python3 dungeons.py --talisman ring           # Treasure Talisman tier
-    python3 dungeons.py --luck 5                  # Boss Luck level
-    python3 dungeons.py --no-splus                # base rates instead of S+
+    python3 dungeons.py --score s+a3              # specific score tier
+    python3 dungeons.py --score sd5               # S grade (instead of S+)
     python3 dungeons.py --runs-per-hour 6         # override runs/hr
     python3 dungeons.py --json                    # machine-readable output
-    python3 dungeons.py --refresh                 # force re-scrape wiki
+    python3 dungeons.py --wiki                    # use wiki data instead of JSON
+    python3 dungeons.py --wiki --refresh          # force re-scrape wiki
 """
 
 import argparse
@@ -34,14 +36,39 @@ from items import display_name, get_items_data
 from pricing import PriceCache, _fmt
 
 DATA_DIR = Path(__file__).parent.parent / "data"
+EXTERNAL_DIR = DATA_DIR / "external"
 WIKI_DIR = DATA_DIR / "wiki"
 LOOT_CACHE_PATH = DATA_DIR / "dungeon_loot.json"
 LOOT_CACHE_TTL = 86400  # 24 hours
+DUNGEON_LOOT_JSON = EXTERNAL_DIR / "DungeonLoot.json"
+RNG_SCORE_PATH = DATA_DIR / "neu-repo" / "constants" / "rngscore.json"
 
 FANDOM_LOOT_URL = "https://hypixel-skyblock.fandom.com/wiki/Dungeon_Reward_Chest/Loot"
 
 # Threshold below which a drop is classified as "RNG drop"
 RNG_THRESHOLD = 1.0  # percent
+
+# ─── Score Tier System ──────────────────────────────────────────────
+# DungeonLoot.json provides 40 score tiers: SA1-SD5, S+A1-S+D5
+# S/S+ = overall grade, A-D = sub-rating letter, 1-5 = sub-rating number
+# Higher letters and numbers generally give better drop rates.
+#
+# Valid tiers: SA1, SB1, ..., SD5, S+A1, S+B1, ..., S+D5
+ALL_SCORE_TIERS = []
+for _grade in ("S", "S+"):
+    for _letter in "ABCD":
+        for _num in range(1, 6):
+            ALL_SCORE_TIERS.append(f"{_grade}{_letter}{_num}")
+
+DEFAULT_SCORE_TIER = "S+D5"  # Best S+ (highest drop rates)
+
+# Floor number (in DungeonLoot.json) → floor key mapping
+# 1-7 = F1-F7, 8-14 = M1-M7
+FLOOR_NUM_TO_KEY = {}
+for _i in range(1, 8):
+    FLOOR_NUM_TO_KEY[str(_i)] = f"F{_i}"
+for _i in range(8, 15):
+    FLOOR_NUM_TO_KEY[str(_i)] = f"M{_i - 7}"
 
 # Default runs/hour estimates by floor (conservative, for average players)
 DEFAULT_RUNS_PER_HOUR = {
@@ -187,6 +214,21 @@ ITEM_NAME_TO_ID = {
     "Adaptive Blade": "STONE_BLADE",
     # F4 drops
     "Spirit Pet": "SPIRIT;4",
+    # DungeonLoot.json naming variants (apostrophes dropped on MM floors, etc.)
+    "Bonzo Mask": "BONZO_MASK",
+    "Bonzo Staff": "BONZO_STAFF",
+    "Epic Spirit": "SPIRIT;3",
+    "Legendary Spirit": "SPIRIT;4",
+    "Wither Cloak": "WITHER_CLOAK",
+    "Necromancer_Sword": "NECROMANCER_SWORD",
+    "Necron Dye": "DYE_NECRON",
+    "Implosion": "IMPLOSION_SCROLL",
+    "Shadow Warp": "SHADOW_WARP_SCROLL",
+    "Wither Shield": "WITHER_SHIELD_SCROLL",
+    "Warped Stone": "AOTE_STONE",
+    "Rend I": "ENCHANTED_BOOK-ULTIMATE_REND-1",
+    "Rend II": "ENCHANTED_BOOK-ULTIMATE_REND-2",
+    "Lethality I": "ENCHANTED_BOOK-LETHALITY-6",
 }
 
 # Items that are cosmetic/untradeable and shouldn't be priced
@@ -442,6 +484,118 @@ def _extract_item_from_row(row):
     }
 
 
+# ─── DungeonLoot.json Loader ─────────────────────────────────────────
+
+def load_dungeon_loot_json(score_tier=None):
+    """Load dungeon loot data from DungeonLoot.json (skyblock-plus-data).
+
+    Converts the JSON format into our standard format:
+    {floor_key: {chest_name: [{item, chance, cost}, ...]}}
+
+    The score_tier parameter selects which drop chance column to use
+    (e.g., "S+D5", "SA1"). Defaults to DEFAULT_SCORE_TIER.
+
+    Returns (floors_dict, source_string) or (None, error_string).
+    """
+    if not DUNGEON_LOOT_JSON.exists():
+        return None, "DungeonLoot.json not found"
+
+    tier = score_tier or DEFAULT_SCORE_TIER
+    if tier not in ALL_SCORE_TIERS:
+        return None, f"Invalid score tier: {tier}"
+
+    try:
+        raw = json.loads(DUNGEON_LOOT_JSON.read_text())
+    except (json.JSONDecodeError, OSError) as e:
+        return None, f"Error reading DungeonLoot.json: {e}"
+
+    floors = {}
+    for floor_num, chests in raw.items():
+        floor_key = FLOOR_NUM_TO_KEY.get(floor_num)
+        if not floor_key:
+            continue
+
+        floor_data = {}
+        for chest_name, items in chests.items():
+            drops = []
+            for item in items:
+                chance_str = item.get("drop_chances", {}).get(tier, "0%")
+                chance = _parse_chance(chance_str)
+                drops.append({
+                    "item": item["item"],
+                    "chance": chance,
+                    "cost": item.get("cost", 0),
+                    # Store full drop_chances for --compare or future use
+                    "_drop_chances": item.get("drop_chances"),
+                })
+            if drops:
+                floor_data[chest_name] = drops
+
+        if floor_data:
+            floors[floor_key] = floor_data
+
+    return floors, f"DungeonLoot.json ({tier})"
+
+
+# ─── RNG Score / Meter Data ─────────────────────────────────────────
+
+def load_rng_scores():
+    """Load RNG score data from NEU-repo rngscore.json.
+
+    Returns dict: {"catacombs": {floor: {item_id: score}}, "slayer": {...}}
+    or empty dict if file not found.
+    """
+    if not RNG_SCORE_PATH.exists():
+        return {}
+    try:
+        return json.loads(RNG_SCORE_PATH.read_text())
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+
+def calculate_dungeon_rng_meter(floor_key, chest_results, prices, rng_scores):
+    """Calculate RNG meter optimization for a dungeon floor.
+
+    For each item on the floor that has an RNG score, calculate:
+      coins_per_xp = item_price / rng_meter_xp
+    Best target = highest coins_per_xp.
+
+    Returns (best_target, all_targets) or (None, []).
+    """
+    catacombs_scores = rng_scores.get("catacombs", {})
+    floor_scores = catacombs_scores.get(floor_key, {})
+    if not floor_scores:
+        return None, []
+
+    targets = []
+    for chest_name, cr in chest_results.items():
+        for drop in cr["drops"]:
+            item_id = drop.get("item_id")
+            if not item_id:
+                continue
+            meter_xp = floor_scores.get(item_id)
+            if not meter_xp or meter_xp <= 0:
+                continue
+            price = drop.get("price", 0)
+            if price <= 0:
+                continue
+            coins_per_xp = price / meter_xp
+            targets.append({
+                "name": drop["item"],
+                "id": item_id,
+                "chest": chest_name,
+                "price": price,
+                "meter_xp": meter_xp,
+                "coins_per_xp": coins_per_xp,
+            })
+
+    if not targets:
+        return None, []
+
+    targets.sort(key=lambda t: t["coins_per_xp"], reverse=True)
+    return targets[0], targets
+
+
 # ─── Fandom Wiki HTML Scraper ───────────────────────────────────────
 
 def scrape_fandom_wiki():
@@ -494,24 +648,32 @@ def _scrape_fandom_api():
 
 # ─── Data Loading & Caching ─────────────────────────────────────────
 
-def load_loot_data(force_refresh=False):
-    """Load loot data from cache or wiki.
+def load_loot_data(force_refresh=False, use_wiki=False, score_tier=None):
+    """Load loot data from DungeonLoot.json or wiki.
 
-    Priority:
-    1. Cached JSON (if fresh and not force_refresh)
-    2. Local wiki dump (if available)
-    3. Live wiki scrape
+    Default: DungeonLoot.json (static, per-score-tier drop chances)
+    With --wiki: cached wiki JSON → local wiki dump → live wiki scrape
+
+    Returns (floors_dict, source_string, is_json_source).
+    JSON source: each drop has a single 'chance' field for the selected tier.
+    Wiki source: drops have 'chance_default' and 'chance_splus'.
     """
-    # Check cache
+    if not use_wiki:
+        floors, source = load_dungeon_loot_json(score_tier)
+        if floors:
+            return floors, source, True
+        print("  [DungeonLoot.json not available, falling back to wiki]",
+              file=sys.stderr)
+
+    # Wiki data path
     if not force_refresh and LOOT_CACHE_PATH.exists():
         try:
             cache = json.loads(LOOT_CACHE_PATH.read_text())
             if time.time() - cache.get("timestamp", 0) < LOOT_CACHE_TTL:
-                return cache.get("floors", {}), cache.get("source", "cache")
+                return cache.get("floors", {}), cache.get("source", "cache"), False
         except (json.JSONDecodeError, OSError):
             pass
 
-    # Try local wiki dump first (fast, no network)
     local_wiki_path = WIKI_DIR / "Dungeon Reward Chest_SLASH_Loot.wiki"
     if local_wiki_path.exists() and not force_refresh:
         try:
@@ -519,26 +681,24 @@ def load_loot_data(force_refresh=False):
             floors = parse_wikitext_loot(wikitext)
             if floors:
                 _save_cache(floors, "local_wiki")
-                return floors, "local wiki dump"
+                return floors, "local wiki dump", False
         except OSError:
             pass
 
-    # Live scrape
     print("  Fetching loot data from fandom wiki...", file=sys.stderr)
     floors = _scrape_fandom_api()
     if floors:
         _save_cache(floors, "fandom_wiki")
-        return floors, "fandom wiki (live)"
+        return floors, "fandom wiki (live)", False
 
-    # Last resort: stale cache
     if LOOT_CACHE_PATH.exists():
         try:
             cache = json.loads(LOOT_CACHE_PATH.read_text())
-            return cache.get("floors", {}), "cache (stale)"
+            return cache.get("floors", {}), "cache (stale)", False
         except (json.JSONDecodeError, OSError):
             pass
 
-    return {}, "none"
+    return {}, "none", False
 
 
 def _save_cache(floors, source):
@@ -608,7 +768,8 @@ def resolve_item_id(wiki_name):
 
 # ─── EV Calculation ─────────────────────────────────────────────────
 
-def calculate_floor_ev(floor_key, floor_data, prices, use_splus=True):
+def calculate_floor_ev(floor_key, floor_data, prices, use_splus=True,
+                       is_json_source=False):
     """Calculate EV for all chests on a floor.
 
     Uses per-item cost model: in SkyBlock dungeons, the player sees what's
@@ -620,6 +781,10 @@ def calculate_floor_ev(floor_key, floor_data, prices, use_splus=True):
 
     This matches FluxCapacitor2's approach and reflects actual player
     decision-making.
+
+    When is_json_source=True, drops have a single 'chance' field (already
+    resolved to the selected score tier). When False (wiki), uses
+    'chance_splus' or 'chance_default' based on use_splus.
 
     Returns dict of chest results:
     {
@@ -647,7 +812,10 @@ def calculate_floor_ev(floor_key, floor_data, prices, use_splus=True):
 
         for drop in drops:
             item_name = drop["item"]
-            chance = drop["chance_splus"] if use_splus else drop["chance_default"]
+            if is_json_source:
+                chance = drop.get("chance", 0)
+            else:
+                chance = drop["chance_splus"] if use_splus else drop["chance_default"]
             cost = drop.get("cost", 0)
             replaces_essence = drop.get("replaces_essence", False)
 
@@ -750,21 +918,19 @@ def fetch_all_prices(floors_data):
 # ─── Output Formatting ──────────────────────────────────────────────
 
 def format_detailed_floor(floor_key, chest_results, essence, kismet_price,
-                          runs_per_hour, talisman, luck, use_splus):
+                          runs_per_hour, score_tier, use_splus, rng_meter=None):
     """Format detailed output for a single floor."""
     lines = []
 
     # Header
-    score = "S+" if use_splus else "Base"
-    talisman_str = talisman.title() if talisman != "none" else "None"
-    luck_str = str(luck)
+    if score_tier:
+        score_label = score_tier
+    else:
+        score_label = "S+" if use_splus else "Base"
 
     lines.append("═" * 60)
     lines.append(f"  DUNGEON PROFIT — {floor_key}")
-    lines.append(f"  Score: {score} | Talisman: {talisman_str} | Boss Luck: {luck_str}")
-    if talisman != "none" or luck > 0:
-        lines.append("  Note: Wiki only provides Default/S+ rates;")
-        lines.append("  Talisman/Boss Luck do not affect displayed rates.")
+    lines.append(f"  Score Tier: {score_label}")
     lines.append("═" * 60)
     lines.append("")
 
@@ -875,15 +1041,36 @@ def format_detailed_floor(floor_key, chest_results, essence, kismet_price,
                           f"  Reroll EV {reroll_str:>10s}  {verdict}")
         lines.append("")
 
+    # RNG Meter
+    if rng_meter:
+        best, all_targets = rng_meter
+        if best:
+            lines.append("  RNG Meter (best coins/XP targets):")
+            lines.append(f"    {'Item':<26s} {'Chest':<10s} {'Price':>10s}"
+                         f"  {'Meter XP':>10s}  {'Coins/XP':>10s}")
+            lines.append(f"    {'─' * 72}")
+            for i, t in enumerate(all_targets[:8]):
+                marker = " ★" if i == 0 else ""
+                lines.append(f"    {t['name']:<26s} {t['chest']:<10s}"
+                             f" {_fmt(t['price']):>10s}"
+                             f"  {t['meter_xp']:>10,}"
+                             f"  {_fmt(t['coins_per_xp']):>10s}{marker}")
+            lines.append("")
+
     return "\n".join(lines)
 
 
-def format_summary(floors_data, prices, use_splus=True, runs_per_hour_override=None):
+def format_summary(floors_data, prices, use_splus=True,
+                    runs_per_hour_override=None, score_tier=None,
+                    is_json_source=False):
     """Format a compact summary of all floors."""
     lines = []
     lines.append("═" * 70)
     lines.append("  DUNGEON PROFIT SUMMARY")
-    score_label = "S+" if use_splus else "Base"
+    if score_tier:
+        score_label = score_tier
+    else:
+        score_label = "S+" if use_splus else "Base"
     lines.append(f"  Score: {score_label} | Sorted by hourly rate (excluding RNG)")
     lines.append("═" * 70)
     lines.append("")
@@ -897,7 +1084,8 @@ def format_summary(floors_data, prices, use_splus=True, runs_per_hour_override=N
         if floor_key not in floors_data:
             continue
 
-        chest_results = calculate_floor_ev(floor_key, floors_data[floor_key], prices, use_splus)
+        chest_results = calculate_floor_ev(floor_key, floors_data[floor_key], prices,
+                                           use_splus, is_json_source)
         essence = calculate_essence_value(floor_key, prices)
 
         total_ev = essence["total"]
@@ -941,7 +1129,8 @@ def format_summary(floors_data, prices, use_splus=True, runs_per_hour_override=N
 
 
 def build_json_output(floor_key, chest_results, essence, kismet_price,
-                      runs_per_hour, talisman, luck, use_splus):
+                      runs_per_hour, talisman, luck, use_splus,
+                      score_tier=None, rng_meter=None):
     """Build JSON output for a single floor."""
     total_ev = essence["total"]
     total_ev_no_rng = essence["total"]
@@ -982,9 +1171,9 @@ def build_json_output(floor_key, chest_results, essence, kismet_price,
                     "worth_it": reroll_ev > 0,
                 }
 
-    return {
+    result = {
         "floor": floor_key,
-        "score": "S+" if use_splus else "base",
+        "score": score_tier or ("S+" if use_splus else "base"),
         "talisman": talisman,
         "boss_luck": luck,
         "chests": chests_json,
@@ -998,6 +1187,20 @@ def build_json_output(floor_key, chest_results, essence, kismet_price,
         "hourly_rate_no_rng": round(total_ev_no_rng * runs_per_hour, 2),
     }
 
+    if rng_meter:
+        best, all_targets = rng_meter
+        result["rng_meter"] = {
+            "best_target": best["name"] if best else None,
+            "best_coins_per_xp": round(best["coins_per_xp"], 2) if best else 0,
+            "targets": [{
+                "name": t["name"], "id": t["id"], "chest": t["chest"],
+                "price": round(t["price"], 2), "meter_xp": t["meter_xp"],
+                "coins_per_xp": round(t["coins_per_xp"], 2),
+            } for t in all_targets],
+        }
+
+    return result
+
 
 # ─── CLI ─────────────────────────────────────────────────────────────
 
@@ -1009,35 +1212,61 @@ def main():
                         help="Floor to analyze (e.g., f7, m5, F7, M5)")
     parser.add_argument("--talisman", type=str, default="none",
                         choices=["none", "talisman", "ring", "artifact"],
-                        help="Treasure Talisman tier (rates reserved — wiki only has Default/S+)")
+                        help="Treasure Talisman tier (wiki mode only)")
     parser.add_argument("--luck", type=int, default=0,
                         choices=[0, 1, 3, 5, 10],
-                        help="Boss Luck level (rates reserved — wiki only has Default/S+)")
+                        help="Boss Luck level (wiki mode only)")
+    parser.add_argument("--score", type=str, default=None,
+                        help="Score tier for drop rates (e.g., S+D5, SA1, S+A3). "
+                             "Default: S+D5. Use with JSON data source.")
     parser.add_argument("--no-splus", action="store_true",
-                        help="Use base score rates instead of S+ rates")
+                        help="Use S grade instead of S+ (shortcut for --score SD5)")
     parser.add_argument("--runs-per-hour", type=int, default=None,
                         help="Override runs/hour estimate")
     parser.add_argument("--json", action="store_true",
                         help="Machine-readable JSON output")
+    parser.add_argument("--wiki", action="store_true",
+                        help="Use wiki-scraped data instead of DungeonLoot.json")
     parser.add_argument("--refresh", action="store_true",
-                        help="Force re-scrape wiki data (ignore cache)")
+                        help="Force re-scrape wiki data (--wiki mode only)")
 
     args = parser.parse_args()
 
     if args.runs_per_hour is not None and args.runs_per_hour <= 0:
         parser.error("--runs-per-hour must be a positive integer")
 
+    # Resolve score tier
+    score_tier = None
+    if args.score:
+        score_tier = args.score.upper().replace(" ", "")
+        if score_tier not in ALL_SCORE_TIERS:
+            parser.error(f"Invalid score tier '{args.score}'. "
+                         f"Examples: S+D5, SA1, S+A3, SD5")
+    elif args.no_splus:
+        score_tier = "SD5"
+    else:
+        score_tier = DEFAULT_SCORE_TIER
+
     use_splus = not args.no_splus
 
     # Load loot data
-    floors_data, source = load_loot_data(force_refresh=args.refresh)
+    floors_data, source, is_json = load_loot_data(
+        force_refresh=args.refresh, use_wiki=args.wiki, score_tier=score_tier
+    )
     if not floors_data:
         print("Error: Could not load dungeon loot data.", file=sys.stderr)
-        print("Try: python3 dungeons.py --refresh", file=sys.stderr)
+        if args.wiki:
+            print("Try: python3 dungeons.py --wiki --refresh", file=sys.stderr)
+        else:
+            print("Ensure data/external/DungeonLoot.json exists, or use --wiki",
+                  file=sys.stderr)
         sys.exit(1)
 
     if not args.json:
         print(f"  [Data source: {source}]", file=sys.stderr)
+
+    # Load RNG score data
+    rng_scores = load_rng_scores()
 
     # Fetch prices
     if not args.json:
@@ -1060,21 +1289,33 @@ def main():
             sys.exit(1)
 
         chest_results = calculate_floor_ev(
-            floor_key, floors_data[floor_key], prices, use_splus
+            floor_key, floors_data[floor_key], prices, use_splus, is_json
         )
         essence = calculate_essence_value(floor_key, prices)
         rph = args.runs_per_hour or DEFAULT_RUNS_PER_HOUR.get(floor_key, 4)
 
+        # RNG meter analysis
+        rng_meter = None
+        if rng_scores:
+            best, all_targets = calculate_dungeon_rng_meter(
+                floor_key, chest_results, prices, rng_scores
+            )
+            if best:
+                rng_meter = (best, all_targets)
+
         if args.json:
             output = build_json_output(
                 floor_key, chest_results, essence, kismet_price,
-                rph, args.talisman, args.luck, use_splus
+                rph, args.talisman, args.luck, use_splus,
+                score_tier=score_tier if is_json else None,
+                rng_meter=rng_meter,
             )
             print(json.dumps(output, indent=2))
         else:
             print(format_detailed_floor(
                 floor_key, chest_results, essence, kismet_price,
-                rph, args.talisman, args.luck, use_splus
+                rph, score_tier if is_json else None, use_splus,
+                rng_meter=rng_meter,
             ))
     else:
         # Summary of all floors
@@ -1084,18 +1325,29 @@ def main():
                 if floor_key not in floors_data:
                     continue
                 chest_results = calculate_floor_ev(
-                    floor_key, floors_data[floor_key], prices, use_splus
+                    floor_key, floors_data[floor_key], prices, use_splus, is_json
                 )
                 essence = calculate_essence_value(floor_key, prices)
                 rph = args.runs_per_hour or DEFAULT_RUNS_PER_HOUR.get(floor_key, 4)
+                rng_meter = None
+                if rng_scores:
+                    best, all_targets = calculate_dungeon_rng_meter(
+                        floor_key, chest_results, prices, rng_scores
+                    )
+                    if best:
+                        rng_meter = (best, all_targets)
                 all_floors_json.append(build_json_output(
                     floor_key, chest_results, essence, kismet_price,
-                    rph, args.talisman, args.luck, use_splus
+                    rph, args.talisman, args.luck, use_splus,
+                    score_tier=score_tier if is_json else None,
+                    rng_meter=rng_meter,
                 ))
             print(json.dumps(all_floors_json, indent=2))
         else:
             print(format_summary(
-                floors_data, prices, use_splus, args.runs_per_hour
+                floors_data, prices, use_splus, args.runs_per_hour,
+                score_tier=score_tier if is_json else None,
+                is_json_source=is_json,
             ))
 
 

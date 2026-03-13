@@ -30,6 +30,7 @@ from pricing import PriceCache, _fmt
 DATA_DIR = Path(__file__).parent.parent / "data"
 DROPS_PATH = DATA_DIR / "slayer_drops.json"
 LAST_PROFILE_PATH = DATA_DIR / "last_profile.json"
+RNG_SCORE_PATH = DATA_DIR / "neu-repo" / "constants" / "rngscore.json"
 
 # ─── Aatrox Mayor Bonuses ─────────────────────────────────────────────
 
@@ -40,6 +41,73 @@ AATROX_MF_BONUS = 20
 # ─── Magic Find threshold ─────────────────────────────────────────────
 # Only drops with <5% base chance are affected by Magic Find
 MF_CHANCE_THRESHOLD = 0.05
+
+
+# ─── RNG Score Data ────────────────────────────────────────────────────
+
+# Mapping from our drop IDs to rngscore.json IDs (where they differ)
+_OUR_ID_TO_RNG_ID = {
+    "ENCHANTMENT_SMITE_6": "SMITE;6",
+    "ENCHANTMENT_SMITE_7": "SMITE;7",
+    "ENCHANTMENT_BANE_OF_ARTHROPODS_6": "BANE_OF_ARTHROPODS;6",
+    "ENCHANTMENT_CRITICAL_6": "CRITICAL;6",
+    "ENCHANTMENT_MANA_STEAL_1": "MANA_STEAL;1",
+    "ENCHANTMENT_SMARTY_PANTS_1": "SMARTY_PANTS;1",
+    "ENCHANTMENT_ENDER_SLAYER_7": "ENDER_SLAYER;7",
+    "ENCHANTMENT_FIRE_ASPECT_3": "FIRE_ASPECT;3",
+    "ENCHANTMENT_ULTIMATE_DUPLEX_1": "ULTIMATE_REITERATE;1",
+    "END_RUNE;1": "ENDERSNAKE_RUNE;1",  # Possible wiki vs official name
+    "VOID_CONQUEROR_ENDERMAN_SKIN": "PET_SKIN_ENDERMAN_SLAYER",
+    "POTION_WISP_ICE;1": "POTION_WISP_ICE;1",
+}
+
+# Map slayer keys to rngscore.json names
+_SLAYER_KEY_TO_RNG_NAME = {
+    "zombie": "Revenant Horror",
+    "spider": "Tarantula Broodfather",
+    "wolf": "Sven Packmaster",
+    "enderman": "Voidgloom Seraph",
+    "blaze": "Inferno Demonlord",
+    "vampire": "Riftstalker Bloodfiend",
+}
+
+
+def load_rng_scores():
+    """Load RNG score data from NEU-repo rngscore.json.
+
+    Returns the slayer section: {slayer_name: {item_id: score_xp}}
+    or empty dict if unavailable.
+    """
+    if not RNG_SCORE_PATH.exists():
+        return {}
+    try:
+        data = json.loads(RNG_SCORE_PATH.read_text())
+        return data.get("slayer", {})
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+
+def get_rng_score_for_drop(drop_id, slayer_key, rng_scores):
+    """Look up the RNG meter XP for a drop item.
+
+    Tries the drop ID directly, then the mapped ID, against rngscore data.
+    Returns the meter XP value, or None if not found.
+    """
+    rng_name = _SLAYER_KEY_TO_RNG_NAME.get(slayer_key, "")
+    slayer_scores = rng_scores.get(rng_name, {})
+    if not slayer_scores:
+        return None
+
+    # Try direct lookup
+    if drop_id in slayer_scores:
+        return slayer_scores[drop_id]
+
+    # Try mapped ID
+    mapped_id = _OUR_ID_TO_RNG_ID.get(drop_id)
+    if mapped_id and mapped_id in slayer_scores:
+        return slayer_scores[mapped_id]
+
+    return None
 
 
 # ─── Data Loading ─────────────────────────────────────────────────────
@@ -145,11 +213,15 @@ def calculate_drop_ev(drop, tier, price_cache, magic_find=0, aatrox=False):
     return result
 
 
-def calculate_rng_meter(rng_drops, tier_xp, ref_tier_xp, price_cache):
+def calculate_rng_meter(rng_drops, tier_xp, ref_tier_xp, price_cache,
+                        slayer_key=None, rng_scores=None):
     """Calculate RNG meter optimization.
 
+    Uses rngscore.json meter XP values when available (authoritative),
+    falls back to Luckalyzer meter boss counts × ref_tier_xp.
+
     For each eligible drop:
-      meter_xp = rng_meter_bosses × ref_tier_xp
+      meter_xp = rngscore value, OR rng_meter_bosses × ref_tier_xp
       coins_per_xp = item_price / meter_xp
     Best target = highest coins_per_xp
     Meter value per boss = tier_xp × best_coins_per_xp
@@ -158,23 +230,37 @@ def calculate_rng_meter(rng_drops, tier_xp, ref_tier_xp, price_cache):
     """
     targets = []
     for drop in rng_drops:
-        if not drop.get("meter") or not drop.get("prob"):
-            continue
         price = drop["price"]
         if price is None or price <= 0:
             continue
-        meter_xp = drop["meter"] * ref_tier_xp
-        if meter_xp <= 0:
+
+        # Try rngscore.json first (authoritative meter XP)
+        meter_xp = None
+        rng_source = None
+        if rng_scores and slayer_key:
+            rng_xp = get_rng_score_for_drop(drop["id"], slayer_key, rng_scores)
+            if rng_xp and rng_xp > 0:
+                meter_xp = rng_xp
+                rng_source = "rngscore"
+
+        # Fall back to Luckalyzer meter data
+        if meter_xp is None and drop.get("meter") and drop.get("prob"):
+            meter_xp = drop["meter"] * ref_tier_xp
+            rng_source = "luckalyzer"
+
+        if not meter_xp or meter_xp <= 0:
             continue
+
         coins_per_xp = price / meter_xp
         targets.append({
             "name": drop["name"],
             "id": drop["id"],
             "price": price,
-            "meter_bosses": drop["meter"],
+            "meter_bosses": drop.get("meter", meter_xp // max(tier_xp, 1)),
             "meter_xp": meter_xp,
             "coins_per_xp": coins_per_xp,
             "bosses_at_tier": meter_xp / tier_xp if tier_xp > 0 else float("inf"),
+            "_source": rng_source,
         })
 
     if not targets:
@@ -202,7 +288,8 @@ def calculate_champion():
 # ─── Per-Boss Profit ──────────────────────────────────────────────────
 
 def calculate_boss_profit(slayer_data, tier, price_cache,
-                          magic_find=0, aatrox=False, kills_per_hour=None):
+                          magic_find=0, aatrox=False, kills_per_hour=None,
+                          slayer_key=None, rng_scores=None):
     """Calculate complete profit breakdown for a specific slayer + tier.
 
     Returns dict with all breakdown info.
@@ -244,10 +331,11 @@ def calculate_boss_profit(slayer_data, tier, price_cache,
     common.sort(key=lambda d: d["ev"], reverse=True)
     rng.sort(key=lambda d: d["ev"], reverse=True)
 
-    # RNG meter optimization (only for RNG drops with meter data)
-    meter_drops = [d for d in rng if d.get("meter")]
+    # RNG meter optimization (RNG drops with meter data or rngscore.json)
+    meter_drops = rng  # Try all RNG drops; calculate_rng_meter filters by available data
     best_meter, coins_per_xp, meter_value, all_meter_targets = \
-        calculate_rng_meter(meter_drops, xp, ref_tier_xp, price_cache)
+        calculate_rng_meter(meter_drops, xp, ref_tier_xp, price_cache,
+                            slayer_key, rng_scores)
 
     # Scavenger & Champion
     scav_coins = calculate_scavenger(level)
@@ -393,7 +481,8 @@ def print_tier_comparison(slayer_data, all_results, aatrox=False):
               f"{_fmt(r['coins_per_xp']):>10s}   {r['kph']:>8d}   {_profit_str(r['hourly']):>10s}{marker}")
 
 
-def print_summary(all_slayers, price_cache, magic_find=0, aatrox=False):
+def print_summary(all_slayers, price_cache, magic_find=0, aatrox=False,
+                   rng_scores=None):
     """Print summary across all slayer types (best tier for each)."""
     print(f"\n{'═' * 70}")
     print(f"  SLAYER PROFIT SUMMARY")
@@ -420,7 +509,9 @@ def print_summary(all_slayers, price_cache, magic_find=0, aatrox=False):
         for tier_key in sorted(tiers.keys(), key=int):
             tier = int(tier_key)
             result = calculate_boss_profit(slayer_data, tier, price_cache,
-                                           magic_find, aatrox)
+                                           magic_find, aatrox,
+                                           slayer_key=slayer_key,
+                                           rng_scores=rng_scores)
             if result and (best is None or result["hourly"] > best["hourly"]):
                 best = result
 
@@ -475,7 +566,8 @@ def json_output_detailed(result):
     print(json.dumps(out, indent=2))
 
 
-def json_output_summary(all_slayers, price_cache, magic_find=0, aatrox=False):
+def json_output_summary(all_slayers, price_cache, magic_find=0, aatrox=False,
+                         rng_scores=None):
     """Output JSON summary across all slayer types."""
     results = {}
     for slayer_key, slayer_data in all_slayers.items():
@@ -485,7 +577,9 @@ def json_output_summary(all_slayers, price_cache, magic_find=0, aatrox=False):
         for tier_key in sorted(slayer_data["tiers"].keys(), key=int):
             tier = int(tier_key)
             r = calculate_boss_profit(slayer_data, tier, price_cache,
-                                      magic_find, aatrox)
+                                      magic_find, aatrox,
+                                      slayer_key=slayer_key,
+                                      rng_scores=rng_scores)
             if r:
                 tiers_out[tier_key] = {
                     "cost": r["effective_cost"],
@@ -510,6 +604,7 @@ SLAYER_ALIASES = {
     "wolf": "wolf", "sven": "wolf",
     "enderman": "enderman", "eman": "enderman", "voidgloom": "enderman",
     "blaze": "blaze", "inferno": "blaze", "demonlord": "blaze",
+    "vampire": "vampire", "bloodfiend": "vampire", "riftstalker": "vampire",
 }
 
 
@@ -537,6 +632,7 @@ def main():
     # Load data
     all_data = load_slayer_data()
     player, _ = load_profile()
+    rng_scores = load_rng_scores()
 
     # Resolve slayer type
     slayer_key = None
@@ -570,7 +666,9 @@ def main():
         # Detailed single tier
         slayer_data = all_data[slayer_key]
         result = calculate_boss_profit(slayer_data, args.tier, price_cache,
-                                       magic_find, aatrox, kph)
+                                       magic_find, aatrox, kph,
+                                       slayer_key=slayer_key,
+                                       rng_scores=rng_scores)
         if not result:
             valid_tiers = ", ".join(sorted(slayer_data["tiers"].keys(), key=int))
             print(f"Error: Tier {args.tier} not available for {slayer_data['name']}. "
@@ -587,7 +685,9 @@ def main():
             for tk in sorted(slayer_data["tiers"].keys(), key=int):
                 t = int(tk)
                 r = calculate_boss_profit(slayer_data, t, price_cache,
-                                          magic_find, aatrox, kph)
+                                          magic_find, aatrox, kph,
+                                          slayer_key=slayer_key,
+                                          rng_scores=rng_scores)
                 if r:
                     all_results.append(r)
             print_tier_comparison(slayer_data, all_results, aatrox)
@@ -602,7 +702,9 @@ def main():
         for tk in sorted(slayer_data["tiers"].keys(), key=int):
             t = int(tk)
             r = calculate_boss_profit(slayer_data, t, price_cache,
-                                      magic_find, aatrox, kph)
+                                      magic_find, aatrox, kph,
+                                      slayer_key=slayer_key,
+                                      rng_scores=rng_scores)
             if r:
                 all_results.append(r)
                 if r["hourly"] > best_hourly:
@@ -631,9 +733,11 @@ def main():
     else:
         # Summary of all slayer types
         if args.json:
-            json_output_summary(all_data, price_cache, magic_find, aatrox)
+            json_output_summary(all_data, price_cache, magic_find, aatrox,
+                                rng_scores=rng_scores)
         else:
-            print_summary(all_data, price_cache, magic_find, aatrox)
+            print_summary(all_data, price_cache, magic_find, aatrox,
+                          rng_scores=rng_scores)
 
             # Also show tier comparisons for each type
             for sk in [k for k in all_data if not k.startswith("_")]:
@@ -642,7 +746,9 @@ def main():
                 for tk in sorted(slayer_data["tiers"].keys(), key=int):
                     t = int(tk)
                     r = calculate_boss_profit(slayer_data, t, price_cache,
-                                              magic_find, aatrox, kph)
+                                              magic_find, aatrox, kph,
+                                              slayer_key=sk,
+                                              rng_scores=rng_scores)
                     if r:
                         all_results.append(r)
                 print_tier_comparison(slayer_data, all_results, aatrox)
