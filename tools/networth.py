@@ -258,46 +258,64 @@ def get_good_rolls():
     return _good_rolls
 
 
-# ─── Pet Level Estimation ─────────────────────────────────────────────
+# ─── Pet Level Calculation ────────────────────────────────────────────
 
-# Cumulative XP thresholds per pet rarity to reach each level (1-100/200)
-# Simplified: use the standard XP curve. SkyHelper prices use level anchors
-# (LVL_1, LVL_100, LVL_200) so we just need approximate level.
-_PET_XP_TABLE = None
+# XP required for each level (from SkyHelper-Networth constants/pets.js)
+# Index 0 = XP to go from level 1→2, index 1 = level 2→3, etc.
+_PET_LEVELS_XP = [
+    100, 110, 120, 130, 145, 160, 175, 190, 210, 230, 250, 275, 300, 330, 360,
+    400, 440, 490, 540, 600, 660, 730, 800, 880, 960, 1050, 1150, 1260, 1380,
+    1510, 1650, 1800, 1960, 2130, 2310, 2500, 2700, 2920, 3160, 3420, 3700,
+    4000, 4350, 4750, 5200, 5700, 6300, 7000, 7800, 8700, 9700, 10800, 12000,
+    13300, 14700, 16200, 17800, 19500, 21300, 23200, 25200, 27400, 29800, 32400,
+    35200, 38200, 41400, 44800, 48400, 52200, 56200, 60400, 64800, 69400, 74200,
+    79200, 84700, 90700, 97200, 104200, 111700, 119700, 128200, 137200, 146700,
+    156700, 167700, 179700, 192700, 206700, 221700, 237700, 254700, 272700,
+    291700, 311700, 333700, 357700, 383700, 411700, 441700,
+    # Levels 101-200 (for Golden Dragon, Jade Dragon, Rose Dragon)
+    476700, 516700, 561700, 611700, 666700, 726700, 791700, 861700, 936700,
+    1016700, 1101700, 1191700, 1286700, 1386700, 1496700, 1616700, 1746700,
+    1886700, 0, 5555,  # level 119-120 gap
+    1886700, 1886700, 1886700, 1886700, 1886700, 1886700, 1886700, 1886700,
+    1886700, 1886700, 1886700, 1886700, 1886700, 1886700, 1886700, 1886700,
+    1886700, 1886700, 1886700, 1886700, 1886700, 1886700, 1886700, 1886700,
+    1886700, 1886700, 1886700, 1886700, 1886700, 1886700, 1886700, 1886700,
+    1886700, 1886700, 1886700, 1886700, 1886700, 1886700, 1886700, 1886700,
+    1886700, 1886700, 1886700, 1886700, 1886700, 1886700, 1886700, 1886700,
+    1886700, 1886700, 1886700, 1886700, 1886700, 1886700, 1886700, 1886700,
+    1886700, 1886700, 1886700, 1886700, 1886700, 1886700, 1886700, 1886700,
+    1886700, 1886700, 1886700, 1886700, 1886700, 1886700, 1886700, 1886700,
+    1886700, 1886700, 1886700, 1886700, 1886700, 1886700, 1886700, 1886700,
+]
+
+# Rarity → starting level offset (how many early levels to skip)
+_PET_RARITY_OFFSET = {0: 0, 1: 6, 2: 11, 3: 16, 4: 20, 5: 20}
+
+# Pets that can go to level 200
+_PET_MAX_200 = {"GOLDEN_DRAGON", "JADE_DRAGON", "ROSE_DRAGON"}
 
 
-def _estimate_pet_level(xp, rarity_num):
-    """Estimate pet level from XP. Returns level 1-100 (or 200 for Golden Dragon)."""
-    # Rarity offsets: Common starts at level 1 needing 0 XP
-    # Each rarity skips some early levels' worth of XP
-    # This is an approximation — SkyHelper uses specific level anchors anyway
-    rarity_offsets = {0: 0, 1: 6, 2: 11, 3: 16, 4: 20, 5: 20}
-    offset = rarity_offsets.get(rarity_num, 0)
+def _estimate_pet_level(xp, rarity_num, pet_type=""):
+    """Calculate pet level from XP using the actual XP table.
 
-    # Approximate XP per level (grows roughly exponentially)
-    # Using simplified thresholds for level estimation
+    Returns level 1-100 (or 1-200 for special pets like Golden Dragon).
+    """
+    offset = _PET_RARITY_OFFSET.get(rarity_num, 0)
+    max_level = 200 if pet_type in _PET_MAX_200 else 100
+
     level = 1
-    cumulative = 0
-    for lvl in range(1, 201):
-        if lvl <= 10:
-            needed = 660 + lvl * 340
-        elif lvl <= 20:
-            needed = 2_000 + (lvl - 10) * 2_000
-        elif lvl <= 50:
-            needed = 20_000 + (lvl - 20) * 10_000
-        elif lvl <= 100:
-            needed = 300_000 + (lvl - 50) * 50_000
-        else:
-            needed = 3_000_000 + (lvl - 100) * 100_000
-
-        if lvl <= offset:
+    remaining_xp = xp
+    for i in range(offset, min(offset + max_level - 1, len(_PET_LEVELS_XP))):
+        xp_needed = _PET_LEVELS_XP[i]
+        if xp_needed <= 0:
             continue
-        cumulative += needed
-        if xp < cumulative:
+        if remaining_xp >= xp_needed:
+            remaining_xp -= xp_needed
+            level += 1
+        else:
             break
-        level = lvl - offset + 1
 
-    return min(level, 200 if rarity_num == 5 else 100)
+    return min(level, max_level)
 
 
 # ─── Soulbound Detection ─────────────────────────────────────────────
@@ -1213,7 +1231,7 @@ def extract_all_items(member, profile, raw_data):
             if pet_type and rarity_num >= 0:
                 # Calculate pet level from XP (approximate — SkyHelper uses specific anchors)
                 pet_xp = pet.get("exp", 0)
-                pet_level = _estimate_pet_level(pet_xp, rarity_num)
+                pet_level = _estimate_pet_level(pet_xp, rarity_num, pet_type)
                 pet_item = {
                     "id": f"{pet_type};{rarity_num}",
                     "count": 1,
@@ -1245,18 +1263,87 @@ def extract_all_items(member, profile, raw_data):
 # ─── Pet-specific Pricing ─────────────────────────────────────────────
 
 
+def _xp_fraction_for_level(level, rarity_num):
+    """Calculate what fraction of total XP (to reach level 100) a given level represents.
+
+    Uses the actual XP table. A level 90 pet might have used ~70% of the total
+    XP because late levels cost exponentially more. This gives a much better
+    interpolation curve than linear level-based interpolation.
+    """
+    offset = _PET_RARITY_OFFSET.get(rarity_num, 0)
+    max_idx = offset + 99  # indices for levels 1→100
+
+    # Total XP for level 100
+    total_xp = sum(_PET_LEVELS_XP[offset:max_idx])
+    if total_xp <= 0:
+        return (level - 1) / 99  # fallback to linear
+
+    # XP accumulated at the given level
+    levels_gained = level - 1
+    accum = sum(_PET_LEVELS_XP[offset:offset + levels_gained])
+
+    return accum / total_xp
+
+
+def _interpolate_pet_price(price_cache, pet_type, rarity_name, level,
+                           rarity_num=None, skin=None):
+    """Interpolate pet price between SkyHelper level anchors (1, 100, 200).
+
+    Uses XP-fraction interpolation: a pet at X% of the total XP to level 100
+    is priced at X% between LVL_1 and LVL_100 prices. This reflects the
+    exponential XP curve — early levels are cheap, most value is in the
+    last 10-20 levels.
+    """
+    prefix = f"{rarity_name}_{pet_type}"
+    if skin:
+        prefix = f"{rarity_name}_{pet_type}_SKINNED_{skin}"
+
+    p1 = price_cache.get_skyhelper_price(f"LVL_1_{prefix}")
+    p100 = price_cache.get_skyhelper_price(f"LVL_100_{prefix}")
+    p200 = price_cache.get_skyhelper_price(f"LVL_200_{prefix}")
+
+    if level <= 1 and p1:
+        return p1, f"LVL_1_{prefix}"
+
+    if level >= 200 and p200:
+        return p200, f"LVL_200_{prefix}"
+
+    if level >= 100 and p100:
+        if level == 100:
+            return p100, f"LVL_100_{prefix}"
+        if p200:
+            # For 100→200, use linear level interpolation (all levels cost the same)
+            frac = (level - 100) / 100
+            price = p100 + (p200 - p100) * frac
+            return price, f"LVL_{level}_{prefix}(interp)"
+        return p100, f"LVL_100_{prefix}"
+
+    # Interpolate 1→100 using XP fraction
+    if p1 and p100:
+        if rarity_num is not None:
+            frac = _xp_fraction_for_level(level, rarity_num)
+        else:
+            frac = (level - 1) / 99  # fallback to linear
+        price = p1 + (p100 - p1) * frac
+        return price, f"LVL_{level}_{prefix}(interp)"
+
+    if p1:
+        return p1, f"LVL_1_{prefix}"
+
+    return None, None
+
+
 def price_pet_item(item, price_cache):
     """Price a pet with its held item and candy.
 
-    Tries SkyHelper pet-level pricing first (e.g., LVL_100_LEGENDARY_RABBIT),
-    falls back to Moulberry LBIN for the base pet ID.
+    Uses SkyHelper level anchors (LVL_1, LVL_100, LVL_200) with linear
+    interpolation for intermediate levels. Falls back to Moulberry LBIN.
     """
     item_id = item.get("id", "")
     base = 0
     source = "unknown"
     variant_key = None
 
-    # Try SkyHelper level-specific pricing
     if ";" in item_id:
         pet_type, rarity_str = item_id.split(";", 1)
         try:
@@ -1267,24 +1354,27 @@ def price_pet_item(item, price_cache):
         pet_level = item.get("pet_level")
         pet_skin = item.get("skin")
 
-        # Try level+skin, then level only, then base
         if pet_level is not None and rarity_num >= 0:
             rarity_name = RARITY_NAME.get(rarity_num, "")
+
+            # Try skinned variant first, then base
             if pet_skin:
-                skin_key = f"LVL_{pet_level}_{rarity_name}_{pet_type}_SKINNED_{pet_skin}"
-                sh = price_cache.get_skyhelper_price(skin_key)
-                if sh and sh > 0:
-                    base = sh
+                price, vk = _interpolate_pet_price(
+                    price_cache, pet_type, rarity_name, pet_level,
+                    rarity_num=rarity_num, skin=pet_skin)
+                if price:
+                    base = price
                     source = "skyhelper_variant"
-                    variant_key = skin_key
+                    variant_key = vk
 
             if base == 0:
-                lvl_key = f"LVL_{pet_level}_{rarity_name}_{pet_type}"
-                sh = price_cache.get_skyhelper_price(lvl_key)
-                if sh and sh > 0:
-                    base = sh
+                price, vk = _interpolate_pet_price(
+                    price_cache, pet_type, rarity_name, pet_level,
+                    rarity_num=rarity_num)
+                if price:
+                    base = price
                     source = "skyhelper_variant"
-                    variant_key = lvl_key
+                    variant_key = vk
 
     if base == 0:
         base = price_cache.weighted(item_id) or 0
