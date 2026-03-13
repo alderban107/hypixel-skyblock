@@ -684,6 +684,11 @@ def market_warning(price_data: dict) -> str:
         return "❌ ZERO BUY ORDERS"
     if price_data['buy_volume'] < MIN_VOLUME:
         return f"⚠️  THIN ({_fmt(price_data['buy_volume'])} buy vol)"
+    # Flag extreme buy/sell spreads (>5:1 ratio means pricing is unreliable)
+    if price_data['sell'] > 0 and price_data['buy'] > 0:
+        spread_ratio = price_data['buy'] / price_data['sell']
+        if spread_ratio > 5:
+            return f"⚠️  WIDE SPREAD (sell {_fmt(price_data['sell'])} / buy {_fmt(price_data['buy'])})"
     return ""
 
 

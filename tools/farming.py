@@ -180,20 +180,89 @@ def load_farming_weight():
     return {}
 
 
+def _pet_level_from_xp(xp, tier):
+    """Estimate pet level from XP and tier. Returns 1-100."""
+    # Cumulative XP thresholds per rarity offset (simplified)
+    # Rarity offsets: common=0, uncommon=6, rare=11, epic=16, legendary=20
+    offsets = {"COMMON": 0, "UNCOMMON": 6, "RARE": 11, "EPIC": 16, "LEGENDARY": 20}
+    offset = offsets.get(tier, 0)
+    # Per-level XP requirements (levels 1-100, simplified table)
+    per_level = [
+        100, 110, 120, 130, 145, 160, 175, 190, 210, 230,
+        250, 275, 300, 330, 360, 400, 440, 490, 540, 600,
+        660, 730, 800, 880, 960, 1050, 1150, 1260, 1380, 1510,
+        1650, 1800, 1960, 2130, 2310, 2500, 2700, 2920, 3160, 3420,
+        3700, 4000, 4350, 4750, 5200, 5700, 6300, 7000, 7800, 8700,
+        9700, 10800, 12000, 13300, 14700, 16200, 17800, 19500, 21300, 23200,
+        25200, 27400, 29800, 32400, 35200, 38200, 41400, 44800, 48400, 52200,
+        56200, 60400, 64800, 69400, 74200, 79200, 84500, 90000, 95800, 101800,
+        108100, 114700, 121600, 128800, 136300, 144100, 152200, 160600, 169300, 178300,
+        187600, 197200, 207100, 217300, 227800, 238600, 249700, 261100, 272800, 284800,
+    ]
+    cumulative = 0
+    level = 1
+    for i in range(offset, min(offset + 99, len(per_level))):
+        cumulative += per_level[i]
+        if xp >= cumulative:
+            level = (i - offset) + 2  # +2 because level 1 = 0 xp
+        else:
+            break
+    return min(level, 100)
+
+
+# Known farming fortune values from armor, equipment, and reforges
+_ARMOR_FORTUNE = {
+    # Melon armor set: 10 FF per piece
+    "MELON_HELMET": 10, "MELON_CHESTPLATE": 10,
+    "MELON_LEGGINGS": 10, "MELON_BOOTS": 10,
+    # Fermento armor set: 25 FF per piece (at Legendary)
+    "FERMENTO_HELMET": 25, "FERMENTO_CHESTPLATE": 25,
+    "FERMENTO_LEGGINGS": 25, "FERMENTO_BOOTS": 25,
+    # Rancher boots: 10 FF
+    "RANCHERS_BOOTS": 10,
+    # Squash armor set: 15 FF per piece
+    "SQUASH_HELMET": 15, "SQUASH_CHESTPLATE": 15,
+    "SQUASH_LEGGINGS": 15, "SQUASH_BOOTS": 15,
+}
+
+_EQUIPMENT_FORTUNE = {
+    # Lotus set: 5 FF per piece
+    "LOTUS_NECKLACE": 5, "LOTUS_CLOAK": 5,
+    "LOTUS_BELT": 5, "LOTUS_BRACELET": 5,
+}
+
+_REFORGE_FORTUNE = {
+    # Armor reforges that give FF
+    "mantid": 10,   # per piece, Epic rarity
+    "blooming": 3,  # per piece, equipment
+}
+
+# Pets that give farming fortune (at level 100 for max tier listed)
+# Actual formula: base + per_level * level. We approximate from level.
+_PET_FORTUNE = {
+    # Elephant: 1.5 FF per level at Legendary
+    "ELEPHANT": {"tier": "LEGENDARY", "per_level": 1.5},
+    # Mooshroom Cow: 1.0 FF per level at Legendary
+    "MOOSHROOM_COW": {"tier": "LEGENDARY", "per_level": 1.0},
+    # Bee: 0.2 FF per level at Legendary
+    "BEE": {"tier": "LEGENDARY", "per_level": 0.2},
+    # Chicken: no farming fortune
+}
+
+
 def load_profile_fortune():
-    """Try to detect farming fortune from cached profile data.
+    """Detect farming fortune from cached profile data.
 
-    Farming fortune sources we can detect from API:
+    Detects:
     - Farming skill level (4 FF per level, max 240 at 60)
-    - Garden crop upgrades (5 FF per level per crop, max 45 each)
-    - Garden plots (3 FF per plot)
-    - Extra Farming Fortune (Anita perk)
+    - Equipped armor fortune (Melon, Fermento, Squash sets)
+    - Equipped equipment fortune (Lotus set)
+    - Reforge fortune (Mantid, Blooming)
+    - Active pet fortune (Elephant, Mooshroom Cow, Bee)
 
-    Sources we CAN'T detect (need tool/armor inspection):
-    - Tool fortune (varies by hoe tier + counter)
-    - Armor fortune (Fermento, Melon, etc.)
-    - Pet fortune (Elephant, Mooshroom Cow, etc.)
-    - Reforge fortune
+    Cannot detect (tool-specific):
+    - Tool fortune (varies by hoe tier, counter, turbo enchants)
+    - Garden crop upgrades (separate API endpoint)
     """
     if not LAST_PROFILE_PATH.exists():
         return None
@@ -201,11 +270,10 @@ def load_profile_fortune():
         data = json.loads(LAST_PROFILE_PATH.read_text())
         member_data = data.get("profile", {}).get("members", {})
         for uuid, member in member_data.items():
-            result = {"fortune": 0, "breakdown": {}}
+            result = {"fortune": 0, "breakdown": {}, "undetected": []}
 
-            # Farming skill level → fortune
+            # ── Farming skill level → fortune ──
             xp = member.get("player_data", {}).get("experience", {}).get("SKILL_FARMING", 0)
-            # Farming XP table (simplified — accurate to level 50, approximate for 50-60)
             farming_xp_table = [
                 0, 50, 175, 375, 675, 1175, 1925, 2925, 4425, 6425, 9925,
                 14925, 22425, 32425, 47425, 67425, 97425, 147425, 222425, 322425, 522425,
@@ -223,9 +291,57 @@ def load_profile_fortune():
             result["breakdown"]["Farming Skill"] = farming_fortune
             result["farming_level"] = farming_level
 
-            # Garden data (need separate API call data — check if stored)
-            # For now, we can't easily get garden data from last_profile.json
-            # since it's a separate endpoint. Use a conservative estimate.
+            # ── Equipped armor fortune ──
+            from profile import decode_nbt_inventory_slots
+            armor_fortune = 0
+            reforge_fortune = 0
+            armor_b64 = member.get("inventory", {}).get("inv_armor", {}).get("data", "")
+            if armor_b64:
+                armor_items, _ = decode_nbt_inventory_slots(armor_b64)
+                for item in armor_items:
+                    if item:
+                        item_id = item.get("id", "")
+                        armor_fortune += _ARMOR_FORTUNE.get(item_id, 0)
+                        reforge = item.get("reforge", "")
+                        reforge_fortune += _REFORGE_FORTUNE.get(reforge, 0)
+            if armor_fortune:
+                result["fortune"] += armor_fortune
+                result["breakdown"]["Armor"] = armor_fortune
+
+            # ── Equipment fortune ──
+            equip_fortune = 0
+            equip_b64 = member.get("inventory", {}).get("equipment_contents", {}).get("data", "")
+            if equip_b64:
+                equip_items, _ = decode_nbt_inventory_slots(equip_b64)
+                for item in equip_items:
+                    if item:
+                        item_id = item.get("id", "")
+                        equip_fortune += _EQUIPMENT_FORTUNE.get(item_id, 0)
+                        reforge = item.get("reforge", "")
+                        reforge_fortune += _REFORGE_FORTUNE.get(reforge, 0)
+            if equip_fortune:
+                result["fortune"] += equip_fortune
+                result["breakdown"]["Equipment"] = equip_fortune
+            if reforge_fortune:
+                result["fortune"] += reforge_fortune
+                result["breakdown"]["Reforges"] = reforge_fortune
+
+            # ── Active pet fortune ──
+            pets = member.get("pets_data", {}).get("pets", [])
+            active_pets = [p for p in pets if p.get("active")]
+            if active_pets:
+                pet = active_pets[0]
+                pet_type = pet.get("type", "")
+                pet_tier = pet.get("tier", "")
+                pet_data = _PET_FORTUNE.get(pet_type)
+                if pet_data:
+                    pet_level = _pet_level_from_xp(pet.get("exp", 0), pet_tier)
+                    pet_ff = pet_data["per_level"] * pet_level
+                    result["fortune"] += pet_ff
+                    result["breakdown"][f"Pet ({pet_type.replace('_',' ').title()} Lv{pet_level})"] = pet_ff
+
+            # Note what we can't detect
+            result["undetected"] = ["Tool fortune (hoe tier + counter)", "Garden crop upgrades"]
 
             return result
     except (json.JSONDecodeError, KeyError):
@@ -391,11 +507,13 @@ def main():
         profile_data = load_profile_fortune()
         if profile_data:
             detected = profile_data["fortune"]
-            print(f"  Detected farming fortune from skill level: {detected}")
+            print(f"  Detected farming fortune: {detected:.0f}")
             for src, val in profile_data.get("breakdown", {}).items():
-                print(f"    {src}: +{val}")
-            print(f"  Note: Tool, armor, pet, and reforge fortune not detected.")
-            print(f"        Use --fortune to set your actual total fortune.")
+                print(f"    {src}: +{val:.0f}")
+            undetected = profile_data.get("undetected", [])
+            if undetected:
+                print(f"  Not detected: {', '.join(undetected)}")
+                print(f"  Use --fortune to override with your actual total.")
             if fortune == 100:  # default — use detected
                 fortune = detected
         else:

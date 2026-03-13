@@ -776,7 +776,7 @@ def print_formula_breakdown(formula_results):
                         print(f"      {sl_name:14s} Lv {lvl}/{max_lvl}  (next → +{next_gain} SBXP)")
 
 
-def print_recommendations(available_tasks, formula_results, member, category_filter=None):
+def print_recommendations(available_tasks, formula_results, member, category_filter=None, brief=False):
     """Print ranked recommendations for gaining SBXP."""
     print_header("RECOMMENDATIONS")
 
@@ -946,13 +946,37 @@ def print_recommendations(available_tasks, formula_results, member, category_fil
         print(f"  {emoji} {effort_name.upper()} ({total_xp} XP available)")
         print(f"  {'─' * 60}")
 
-        for r in group:
-            xp_str = f"+{r['xp_per_unit']}" if r['xp_per_unit'] < 1000 else f"+{_fmt(r['xp_per_unit'])}"
-            notes = f"  — {r['notes']}" if r.get("notes") else ""
-            cat_tag = f"[{r['category']}]"
-            print(f"    {xp_str:>6s} XP  {r['name']:<36s} {cat_tag}")
-            if notes and len(notes) < 80:
-                print(f"             {notes.strip()}")
+        if brief:
+            # In brief mode: show top 5 individually, group the rest by category
+            top_n = 5
+            shown = group[:top_n]
+            rest = group[top_n:]
+            for r in shown:
+                xp_str = f"+{r['xp_per_unit']}" if r['xp_per_unit'] < 1000 else f"+{_fmt(r['xp_per_unit'])}"
+                cat_tag = f"[{r['category']}]"
+                print(f"    {xp_str:>6s} XP  {r['name']:<36s} {cat_tag}")
+            if rest:
+                # Group remaining by category
+                from collections import Counter
+                cat_groups = {}
+                for r in rest:
+                    cat = r["category"]
+                    if cat not in cat_groups:
+                        cat_groups[cat] = {"count": 0, "xp": 0}
+                    cat_groups[cat]["count"] += 1
+                    cat_groups[cat]["xp"] += r["xp_per_unit"]
+                parts = []
+                for cat, info in sorted(cat_groups.items(), key=lambda x: -x[1]["xp"]):
+                    parts.append(f"{info['count']} {cat} tasks (+{info['xp']} XP)")
+                print(f"      ... and {', '.join(parts)}")
+        else:
+            for r in group:
+                xp_str = f"+{r['xp_per_unit']}" if r['xp_per_unit'] < 1000 else f"+{_fmt(r['xp_per_unit'])}"
+                notes = f"  — {r['notes']}" if r.get("notes") else ""
+                cat_tag = f"[{r['category']}]"
+                print(f"    {xp_str:>6s} XP  {r['name']:<36s} {cat_tag}")
+                if notes and len(notes) < 80:
+                    print(f"             {notes.strip()}")
         print()
 
     # Quick wins: tasks that together would get to next level
@@ -1302,7 +1326,8 @@ def main():
 
     print_recommendations(
         available_tasks, formula_results, member,
-        category_filter=args.category or None)
+        category_filter=args.category or None,
+        brief=args.brief)
 
     # Phase 4: Smart recommendations
     if not args.brief:

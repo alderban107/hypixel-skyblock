@@ -373,21 +373,47 @@ def print_validation_result(result, show_all=False):
     divergent_items = [i for i in items if i.get("divergent")]
     if divergent_items:
         divergent_items.sort(key=lambda x: x["pct_diff"], reverse=True)
-        print(f"\n  Divergent items (our price vs Coflnet, >{threshold}% difference):")
 
-        if result["type"] == "fusions":
-            print(f"  {'Item':<25s} {'Ours':>10s} {'Coflnet':>10s} {'Diff':>7s} {'Volume':>7s}")
-            print(f"  {'─' * 25} {'─' * 10} {'─' * 10} {'─' * 7} {'─' * 7}")
-            for item in divergent_items[:25]:
-                print(f"  {item['output_name'][:23]:<25s} {_fmt(item['our_sell_price']):>10s} "
-                      f"{_fmt(item['coflnet_per_unit']):>10s} {item['pct_diff']:>6.1f}% {item['coflnet_volume']:>7.0f}")
+        # Categorize divergences to reduce noise
+        # "ours_higher" = we price much higher (usually AH price vs Coflnet craft cost)
+        # "cofl_higher" = Coflnet prices higher (potential pricing bug on our side)
+        ours_higher = [i for i in divergent_items
+                       if i.get("our_sell", i.get("our_sell_price", 0)) > i.get("coflnet_sell", i.get("coflnet_per_unit", 0))]
+        cofl_higher = [i for i in divergent_items
+                       if i.get("our_sell", i.get("our_sell_price", 0)) <= i.get("coflnet_sell", i.get("coflnet_per_unit", 0))]
+
+        # High volume items are more concerning
+        high_vol = [i for i in divergent_items if i.get("coflnet_volume", 0) >= 10]
+
+        print(f"\n  Divergent items: {len(divergent_items)} total")
+        print(f"    Ours higher: {len(ours_higher)} (usually AH price vs Coflnet craft cost — methodology diff)")
+        print(f"    Coflnet higher: {len(cofl_higher)} (potential pricing gaps)")
+        print(f"    High volume (≥10): {len(high_vol)} (most actionable)")
+
+        # Show only high-volume or coflnet-higher items (the actionable ones)
+        actionable = sorted(
+            [i for i in divergent_items if i.get("coflnet_volume", 0) >= 10 or
+             i.get("our_sell", i.get("our_sell_price", 0)) <= i.get("coflnet_sell", i.get("coflnet_per_unit", 0))],
+            key=lambda x: x["pct_diff"], reverse=True
+        )
+
+        if actionable:
+            print(f"\n  Actionable divergences (high-volume or Coflnet prices higher):")
+            if result["type"] == "fusions":
+                print(f"  {'Item':<25s} {'Ours':>10s} {'Coflnet':>10s} {'Diff':>7s} {'Volume':>7s}")
+                print(f"  {'─' * 25} {'─' * 10} {'─' * 10} {'─' * 7} {'─' * 7}")
+                for item in actionable[:25]:
+                    print(f"  {item['output_name'][:23]:<25s} {_fmt(item['our_sell_price']):>10s} "
+                          f"{_fmt(item['coflnet_per_unit']):>10s} {item['pct_diff']:>6.1f}% {item['coflnet_volume']:>7.0f}")
+            else:
+                print(f"  {'Item':<30s} {'Ours':>10s} {'Coflnet':>10s} {'Diff':>7s} {'Volume':>7s}")
+                print(f"  {'─' * 30} {'─' * 10} {'─' * 10} {'─' * 7} {'─' * 7}")
+                for item in actionable[:25]:
+                    key = "name" if "name" in item else "item_id"
+                    print(f"  {item[key][:28]:<30s} {_fmt(item.get('our_sell', 0)):>10s} "
+                          f"{_fmt(item.get('coflnet_sell', 0)):>10s} {item['pct_diff']:>6.1f}% {item.get('coflnet_volume', 0):>7.1f}")
         else:
-            print(f"  {'Item':<30s} {'Ours':>10s} {'Coflnet':>10s} {'Diff':>7s} {'Volume':>7s}")
-            print(f"  {'─' * 30} {'─' * 10} {'─' * 10} {'─' * 7} {'─' * 7}")
-            for item in divergent_items[:25]:
-                key = "name" if "name" in item else "item_id"
-                print(f"  {item[key][:28]:<30s} {_fmt(item['our_sell']):>10s} "
-                      f"{_fmt(item['coflnet_sell']):>10s} {item['pct_diff']:>6.1f}% {item['coflnet_volume']:>7.1f}")
+            print(f"\n  ✓ All divergences are low-volume methodology differences")
     else:
         print(f"\n  ✓ No divergences found above {threshold}% threshold")
 

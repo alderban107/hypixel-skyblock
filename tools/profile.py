@@ -1248,7 +1248,12 @@ class NBTReader:
         elif tag_type == 4:  self.pos += 8       # Long
         elif tag_type == 5:  self.pos += 4       # Float
         elif tag_type == 6:  self.pos += 8       # Double
-        elif tag_type == 7:  self.pos += self.read_int()  # Byte Array
+        elif tag_type == 7:                      # Byte Array
+            # NOTE: Cannot use `self.pos += self.read_int()` — Python evaluates
+            # the LHS self.pos BEFORE calling read_int(), so the 4-byte pos
+            # advancement inside read_int() is overwritten by the assignment.
+            length = self.read_int()
+            self.pos += length
         elif tag_type == 8:                      # String
             length = self.read_short()
             self.pos += length
@@ -1259,8 +1264,12 @@ class NBTReader:
                 self.skip_tag_value(elem_type)
         elif tag_type == 10:                     # Compound
             self._skip_compound()
-        elif tag_type == 11: self.pos += self.read_int() * 4  # Int Array
-        elif tag_type == 12: self.pos += self.read_int() * 8  # Long Array
+        elif tag_type == 11:                     # Int Array
+            length = self.read_int()
+            self.pos += length * 4
+        elif tag_type == 12:                     # Long Array
+            length = self.read_int()
+            self.pos += length * 8
 
     def _skip_compound(self):
         while True:
@@ -1466,7 +1475,9 @@ def decode_nbt_inventory_slots(b64_data):
                 return slot_items, count
             else:
                 reader.skip_tag_value(tag_type)
-    except Exception:
+    except Exception as e:
+        import sys
+        print(f"WARNING: NBT decode failed: {type(e).__name__}: {e}", file=sys.stderr)
         return [], 0
 
 

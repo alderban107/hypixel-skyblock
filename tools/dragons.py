@@ -284,6 +284,11 @@ def print_summary(results, pc):
     print("  Note: EV assumes average luck. Actual returns vary by RNG.")
     print("  Dragon armor pieces are priced at current LBIN — heavily enchanted")
     print("  pieces may sell for more. Pet drops are extremely rare.")
+    print()
+    print("  Why place more eyes? Placing more eyes increases your dragon weight,")
+    print("  giving you a higher chance of quality loot (armor, pets). This model")
+    print("  uses average drop rates — placing 4 eyes costs 4× but can yield better")
+    print("  drops than the linear cost increase. Use --eyes to compare.")
 
 
 def main():
