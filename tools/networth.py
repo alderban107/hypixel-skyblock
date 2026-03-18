@@ -53,11 +53,14 @@ MULTIPLIERS = {
     "enchantments": 0.85,    # Enchantment books
     "reforge": 1.0,          # Reforge stone
     "gemstones": 1.0,        # Applied gemstones
+    "gemstone_slots": 0.6,   # Gemstone slot unlocks (was 0.8)
+    "gemstone_chambers": 0.9, # Gemstone chambers
     "master_stars": 1.0,     # First/Second/Third/Fourth/Fifth Master Star
     "scrolls": 1.0,          # Necron Blade Scrolls
     "art_of_war": 0.6,       # Art of War
     "art_of_peace": 0.8,     # Art of Peace
     "drill_parts": 1.0,      # Drill engine/fuel tank/upgrade module
+    "rod_parts": 1.0,        # Rod of the Sea parts
     "dye": 0.9,              # Dyes
     "pet_candy": 0.65,       # Pet Candy Used
     "pet_item": 1.0,         # Held pet item
@@ -66,6 +69,28 @@ MULTIPLIERS = {
     "etherwarp": 1.0,        # Etherwarp Conduit
     "transmission_tuner": 0.7,   # Transmission Tuners
     "mana_disintegrator": 0.8,   # Mana Disintegrator
+    "enrichment": 0.5,       # Talisman enrichment
+    "silex": 0.75,           # Silex (efficiency upgrade)
+    "prestige": 1.0,         # Kuudra prestige materials
+    "jalapeno": 0.8,         # Jalapeno Book
+    "polarvoid": 1.0,        # Polarvoid Book
+    "runes": 0.6,            # Applied runes
+    "overclocker": 0.9,      # Overclocker 3000
+    "soulbound_skin": 0.8,   # Soulbound pet/item skins
+    "booster": 0.8,          # Booster cookie effects
+    "shens_auction": 0.85,   # Shen's Auction price
+    "gemstone_power_scroll": 0.5,  # Gemstone Power Scroll
+    "divan_powder_coating": 0.8,   # Divan's Powder Coating
+}
+
+# Per-enchantment multiplier overrides (from SkyHelper-Networth)
+ENCHANTMENT_MULTIPLIERS = {
+    "COUNTER_STRIKE": 0.2,
+    "BIG_BRAIN": 0.35,
+    "ULTIMATE_INFERNO": 0.35,
+    "OVERLOAD": 0.35,
+    "ULTIMATE_SOUL_EATER": 0.35,
+    "ULTIMATE_FATAL_TEMPO": 0.65,
 }
 
 # ─── Reforge Modifier → Stone Item ID ────────────────────────────────
@@ -338,7 +363,11 @@ def is_soulbound(item):
 
 
 def is_cosmetic(item):
-    """Check if an item is cosmetic (dye, skin, rune, cosmetic category)."""
+    """Check if an item is cosmetic (dye, skin, standalone rune, cosmetic category).
+
+    Items with runes/dyes/skins APPLIED are not cosmetic — only standalone
+    cosmetic items are. Matches SkyHelper-Networth's isCosmetic() logic.
+    """
     item_id = item.get("id", "")
     cat = get_category(item_id)
     if cat in COSMETIC_CATEGORIES:
@@ -346,12 +375,15 @@ def is_cosmetic(item):
     for pattern in COSMETIC_PATTERNS:
         if pattern in item_id:
             return True
-    if item.get("dye_item"):
+    # Standalone rune items (not items with runes applied)
+    if item_id in ("RUNE", "UNIQUE_RUNE"):
         return True
-    if item.get("skin"):
-        return True
-    if item.get("rune"):
-        return True
+    # Check lore for COSMETIC tag (some items aren't in the category map)
+    lore = item.get("lore", [])
+    for line in lore:
+        clean = re.sub(r"§.", "", line).strip()
+        if "COSMETIC" in clean and ("§" in line or clean.endswith("COSMETIC")):
+            return True
     return False
 
 
@@ -509,7 +541,8 @@ def price_enchantments(item, price_cache):
             if endcap_item:
                 p = price_cache.weighted(endcap_item)
                 if p:
-                    mult = multiplier_overrides.get(ench_lower, MULTIPLIERS["enchantments"])
+                    mult = ENCHANTMENT_MULTIPLIERS.get(ench_upper,
+                           multiplier_overrides.get(ench_lower, MULTIPLIERS["enchantments"]))
                     total += p * mult
                     counted += 1
                 continue
@@ -519,7 +552,8 @@ def price_enchantments(item, price_cache):
             book_id = f"ENCHANTMENT_{ench_upper}_1"
             p = price_cache.weighted(book_id)
             if p:
-                mult = multiplier_overrides.get(ench_lower, MULTIPLIERS["enchantments"])
+                mult = ENCHANTMENT_MULTIPLIERS.get(ench_upper,
+                       multiplier_overrides.get(ench_lower, MULTIPLIERS["enchantments"]))
                 total += p * mult
                 counted += 1
             continue
@@ -529,7 +563,8 @@ def price_enchantments(item, price_cache):
             book_id = f"ENCHANTMENT_{ench_upper}_5"
             p = price_cache.weighted(book_id)
             if p:
-                mult = multiplier_overrides.get(ench_lower, MULTIPLIERS["enchantments"])
+                mult = ENCHANTMENT_MULTIPLIERS.get(ench_upper,
+                       multiplier_overrides.get(ench_lower, MULTIPLIERS["enchantments"]))
                 total += p * mult
                 counted += 1
             continue
@@ -538,7 +573,8 @@ def price_enchantments(item, price_cache):
         book_id = f"ENCHANTMENT_{ench_upper}_{level}"
         p = price_cache.weighted(book_id)
         if p:
-            mult = multiplier_overrides.get(ench_lower, MULTIPLIERS["enchantments"])
+            mult = ENCHANTMENT_MULTIPLIERS.get(ench_upper,
+                   multiplier_overrides.get(ench_lower, MULTIPLIERS["enchantments"]))
             total += p * mult
             counted += 1
 
@@ -791,8 +827,7 @@ def price_gemstone_slots(item, price_cache):
             unlocked_count += 1
 
     if total > 0:
-        # Use 0.8x multiplier — slots are expensive to unlock, partially recoverable
-        value = total * 0.8
+        value = total * MULTIPLIERS["gemstone_slots"]
         return value, f"Gem Slots(×{unlocked_count}): {_fmt(value)}"
     return 0, ""
 
@@ -872,7 +907,7 @@ def price_enrichment(item, price_cache):
         p = price_cache.weighted("TALISMAN_ENRICHMENT_ATTACK_SPEED")
     if not p:
         return 0, ""
-    value = p * 0.5
+    value = p * MULTIPLIERS["enrichment"]
     return value, f"Enrichment({enrichment.replace('_', ' ').title()}): {_fmt(value)}"
 
 
@@ -884,7 +919,7 @@ def price_jalapeno_book(item, price_cache):
     p = price_cache.weighted("JALAPENO_BOOK")
     if not p:
         return 0, ""
-    value = count * p * 0.8
+    value = count * p * MULTIPLIERS["jalapeno"]
     return value, f"Jalapeño(×{count}): {_fmt(value)}"
 
 
@@ -896,7 +931,7 @@ def price_polarvoid_book(item, price_cache):
     p = price_cache.weighted("POLARVOID_BOOK")
     if not p:
         return 0, ""
-    value = count * p * 1.0
+    value = count * p * MULTIPLIERS["polarvoid"]
     return value, f"Polarvoid(×{count}): {_fmt(value)}"
 
 
@@ -910,7 +945,7 @@ def price_runes(item, price_cache):
         rune_id = f"RUNE_{rune_type.upper()}_{rune_level}"
         p = price_cache.weighted(rune_id)
         if p:
-            total += p * 0.6
+            total += p * MULTIPLIERS["runes"]
     if total > 0:
         return total, f"Rune: {_fmt(total)}"
     return 0, ""
@@ -1074,16 +1109,13 @@ def price_single_item(item, price_cache, essence_costs, recipes=None, no_cosmeti
             source = pi.get("source", "unknown")
 
     if base_value == 0 and soulbound:
-        # Try craft cost for soulbound items
-        craft_cost = calculate_recursive_craft_cost(item_id, price_cache, recipes)
-        if craft_cost is not None:
-            base_value = craft_cost
-            source = "craft_cost"
-        else:
-            p = price_cache.weighted(item_id)
-            if p:
-                base_value = p
-                source = "market_ref"
+        # Soulbound items: use market price if available, otherwise 0.
+        # Don't use recursive craft cost — it inflates values for items
+        # that can't actually be sold. Matches SkyHelper-Networth behavior.
+        p = price_cache.weighted(item_id)
+        if p:
+            base_value = p
+            source = "market_ref"
     elif base_value == 0:
         p = price_cache.weighted(item_id)
         if p:
@@ -1195,6 +1227,10 @@ def extract_all_items(member, profile, raw_data):
         categories["Storage"] = storage_items
 
     # ── Museum ──
+    # Items with borrowing=True are currently in the player's inventory,
+    # so they're already counted in another category. Only include items
+    # that are physically in the museum (borrowing=False or absent).
+    # This matches SkyHelper-Networth's approach.
     museum_data = raw_data.get("museum")
     if museum_data and museum_data.get("success"):
         uuid = raw_data.get("uuid", "")
@@ -1208,12 +1244,14 @@ def extract_all_items(member, profile, raw_data):
             museum_items_data = member_museum.get("items", {})
             museum_items = []
             for slot_name, slot_data in museum_items_data.items():
+                if slot_data.get("borrowing"):
+                    continue  # item is in player's inventory, skip
                 nbt = slot_data.get("items", {}).get("data", "")
                 items = extract_nbt_items(nbt)
                 for item in items:
                     item["donated_museum"] = True  # mark as soulbound
                 museum_items.extend(items)
-            # Also handle special items
+            # Special items (no borrowing flag — always in museum)
             special = member_museum.get("special", [])
             for special_entry in special:
                 nbt = special_entry.get("items", {}).get("data", "")
@@ -1672,10 +1710,11 @@ def print_networth(result, player_name, top_n=10, category_filter=None,
     sb_items = [i for i in all_items if i.get("soulbound")]
     if sb_items:
         sb_total = sum(i["total_value"] for i in sb_items)
-        craft_cost_items = [i for i in sb_items if i.get("source") == "craft_cost"]
-        print(f"  Soulbound Items (valued at craft cost):     {_fmt(sb_total)}")
-        if craft_cost_items:
-            print(f"    {len(craft_cost_items)} items priced via recursive recipe lookup")
+        market_ref_items = [i for i in sb_items if i.get("source") == "market_ref"]
+        print(f"  Soulbound Items (valued at market price):   {_fmt(sb_total)}")
+        unpriced_sb = [i for i in sb_items if i["total_value"] == 0 and i["base_value"] == 0]
+        if unpriced_sb:
+            print(f"    {len(unpriced_sb)} soulbound items with no market price (valued at 0)")
         print()
 
     # Unpriced items (only show when not filtering by category)
@@ -1683,7 +1722,7 @@ def print_networth(result, player_name, top_n=10, category_filter=None,
         unpriced = totals.get("unpriced_items", [])
         if unpriced:
             unique = list(dict.fromkeys(unpriced))
-            print(f"  Unpriced Items (no market/recipe data):     {len(unique)} items")
+            print(f"  Unpriced Items (no market data):            {len(unique)} items")
             for uid in unique[:10]:
                 print(f"    - {display_name(uid)} ({uid})")
             if len(unique) > 10:

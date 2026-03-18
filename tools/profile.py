@@ -674,10 +674,12 @@ def print_hotm(member):
 def print_effects(member):
     print_section("ACTIVE EFFECTS")
     effects = member.get("player_data", {}).get("active_effects", [])
-    if not effects:
-        print("  No active effects")
-        return
+    temp_buffs = member.get("player_data", {}).get("temp_stat_buffs", [])
 
+    if not effects and not temp_buffs:
+        print("  No active effects")
+
+    # Show active potion effects (note: God Pot effects are NOT exposed by the API)
     for eff in effects:
         name = eff.get("effect", "unknown").replace("_", " ").title()
         level = eff.get("level", 0)
@@ -699,6 +701,21 @@ def print_effects(member):
             else:
                 time_str = f"{secs}s"
         print(f"  {name}{level_str} — {time_str}")
+
+    # Show century cake buffs from temp_stat_buffs
+    cake_buffs = [b for b in temp_buffs if b.get("key", "").startswith("cake_")]
+    if cake_buffs:
+        import time as _time
+        now_ms = _time.time() * 1000
+        # All cake buffs share roughly the same expiry, use the first to calculate
+        expire_at = cake_buffs[0].get("expire_at", 0)
+        remaining_h = max(0, (expire_at - now_ms) / 1000 / 3600)
+        stats = [b.get("key", "").replace("cake_", "").replace("_", " ").title()
+                 for b in cake_buffs]
+        print(f"  Century Cakes — {len(cake_buffs)} stats, {remaining_h:.0f}h remaining")
+
+    # Note API limitation
+    print("  (Note: God Potion effects are not exposed by the Hypixel API)")
 
 
 def _load_pet_levels():
