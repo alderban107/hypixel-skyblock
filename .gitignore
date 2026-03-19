@@ -28,3 +28,6 @@ __pycache__/
 *.pyc
 .venv/
 data/vault/
+tools/investments.py
+assets/*.tape
+assets/demo-run.sh

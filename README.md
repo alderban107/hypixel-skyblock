@@ -4,11 +4,13 @@ A collection of tools and resources for playing [Hypixel SkyBlock](https://hypix
 
 [Hypixel SkyBlock](https://hypixel.net/) is an MMORPG-style game mode on Minecraft's largest multiplayer server. Players progress through skills, gear, dungeons, bosses, and a player-driven economy with two distinct markets: the **Bazaar** (bulk commodity exchange with instant buy/sell orders) and **Auctions** (player-to-player item sales, typically using "Buy It Now" fixed prices). Equipment in SkyBlock has hidden properties — reforges, enchantments, star upgrades, hot potato books — stored as compressed [NBT](https://minecraft.wiki/w/NBT_format) data in the API, which the tools here decode and display.
 
-This repo includes a beginner guide, a CLI profile analyzer with live market pricing, a craft flip scanner, a Kat upgrade calculator, a minion profit analyzer, a slayer profit calculator, a dungeon profit calculator, an accessories optimizer, a SkyBlock XP analyzer, a networth calculator, a museum donation optimizer, an event investment tracker, a shard fusion advisor, and a local wiki mirror.
+This repo includes a beginner guide, a CLI profile analyzer with live market pricing, a craft flip scanner, a Kat upgrade calculator, a minion profit analyzer, a slayer profit calculator, a dungeon profit calculator, an accessories optimizer, a SkyBlock XP analyzer, a networth calculator, a museum donation optimizer, a shard fusion advisor, and a local wiki mirror.
 
 ## What's Here
 
 ### `guide/` — Beginner Guide
+
+![Guide Screenshot](assets/guide-screenshot.png)
 
 A single-page HTML guide covering SkyBlock from first spawn through mid-game. Open `index.html` in a browser — no build step needed.
 
@@ -28,7 +30,7 @@ Interactive features: localStorage-backed checkboxes with per-section progress t
 
 ### `tools/` — Python Scripts
 
-Fifteen standalone scripts. No dependencies beyond the standard library. Run from the `tools/` directory (scripts import from each other via relative imports).
+Fourteen standalone scripts. No dependencies beyond the standard library. Run from the `tools/` directory (scripts import from each other via relative imports).
 
 ---
 
@@ -48,6 +50,8 @@ python3 items.py shadow assassin       # search items by name
 Also used as a library — all other tools import `display_name()` from here, and `crafts.py` uses it for structured requirement lookups and centralized collections data.
 
 ---
+
+![Profile Demo](assets/demo-profile.gif)
 
 **`profile.py`** — Fetches a player's SkyBlock profile from the [Hypixel API v2](https://api.hypixel.net/) and prints a comprehensive breakdown. Decodes base64-gzip NBT inventory blobs to extract item details (reforges, enchantments with levels, star count, hot potato book count, rarity) for every equipped item, accessory, wardrobe slot, ender chest item, and backpack.
 
@@ -74,6 +78,8 @@ python3 profile.py -s dungeons,collections  # specific sections
 
 ---
 
+![Pricing Demo](assets/demo-pricing.gif)
+
 **`pricing.py`** — Real-time item pricing with two sources and automatic fallback:
 
 1. **Bazaar API** (Hypixel) — bulk commodity prices with buy/sell spread and volume data. Fetched in a single API call for all items. Cached for 5 minutes.
@@ -88,6 +94,8 @@ python3 pricing.py SHADOW_ASSASSIN_CHESTPLATE ENCHANTED_DIAMOND
 Also used as a library — `profile.py` imports `PriceCache` directly for inline market valuations. Display names are provided by `items.py`.
 
 ---
+
+![Networth Demo](assets/demo-networth.gif)
 
 **`networth.py`** — Calculates total profile value by pricing every item across all 12+ storage locations (inventory, ender chest, accessory bag, wardrobe, equipment, personal vault, storage/backpacks, museum, pets, purse, bank, sacks, essence). Uses weighted average Bazaar pricing and LBIN for AH items.
 
@@ -128,6 +136,8 @@ python3 networth.py --verbose         # list every priced item
 
 ---
 
+![Dungeons Demo](assets/demo-dungeons.gif)
+
 **`dungeons.py`** — Calculates expected profit per run for each **dungeon floor** based on live drop tables and current market prices. Parses loot data from the fandom wiki (local cache or live scrape), maps wiki item names to priceable IDs using a comprehensive mapping (based on [FluxCapacitor2's dungeon-loot-calculator](https://github.com/FluxCapacitor2/dungeon-loot-calculator)), and prices everything via Bazaar weighted average + Moulberry LBIN.
 
 Uses a **per-item cost model** matching how dungeon chests actually work: players see the chest contents before deciding to pay, so EV only counts items where market price exceeds the claim cost (`EV = Σ(chance × max(price - cost, 0))`). This gives more realistic values than the naive `EV - flat_cost` approach.
@@ -155,6 +165,8 @@ Accepts `--talisman` and `--luck` flags (reserved for future data sources — th
 
 ---
 
+![Accessories Demo](assets/demo-accessories.gif)
+
 **`accessories.py`** — Identifies **missing accessories** and ranks them by Magical Power cost-efficiency. Compares the player's accessories (scanned from all inventory locations — accessory bag, inventory, ender chest, storage, armor slots, wardrobe) against the full list from the Hypixel items API (333 master accessories).
 
 Handles the full complexity of accessory management:
@@ -177,6 +189,8 @@ python3 accessories.py --json             # machine-readable output
 ```
 
 ---
+
+![Slayers Demo](assets/demo-slayers.gif)
 
 **`slayers.py`** — Calculates expected **profit per boss** for all 5 slayer types (Revenant, Tarantula, Sven, Voidgloom, Inferno) across all tiers with live market pricing. Drop data curated from two sources: [Luckalyzer](https://mabi.land/luckalyzer/) (Mabi19, MIT licensed) for precise RNG drop probabilities and RNG meter boss counts, and the [fandom wiki](https://hypixel-skyblock.fandom.com/) for common/guaranteed drops and boss stats.
 
@@ -204,6 +218,8 @@ python3 slayers.py --json                  # machine-readable output
 
 ---
 
+![Crafts Demo](assets/demo-crafts.gif)
+
 **`crafts.py`** — Scans for profitable **craft flips**: items where bazaar-bought ingredients can be crafted into items that sell on the Auction House for more than the material cost. Parses all crafting recipes from the NEU-REPO item database, prices ingredients using the Bazaar API (`quick_status.buyPrice`), and fetches auction house prices from [Moulberry's](https://moulberry.codes/) bulk APIs (3-day averaged lowest BIN, current lowest BIN, and actual sales volume) in three fast requests.
 
 Filters to items where all ingredients are available on the Bazaar and the output is sold on the AH (not the Bazaar). Uses current lowest BIN for profit calculation (what you'd undercut to sell), real sales data for volume filtering, and shows 3-day averaged lowest BIN for reference. Calculates profit after the 1% AH tax. Minimum thresholds: 10K profit and 1 sale/day.
@@ -226,6 +242,8 @@ Also used as a library — `profile.py` imports craft scanning functions for the
 
 ---
 
+![Kat Demo](assets/demo-kat.gif)
+
 **`kat.py`** — Calculates costs and profits for **Kat pet upgrades** (rarity upgrades via the NPC "Kat" in the Hub). Parses katgrade recipes from the NEU-REPO item database to build full upgrade chains across multiple rarity steps, aggregating coins, materials, time, and Bazaar costs. For each pet, compares the cost of buying vs crafting the starting pet and uses whichever is cheaper.
 
 Three modes of operation:
@@ -244,6 +262,8 @@ python3 kat.py RABBIT --from common --to mythic --shopping   # shopping list wit
 ```
 
 ---
+
+![Minions Demo](assets/demo-minions.gif)
 
 **`minions.py`** — Calculates daily profit for **57 minion types** across all tiers using live Bazaar prices. Parses action speeds from the [NEU-REPO](https://github.com/NotEnoughUpdates/NotEnoughUpdates-REPO) item database and supports fuel types (11 options from Coal to Hyper Catalyst), Super Compactor 3000, Diamond Spreading, and NPC hopper pricing. Displays a ranked table of all minions or a detailed breakdown for a single type including per-drop revenue analysis.
 
@@ -264,6 +284,8 @@ python3 minions.py --slots            # cheapest crafts for next minion slot unl
 
 ---
 
+![SBXP Demo](assets/demo-sbxp.gif)
+
 **`sbxp.py`** — SkyBlock XP analyzer that calculates current progress across all 17 XP categories and identifies the most efficient ways to earn more. Pulls from 23 formula sources (Hypixel API profile data, collections, skills, slayers, dungeons, bestiary, essence shop, fairy souls, community upgrades, etc.) to build a database of 692 individual tasks with completion status and XP values.
 
 Features:
@@ -283,36 +305,7 @@ python3 sbxp.py --json                    # machine-readable output
 
 ---
 
-**`investments.py`** — Event-driven investment tracker that identifies buy/sell opportunities based on SkyBlock's recurring event cycle. Each event creates predictable price swings through one of three mechanisms:
-
-- **Flood during** — The event produces items as drops/rewards, flooding supply and crashing prices. Buy during the event when prices bottom out, sell between events when supply dries up. *(e.g. Bat Person armor from Spooky Festival bosses, Snow Suit from Jerry's gifts)*
-- **Demand during** — The event creates demand for consumable items, spiking prices while it's active. Buy between events when nobody needs the items, sell during the event when demand peaks. *(e.g. Green/Purple Candy — players buy it to earn Spooky Festival rewards)*
-- **Demand before** — Players buy materials in anticipation of an upcoming event, driving prices up before it starts. Buy well after the event when demand fades, sell in the lead-up. *(e.g. enchanted meat/fish before the Traveling Zoo for pet leveling)*
-
-All historical price data is fetched on-demand from [Coflnet](https://sky.coflnet.com/) — no background jobs, cron, or local data accumulation needed. For bazaar items, Coflnet's resolution scales with the requested time range (5-minute data for short windows, 2-hour for 7 days, daily for 30 days). The script automatically fetches high-resolution windows around short events (like the 1-hour Spooky Festival) so that price spikes are captured, while using the broad 30-day range for overall trends. AH items use the monthly price aggregation endpoint (daily min/max/avg/volume). Current prices come from the Hypixel Bazaar API and Moulberry's lowest BIN data.
-
-Includes a SkyBlock calendar system that converts real-world time to in-game dates (epoch: June 11, 2019; 1 SB year = 124 real hours) to determine event timing and cycle position. For each tracked item, the script compares current price against historical event-period and off-event averages, then generates BUY/SELL/HOLD/WATCH recommendations with expected profit percentages and specific timing windows (e.g. "sell first 15 min of event (in 4.6d)", "sell in 2-3d (before next event)", "during event (starts in 0.8d)"). Uses median pricing with IQR outlier filtering to resist troll listings on the auction house.
-
-Tracks 46 items across 6 events:
-
-| Event | Schedule | Items | Pattern |
-|---|---|---|---|
-| Spooky Festival | Autumn 29-31 | Candy (bazaar) | Demand during — buy off-event, sell during |
-| | | Bat Person armor, Spooky armor, Spooky Shard (AH) | Flood during — buy during event, sell off-event |
-| Jerry's Workshop | Late Winter 1-31 | Gifts, Snow Suit, Nutcracker armor, Yeti Sword | Flood during |
-| Hoppity's Hunt | Early Spring 1-31 | Chocolate items | Flood during |
-| Traveling Zoo | Early Summer/Winter 1-3 | Enchanted meat/fish (pet materials) | Demand before — buy off-event, sell pre-event |
-| Fishing Festival | Mayor-dependent (Marina) | Shark fins, shark teeth | Flood during |
-| Mining Fiesta | Mayor-dependent (Cole) | Refined Mineral, Glossy Gemstone | Flood during |
-
-```bash
-python3 investments.py                      # recommendations (fetches 30-day history, ~30 sec)
-python3 investments.py --calendar           # SkyBlock calendar + upcoming event countdowns
-python3 investments.py --event spooky       # detail view for one event with item prices
-python3 investments.py --history GREEN_CANDY # price history table for one item
-```
-
----
+![Museum Demo](assets/demo-museum.gif)
 
 **`museum.py`** — Museum donation optimizer that identifies the cheapest items you haven't donated yet. Cross-references your profile's museum data with the NEU-REPO museum constants and live market prices to rank missing donations by cost. Supports filtering by category, sorting by XP-per-coin ratio, and armor set grouping.
 
@@ -327,6 +320,8 @@ python3 museum.py --special          # Include special items (no XP/milestones)
 ```
 
 ---
+
+![Shards Demo](assets/demo-shards.gif)
 
 **`shards.py`** — Shard fusion advisor for the Hunting skill's attribute shard system. Answers the practical questions: "I farmed this shard — should I sell it or fuse it forward?" and "What's the most valuable shard I can target?" Uses live Bazaar pricing to trace full fusion chains, rank farmable shards by chain value, identify the cheapest filler shards per rarity, and flag dead/thin markets to avoid. Covers all 141 shards across 4 rarities with fusion mechanics verified against the wiki (input quantities vary by family: Elementals/Reptiles/Amphibians use 2, most others use 5).
 

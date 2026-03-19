@@ -80,14 +80,6 @@ cd ~/projects/hypixel-skyblock/tools && python3 shards.py farm
 ```
 Shard fusion advisor — ranks farmable shards by chain value, shows cheapest fillers per rarity, identifies dead markets to avoid. Use when the player is doing shard content or asking about fusion profitability.
 
-**Event investments:**
-```
-cd ~/projects/hypixel-skyblock/tools && python3 investments.py
-cd ~/projects/hypixel-skyblock/tools && python3 investments.py --calendar
-cd ~/projects/hypixel-skyblock/tools && python3 investments.py --event spooky
-```
-Event-driven price cycle tracker. Uses Coflnet historical data to identify buy/sell windows around Spooky Festival, Jerry's Workshop, Hoppity's Hunt, Traveling Zoo, and mayor-dependent events. Shows current event status, buy recommendations with profit percentages, and optimal timing. Run this during profile checkups to catch active or upcoming event opportunities.
-
 **Dragon fight EV:**
 ```
 cd ~/projects/hypixel-skyblock/tools && python3 dragons.py
@@ -132,7 +124,7 @@ Run the profile, read the output, and think about what's actually useful to tell
 
 Look at the whole profile. Skills, gear, dungeons, slayers, collections, minions, pets, mining, foraging, Rift, garden, chocolate factory, museum, bestiary, active effects, sacks, contests — whatever's relevant. Don't tunnel-vision on one area. This skill is invoked when the player wants a broad view and fresh ideas, not a rehash of what was already discussed in the session.
 
-For money-making analysis, use the full toolkit: `crafts.py --profile` for craft flips, `forge.py --profile` for forge flips, `farming.py --profile` for crop profit, `dragons.py` for dragon fight EV, `investments.py` for event cycles, `kat.py --scan` for pet flips, `dungeons.py` for dungeon chest profit, `slayers.py` for slayer tier efficiency, `shards.py` for fusion profitability. Compare across methods to recommend the best options for the player's current stage. Use `validate.py` if any pricing looks suspicious.
+For money-making analysis, use the full toolkit: `crafts.py --profile` for craft flips, `forge.py --profile` for forge flips, `farming.py --profile` for crop profit, `dragons.py` for dragon fight EV, `kat.py --scan` for pet flips, `dungeons.py` for dungeon chest profit, `slayers.py` for slayer tier efficiency, `shards.py` for fusion profitability. Compare across methods to recommend the best options for the player's current stage. Use `validate.py` if any pricing looks suspicious.
 
 For upgrade questions, use `accessories.py` for MP-efficient accessory upgrades, `minions.py` for minion optimization, and `museum.py` for cheap donations.
 
