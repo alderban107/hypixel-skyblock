@@ -36,7 +36,7 @@ API_KEY = os.environ.get("HYPIXEL_API_KEY", "")
 
 # --- Section definitions ---
 CORE_SECTIONS = [
-    "general", "dailies", "skills", "slayers", "dungeons", "hotm",
+    "general", "dailies", "mayor", "skills", "slayers", "dungeons", "hotm",
     "effects", "pets", "inventories",
 ]
 EXTENDED_SECTIONS = [
@@ -2927,6 +2927,149 @@ def print_weight(member, profile):
                 print(f"      {name:14s} {w:>8,.1f}")
 
 
+def print_mayor(member):
+    """Print current mayor perks and election forecast with money-making opportunities."""
+    print_section("MAYOR & ELECTION")
+
+    # Fetch election data (no API key needed)
+    try:
+        election_data = api_get("https://api.hypixel.net/v2/resources/skyblock/election")
+    except SystemExit:
+        print("  Could not fetch election data")
+        return
+
+    if not election_data.get("success"):
+        print("  Election API returned unsuccessful response")
+        return
+
+    # Load mayor opportunities data
+    mayors_path = DATA_DIR / "mayors.json"
+    if mayors_path.exists():
+        mayor_data = json.loads(mayors_path.read_text())
+    else:
+        mayor_data = {}
+
+    mayor = election_data.get("mayor", {})
+    mayor_name = mayor.get("name", "Unknown")
+    mayor_key = mayor.get("key", "")
+    perks = mayor.get("perks", [])
+    minister = mayor.get("minister", {})
+    minister_name = minister.get("name")
+    minister_perk = minister.get("perk", {})
+
+    # Display current mayor
+    print(f"  Current Mayor:  {mayor_name}")
+    if perks:
+        print(f"  Active Perks:")
+        for p in perks:
+            desc = p.get("description", "")
+            # Strip Minecraft color codes (§X)
+            desc = re.sub(r"§[0-9a-fklmnor]", "", desc)
+            print(f"    • {p['name']}: {desc}")
+
+    if minister_name:
+        m_desc = minister_perk.get("description", "")
+        m_desc = re.sub(r"§[0-9a-fklmnor]", "", m_desc)
+        print(f"  Minister:       {minister_name}")
+        print(f"    • {minister_perk.get('name', '?')}: {m_desc}")
+
+    # Show opportunities for current mayor + minister
+    all_opps = []
+    mayor_info = mayor_data.get(mayor_key) or mayor_data.get("_special", {}).get(mayor_key)
+    active_perk_names = {p["name"] for p in perks}
+
+    if mayor_info:
+        for o in mayor_info.get("opportunities", []):
+            if o["perk"] in active_perk_names and o.get("type") != "info":
+                all_opps.append(o)
+
+    # Also check minister's mayor data for their perk
+    if minister_perk:
+        minister_key = minister.get("key", "")
+        minister_info = mayor_data.get(minister_key) or mayor_data.get("_special", {}).get(minister_key)
+        if minister_info:
+            m_perk_name = minister_perk.get("name", "")
+            for o in minister_info.get("opportunities", []):
+                if o["perk"] == m_perk_name and o.get("type") != "info":
+                    all_opps.append(o)
+
+    if all_opps:
+        print(f"\n  Opportunities (active now):")
+        for o in all_opps:
+            profit = f" — {o['profit_hint']}" if o.get("profit_hint") else ""
+            marker = "⚠️" if o.get("type") == "warning" else "💰"
+            print(f"    {marker} {o['action']}{profit}")
+
+            # Check requirements against profile
+            reqs = o.get("requirements", {})
+            if reqs.get("pet"):
+                pet_id = reqs["pet"]
+                pet_match = next(
+                    (p for p in member.get("pets_data", {}).get("pets", [])
+                     if p.get("type", "").upper() == pet_id),
+                    None,
+                )
+                if pet_match:
+                    tier = pet_match.get("tier", "").title()
+                    print(f"       ✓ You have a {tier} {pet_id.replace('_', ' ').title()} pet")
+                else:
+                    note = reqs.get("note", f"Requires {pet_id} pet")
+                    print(f"       ↳ You don't have this pet. {note}")
+
+    # Election forecast
+    current_election = election_data.get("current", {})
+    candidates = current_election.get("candidates", [])
+    if candidates:
+        candidates_sorted = sorted(candidates, key=lambda c: c.get("votes", 0), reverse=True)
+        total_votes = sum(c.get("votes", 0) for c in candidates_sorted)
+
+        print(f"\n  Next Election (Year {current_election.get('year', '?')}):")
+        for i, c in enumerate(candidates_sorted):
+            votes = c.get("votes", 0)
+            pct = (votes / total_votes * 100) if total_votes > 0 else 0
+            perk_names = [p["name"] for p in c.get("perks", [])]
+            leader = " ← leading" if i == 0 else ""
+            print(f"    {c['name']:12s} {votes:>10,} votes ({pct:4.1f}%){leader}")
+            if perk_names:
+                print(f"    {'':12s} Perks: {', '.join(perk_names)}")
+
+        # Forecast: if leader has >50%, show prep advice
+        if candidates_sorted and total_votes > 0:
+            leader = candidates_sorted[0]
+            leader_pct = leader.get("votes", 0) / total_votes * 100
+            leader_key = leader.get("key", "")
+            leader_name = leader.get("name", "")
+
+            if leader_pct > 50:
+                leader_info = mayor_data.get(leader_key) or mayor_data.get("_special", {}).get(leader_key)
+                if leader_info:
+                    leader_perks = {p["name"] for p in leader.get("perks", [])}
+                    prep_opps = [
+                        o for o in leader_info.get("opportunities", [])
+                        if o["perk"] in leader_perks and o.get("type") not in ("info", "warning")
+                    ]
+                    if prep_opps:
+                        print(f"\n  Prep for {leader_name} ({leader_pct:.0f}% — likely next):")
+                        for o in prep_opps:
+                            profit = f" — {o['profit_hint']}" if o.get("profit_hint") else ""
+                            print(f"    → {o['action']}{profit}")
+
+                            reqs = o.get("requirements", {})
+                            if reqs.get("pet"):
+                                pet_id = reqs["pet"]
+                                pet_match = next(
+                                    (p for p in member.get("pets_data", {}).get("pets", [])
+                                     if p.get("type", "").upper() == pet_id),
+                                    None,
+                                )
+                                if pet_match:
+                                    tier = pet_match.get("tier", "").title()
+                                    print(f"       ✓ You have a {tier} {pet_id.replace('_', ' ').title()} pet")
+                                else:
+                                    note = reqs.get("note", f"Requires {pet_id} pet")
+                                    print(f"       ↳ You don't have this pet. {note}")
+
+
 def print_craft_flips(member, price_cache):
     """Print profitable craft flips filtered by player unlocks."""
     print_section("CRAFT FLIPS")
@@ -3552,6 +3695,7 @@ def main():
     # --- Core sections ---
     if show("general"):     print_misc(member, active)
     if show("dailies"):     print_daily_checklist(member)
+    if show("mayor"):       print_mayor(member)
     if show("skills"):      print_skills(member)
     if show("slayers"):     print_slayers(member)
     if show("dungeons"):    print_dungeons(member)

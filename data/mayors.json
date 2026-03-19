@@ -1,0 +1,386 @@
+{
+  "_meta": {
+    "description": "Mayor money-making opportunities and profile-relevant buffs",
+    "sources": "Hypixel API (election endpoint) + wiki.fandom.com mayor pages",
+    "last_validated": "2026-03-19",
+    "notes": [
+      "Active regular candidates: Aatrox, Cole, Diana, Diaz, Finnegan, Foxy, Marina, Paul",
+      "Active special candidates: Derpy, Jerry, Scorpius (every 8 SB years)",
+      "Retired: Barry (Aug 2022). One-time: Dante, Technoblade (will not return)",
+      "Perk pool per mayor is fixed but candidates run with 1-4 perks randomly gained over elections",
+      "Special candidates always run with all perks"
+    ]
+  },
+  "slayer": {
+    "name": "Aatrox",
+    "focus": "Slayer",
+    "opportunities": [
+      {
+        "perk": "Pathfinder",
+        "description": "Slayer rare drops 20% more common (1.2x MF + flat 20 MF vs slayers)",
+        "action": "Do slayer bosses for RNG drops — best time for expensive slayer drops",
+        "type": "active",
+        "profit_hint": "Varies heavily by slayer tier and RNG"
+      },
+      {
+        "perk": "SLASHED Pricing",
+        "description": "25% off slayer boss start costs",
+        "action": "Level slayers more cheaply — good time to grind slayer XP",
+        "type": "passive",
+        "profit_hint": "Saves 25% on slayer costs"
+      },
+      {
+        "perk": "Aatrox's Slayer Quest",
+        "description": "Special global slayer quest with bonus rewards",
+        "action": "Complete the special slayer quest for bonus loot",
+        "type": "active"
+      },
+      {
+        "perk": "High Activity",
+        "description": "1.5x rare slayer drops",
+        "action": "Stack with Pathfinder for maximum slayer profitability",
+        "type": "passive"
+      }
+    ],
+    "profile_checks": {
+      "relevant_if": "Has active slayer progress or slayer gear",
+      "check_fields": ["slayer_bosses"]
+    }
+  },
+  "mining": {
+    "name": "Cole",
+    "focus": "Mining",
+    "opportunities": [
+      {
+        "perk": "Molten Forge",
+        "description": "Forge time reduced by 25%",
+        "action": "Start forge recipes now — they complete 25% faster. Only applies to newly started forges, not retroactive",
+        "type": "passive",
+        "profit_hint": "Increases forge profit/hr by ~33%"
+      },
+      {
+        "perk": "Mining Fiesta",
+        "description": "Schedules a Mining Fiesta event with bonus mining drops",
+        "action": "Watch for the Mining Fiesta event and mine during it for extra drops",
+        "type": "event"
+      },
+      {
+        "perk": "Mining XP Buff",
+        "description": "+75 Mining Wisdom on public islands",
+        "action": "Mine on public islands for faster Mining skill XP",
+        "type": "passive"
+      },
+      {
+        "perk": "Prospector",
+        "description": "+30% Mining Fortune",
+        "action": "Mine for increased ore drops",
+        "type": "passive"
+      }
+    ],
+    "profile_checks": {
+      "relevant_if": "Mining skill or HotM progress",
+      "check_fields": ["mining_skill", "hotm"]
+    }
+  },
+  "pets": {
+    "name": "Diana",
+    "focus": "Pets & Mythological Hunting",
+    "opportunities": [
+      {
+        "perk": "Mythological Ritual",
+        "description": "Use Griffin pet + Ancestral Spade to dig mythological creatures",
+        "action": "Buy Griffin pet (25K from Diana NPC) and Ancestral Spade (5K + 32 gold ingots). Dig for Chimera books, Griffin Feathers, Daedalus Stick, and other rare drops",
+        "type": "active",
+        "profit_hint": "Top-tier money maker — Chimera books worth 50-100M+",
+        "requirements": {
+          "pet": "GRIFFIN",
+          "note": "Griffin pet sold by Diana NPC for 25K coins when she is mayor"
+        }
+      },
+      {
+        "perk": "Pet XP Buff",
+        "description": "+35% pet XP from all sources",
+        "action": "Level pets faster — good time to grind pet XP on pets you're training",
+        "type": "passive"
+      },
+      {
+        "perk": "Huntress' Intuition",
+        "description": "Mythological creatures drop better loot",
+        "action": "Stacks with Mythological Ritual for better drops from digging",
+        "type": "passive"
+      },
+      {
+        "perk": "Sharing is Caring",
+        "description": "Pet milestone rewards doubled",
+        "action": "Check pet milestones for doubled rewards",
+        "type": "passive"
+      }
+    ],
+    "profile_checks": {
+      "relevant_if": "Always relevant — Griffin pet is cheap, mythological hunting is profitable at any stage",
+      "check_fields": ["pets"]
+    }
+  },
+  "economist": {
+    "name": "Diaz",
+    "focus": "Economy",
+    "opportunities": [
+      {
+        "perk": "Stock Exchange",
+        "description": "Stonks Auction opens — bid on Stock of Stonks items",
+        "action": "Bid on Stock of Stonks at the Stonks Auction, sell on Bazaar for ~2M each",
+        "type": "active",
+        "profit_hint": "~2M per Stock of Stonks won"
+      },
+      {
+        "perk": "Shopping Spree",
+        "description": "NPC buy limits increased 10x",
+        "action": "Buy items from NPCs that resell for profit on AH/Bazaar at higher volume",
+        "type": "active",
+        "profit_hint": "Varies by item — check NPC resale profit tables"
+      },
+      {
+        "perk": "Volume Trading",
+        "description": "Shen's Auction quantity doubled + 2 extra Shen's Special auctions",
+        "action": "More chances at Shen's Auction items — check for profitable flips",
+        "type": "active"
+      },
+      {
+        "perk": "Long Term Investment",
+        "description": "Elected minister appears as candidate with all perks in next election",
+        "action": "No direct money-making — but affects which perks are available next cycle",
+        "type": "info"
+      }
+    ],
+    "profile_checks": {
+      "relevant_if": "Always relevant — economy perks benefit everyone",
+      "check_fields": []
+    }
+  },
+  "farming": {
+    "name": "Finnegan",
+    "focus": "Farming",
+    "opportunities": [
+      {
+        "perk": "Pest Eradicator",
+        "description": "Pesthunter fortune duration extended to 60m, pest spawn cooldown -20%",
+        "action": "Farm pests for bonus Farming Fortune — longer uptime and faster spawns",
+        "type": "active"
+      },
+      {
+        "perk": "GOATed",
+        "description": "Better trapper rewards, enhanced pelt drops",
+        "action": "Do Trevor trapper quests for more pelts",
+        "type": "active",
+        "profit_hint": "Pelts buy exclusive items from Trevor's shop"
+      },
+      {
+        "perk": "Pelt-pocalypse",
+        "description": "Extra pelts from Trevor quests (stacks with Pelt Belt and Jake's Plushie)",
+        "action": "Stack with GOATed for maximum pelt farming efficiency",
+        "type": "active"
+      },
+      {
+        "perk": "Blooming Business",
+        "description": "Garden visitors are more generous with rewards",
+        "action": "Accept garden visitors for better rewards than usual",
+        "type": "passive"
+      }
+    ],
+    "profile_checks": {
+      "relevant_if": "Has garden or farming gear",
+      "check_fields": ["farming_skill", "garden"]
+    }
+  },
+  "events": {
+    "name": "Foxy",
+    "focus": "Events",
+    "opportunities": [
+      {
+        "perk": "A Time for Giving",
+        "description": "Party Chests from Spooky Festival mobs, Party Gifts from Jerry's Workshop",
+        "action": "Participate in Spooky Festival for bonus loot and collect gifts",
+        "type": "event"
+      },
+      {
+        "perk": "Sweet Benevolence",
+        "description": "+30% chocolate from duplicate rabbits during Hoppity's Hunt",
+        "action": "Hunt for Hoppity eggs for bonus chocolate",
+        "type": "event"
+      },
+      {
+        "perk": "Extra Event",
+        "description": "One extra event scheduled (Spooky Festival, Mining Fiesta, or Fishing Festival)",
+        "action": "Watch calendar for the bonus event and participate",
+        "type": "event"
+      },
+      {
+        "perk": "Spooky Festival",
+        "description": "Enhanced Spooky Festival rewards",
+        "action": "Participate in Spooky Festival for better drops",
+        "type": "event"
+      }
+    ],
+    "profile_checks": {
+      "relevant_if": "Always somewhat relevant — events are open to all",
+      "check_fields": []
+    }
+  },
+  "fishing": {
+    "name": "Marina",
+    "focus": "Fishing",
+    "opportunities": [
+      {
+        "perk": "Luck of the Sea 2.0",
+        "description": "+15 Sea Creature Chance",
+        "action": "Fish for more sea creatures — better fishing money",
+        "type": "passive"
+      },
+      {
+        "perk": "Double Trouble",
+        "description": "Double fishing drops",
+        "action": "All fishing drops doubled — great time to fish for profit",
+        "type": "passive",
+        "profit_hint": "Effectively 2x fishing income"
+      },
+      {
+        "perk": "Fishing XP Buff",
+        "description": "+50 Fishing Wisdom on public islands",
+        "action": "Fish on public islands for faster Fishing skill XP",
+        "type": "passive"
+      },
+      {
+        "perk": "Fishing Festival",
+        "description": "Schedules a Fishing Festival — catch sharks for Shark Tooth Necklace drops and Rod of the Sea",
+        "action": "Participate in Fishing Festival for exclusive drops",
+        "type": "event",
+        "profit_hint": "Shark drops can be valuable"
+      }
+    ],
+    "profile_checks": {
+      "relevant_if": "Has fishing gear or leveling fishing",
+      "check_fields": ["fishing_skill"]
+    }
+  },
+  "dungeons": {
+    "name": "Paul",
+    "focus": "Dungeons",
+    "opportunities": [
+      {
+        "perk": "EZPZ",
+        "description": "+2 allowed deaths for S+ score on F6/F7 (normally 2, becomes 4)",
+        "action": "Run F6/F7 for easier S+ scores — more lenient death threshold",
+        "type": "passive",
+        "profit_hint": "S+ gives better loot table odds"
+      },
+      {
+        "perk": "Dungeon XP Buff",
+        "description": "+50 Dungeon Wisdom — faster Catacombs leveling",
+        "action": "Grind Catacombs for faster level-ups",
+        "type": "passive"
+      },
+      {
+        "perk": "Treasure Chance",
+        "description": "Better dungeon chest loot",
+        "action": "Open dungeon chests for better items",
+        "type": "passive"
+      },
+      {
+        "perk": "Benediction of Dungeon",
+        "description": "Floor completion count bonus",
+        "action": "Extra completion credit for floor milestones",
+        "type": "passive"
+      }
+    ],
+    "profile_checks": {
+      "relevant_if": "Has dungeon progress",
+      "check_fields": ["catacombs"]
+    }
+  },
+  "_special": {
+    "derpy": {
+      "name": "Derpy",
+      "focus": "Chaos (Special)",
+      "type": "special",
+      "opportunities": [
+        {
+          "perk": "Turbo Minions",
+          "description": "Minions work 2x faster",
+          "action": "Minion output doubled — great passive income boost",
+          "type": "passive",
+          "profit_hint": "2x minion production"
+        },
+        {
+          "perk": "DOUBLE MOBS HP",
+          "description": "All mobs have double HP",
+          "action": "Combat content is harder — plan accordingly",
+          "type": "warning"
+        },
+        {
+          "perk": "Quad Taxes",
+          "description": "4x AH/bazaar taxes",
+          "action": "Avoid heavy AH/bazaar trading — taxes eat into profits",
+          "type": "warning"
+        },
+        {
+          "perk": "Mining Fatigue",
+          "description": "Reduced mining speed",
+          "action": "Mining is less efficient — consider skipping mining-heavy activities",
+          "type": "warning"
+        }
+      ],
+      "profile_checks": {
+        "relevant_if": "Always relevant — affects everyone",
+        "check_fields": []
+      }
+    },
+    "jerry": {
+      "name": "Jerry",
+      "focus": "Perkpocalypse (Special)",
+      "type": "special",
+      "opportunities": [
+        {
+          "perk": "Perkpocalypse",
+          "description": "Rotates another mayor's full perks every 6 hours (Aatrox, Cole, Diana, Finnegan, Marina, Paul)",
+          "action": "Track the rotation schedule — plan activities around which mayor's perks are active. Diana slot = mythological hunting, Aatrox slot = slayer farming, etc.",
+          "type": "active",
+          "profit_hint": "Essentially gives access to 6 mayors' perks throughout the term"
+        },
+        {
+          "perk": "Statspocalypse",
+          "description": "+10% Combat and Miscellaneous stats",
+          "action": "Flat stat buff — slightly stronger for all combat content",
+          "type": "passive"
+        }
+      ],
+      "profile_checks": {
+        "relevant_if": "Always relevant",
+        "check_fields": []
+      }
+    },
+    "scorpius": {
+      "name": "Scorpius",
+      "focus": "Dark Auction (Special)",
+      "type": "special",
+      "opportunities": [
+        {
+          "perk": "Bribe",
+          "description": "+1% bonus to all stats",
+          "action": "Free stat buff for everyone",
+          "type": "passive"
+        },
+        {
+          "perk": "Darker Auctions",
+          "description": "Better items appear at Dark Auction, more frequent auctions",
+          "action": "Attend Dark Auctions for rare items at better rates",
+          "type": "active",
+          "profit_hint": "Rare DA items can be very profitable to flip"
+        }
+      ],
+      "profile_checks": {
+        "relevant_if": "Relevant if you have coins for Dark Auction bidding",
+        "check_fields": []
+      }
+    }
+  }
+}
