@@ -846,7 +846,6 @@ def find_shard(query: str):
             print(f"  {m['id']:5s}  {m['name']} ({m['rarity']})")
         return None
 
-    print(f"No shard found matching '{query}'")
     return None
 
 
@@ -1230,6 +1229,23 @@ def cmd_summary(cache: PriceCache, fillers: dict):
     print()
 
 
+def print_usage():
+    print("""Usage: python3 shards.py [command] [args]
+
+Commands:
+  (none) / summary    Top farmable shards + cheapest fillers
+  chain <shard>       Fusion chain and recommendation for a shard
+  farm                Rank all shards by estimated farming coins/hr
+  fillers             Cheapest filler shards by rarity
+  health              Market health check — thin/dead market flags
+  <shard name>        Shortcut for 'chain <shard>'
+
+Examples:
+  python3 shards.py
+  python3 shards.py chain mimic
+  python3 shards.py coralot""")
+
+
 # ── Main ──────────────────────────────────────────────────────────────────
 def main():
     print("Fetching live Bazaar prices...")
@@ -1246,7 +1262,10 @@ def main():
     args = sys.argv[1:]
     cmd = args[0].lower() if args else ''
 
-    if cmd == 'chain':
+    if cmd in ('-h', '--help'):
+        print_usage()
+        return
+    elif cmd == 'chain':
         cmd_chain(args[1:], cache, fillers)
     elif cmd == 'farm':
         cmd_farm(cache, fillers)
@@ -1261,6 +1280,9 @@ def main():
         shard = find_shard(' '.join(args))
         if shard:
             cmd_chain(args, cache, fillers)
+        else:
+            print(f"  No shard found matching '{' '.join(args)}'")
+            print(f"  Run 'python3 shards.py --help' for usage.")
 
     cache.flush()
 

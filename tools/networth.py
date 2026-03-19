@@ -27,7 +27,6 @@ from pathlib import Path
 
 from items import display_name, get_item, get_items_data, get_upgrade_costs, get_category
 from pricing import PriceCache, _fmt, RARITY_NUM, RARITY_NAME
-from crafts import parse_recipes, find_recipe
 from profile import decode_nbt_inventory_slots
 
 DATA_DIR = Path(__file__).parent.parent / "data"
@@ -53,7 +52,7 @@ MULTIPLIERS = {
     "enchantments": 0.85,    # Enchantment books
     "reforge": 1.0,          # Reforge stone
     "gemstones": 1.0,        # Applied gemstones
-    "gemstone_slots": 0.6,   # Gemstone slot unlocks (was 0.8)
+    "gemstone_slots": 0.6,   # Gemstone slot unlocks
     "gemstone_chambers": 0.9, # Gemstone chambers
     "master_stars": 1.0,     # First/Second/Third/Fourth/Fifth Master Star
     "scrolls": 1.0,          # Necron Blade Scrolls
@@ -64,6 +63,7 @@ MULTIPLIERS = {
     "dye": 0.9,              # Dyes
     "pet_candy": 0.65,       # Pet Candy Used
     "pet_item": 1.0,         # Held pet item
+    "pet_skin": 0.9,         # Pet skins (non-soulbound)
     "wood_singularity": 0.5, # Wood Singularity
     "farming_for_dummies": 0.5,  # Farming for Dummies
     "etherwarp": 1.0,        # Etherwarp Conduit
@@ -83,15 +83,10 @@ MULTIPLIERS = {
     "divan_powder_coating": 0.8,   # Divan's Powder Coating
 }
 
-# Per-enchantment multiplier overrides (from SkyHelper-Networth)
-ENCHANTMENT_MULTIPLIERS = {
-    "COUNTER_STRIKE": 0.2,
-    "BIG_BRAIN": 0.35,
-    "ULTIMATE_INFERNO": 0.35,
-    "OVERLOAD": 0.35,
-    "ULTIMATE_SOUL_EATER": 0.35,
-    "ULTIMATE_FATAL_TEMPO": 0.65,
-}
+# Per-enchantment multiplier overrides are loaded from enchant_rules.json
+# ("enchant_multiplier_overrides" section). Values there override the default
+# MULTIPLIERS["enchantments"] rate for specific enchantments. The JSON is the
+# single source of truth — edit it there, not here.
 
 # ─── Reforge Modifier → Stone Item ID ────────────────────────────────
 # Built from NEU repo lore data: "Applies the X reforge"
@@ -541,8 +536,7 @@ def price_enchantments(item, price_cache):
             if endcap_item:
                 p = price_cache.weighted(endcap_item)
                 if p:
-                    mult = ENCHANTMENT_MULTIPLIERS.get(ench_upper,
-                           multiplier_overrides.get(ench_lower, MULTIPLIERS["enchantments"]))
+                    mult = multiplier_overrides.get(ench_lower, MULTIPLIERS["enchantments"])
                     total += p * mult
                     counted += 1
                 continue
@@ -552,8 +546,7 @@ def price_enchantments(item, price_cache):
             book_id = f"ENCHANTMENT_{ench_upper}_1"
             p = price_cache.weighted(book_id)
             if p:
-                mult = ENCHANTMENT_MULTIPLIERS.get(ench_upper,
-                       multiplier_overrides.get(ench_lower, MULTIPLIERS["enchantments"]))
+                mult = multiplier_overrides.get(ench_lower, MULTIPLIERS["enchantments"])
                 total += p * mult
                 counted += 1
             continue
@@ -563,8 +556,7 @@ def price_enchantments(item, price_cache):
             book_id = f"ENCHANTMENT_{ench_upper}_5"
             p = price_cache.weighted(book_id)
             if p:
-                mult = ENCHANTMENT_MULTIPLIERS.get(ench_upper,
-                       multiplier_overrides.get(ench_lower, MULTIPLIERS["enchantments"]))
+                mult = multiplier_overrides.get(ench_lower, MULTIPLIERS["enchantments"])
                 total += p * mult
                 counted += 1
             continue
@@ -573,8 +565,7 @@ def price_enchantments(item, price_cache):
         book_id = f"ENCHANTMENT_{ench_upper}_{level}"
         p = price_cache.weighted(book_id)
         if p:
-            mult = ENCHANTMENT_MULTIPLIERS.get(ench_upper,
-                   multiplier_overrides.get(ench_lower, MULTIPLIERS["enchantments"]))
+            mult = multiplier_overrides.get(ench_lower, MULTIPLIERS["enchantments"])
             total += p * mult
             counted += 1
 
@@ -1010,50 +1001,10 @@ def price_item_modifiers(item, price_cache, essence_costs):
     return total, breakdown
 
 
-# ─── Soulbound Craft Cost ────────────────────────────────────────────
-
-
-def calculate_recursive_craft_cost(item_id, price_cache, recipes=None, visited=None):
-    """Calculate crafting cost for an item, recursively pricing ingredients.
-
-    For each ingredient:
-    1. Try Bazaar weighted price
-    2. Try AH LBIN
-    3. If neither, try recursive recipe lookup
-    Returns cost or None if unpriceable.
-    """
-    if visited is None:
-        visited = set()
-    if item_id in visited:
-        return None  # circular recipe
-    visited.add(item_id)
-
-    recipe = find_recipe(item_id, recipes)
-    if not recipe:
-        return None
-
-    total = 0
-    for ing_id, qty in recipe["ingredients"].items():
-        # Try market price first
-        p = price_cache.weighted(ing_id)
-        if p:
-            total += p * qty
-            continue
-
-        # Try recursive recipe
-        sub_cost = calculate_recursive_craft_cost(ing_id, price_cache, recipes, visited.copy())
-        if sub_cost is not None:
-            total += sub_cost * qty
-        else:
-            return None  # can't price this ingredient
-
-    return total / recipe["output_count"]
-
-
 # ─── Item Valuation ──────────────────────────────────────────────────
 
 
-def price_single_item(item, price_cache, essence_costs, recipes=None, no_cosmetic=False):
+def price_single_item(item, price_cache, essence_costs, no_cosmetic=False):
     """Price a single item with base value + modifiers.
 
     Uses variant-aware pricing (SkyHelper) for attribute rolls, skins,
@@ -1485,7 +1436,6 @@ def calculate_networth(member, profile, raw_data, price_cache,
         totals: {total, unsoulbound, soulbound, cosmetic, unpriced_count, unpriced_items}
     """
     essence_costs = load_essence_costs()
-    recipes = parse_recipes()
 
     # Pre-fetch all prices in bulk
     price_cache._fetch_bazaar()
@@ -1525,7 +1475,7 @@ def calculate_networth(member, profile, raw_data, price_cache,
                 }
             else:
                 priced = price_single_item(
-                    item, price_cache, essence_costs, recipes, no_cosmetic)
+                    item, price_cache, essence_costs, no_cosmetic)
 
             if priced is None:
                 continue

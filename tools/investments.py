@@ -487,22 +487,36 @@ def fetch_item_history(item_id, market, days=30):
 
 
 def fetch_all_history(items_by_market):
-    """Fetch history for multiple items, respecting rate limits.
+    """Fetch history for multiple items using parallel requests.
+
+    Uses ThreadPoolExecutor with 4 workers to speed up the sequential
+    Coflnet API calls (~60s sequential → ~15s parallel). Each worker
+    still respects COFLNET_RATE_LIMIT between its own requests.
 
     items_by_market: dict of item_id -> market ("bazaar" or "auction")
     Returns dict of item_id -> [points]
     """
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
     history = {}
     total = len(items_by_market)
+    items_list = list(items_by_market.items())
+    completed = [0]  # mutable counter for thread-safe progress
 
-    for i, (item_id, market) in enumerate(items_by_market.items()):
-        name = display_name(item_id)
-        print(f"  [{i+1}/{total}] {name}...", end="", file=sys.stderr, flush=True)
+    def _fetch_one(item_id, market):
         points = fetch_item_history(item_id, market)
-        history[item_id] = points
-        print(f" {len(points)} pts", file=sys.stderr)
-        if i < total - 1:
-            time.sleep(COFLNET_RATE_LIMIT)
+        return item_id, points
+
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        futures = {executor.submit(_fetch_one, iid, mkt): iid
+                   for iid, mkt in items_list}
+        for future in as_completed(futures):
+            item_id, points = future.result()
+            history[item_id] = points
+            completed[0] += 1
+            name = display_name(item_id)
+            print(f"  [{completed[0]}/{total}] {name}... {len(points)} pts",
+                  file=sys.stderr)
 
     return history
 

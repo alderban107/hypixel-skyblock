@@ -189,10 +189,11 @@ def validate_kat(pc, threshold_pct=20):
     results.sort(key=lambda x: x["coflnet_profit"], reverse=True)
 
     return {
-        "type": "kat",
+        "type": "kat_reference",
         "total_coflnet": len(coflnet_data),
         "matched": matched,
-        "divergent": 0,  # Can't directly compare — different data structure
+        "divergent": 0,  # No cross-validation possible: Coflnet provides per-step data,
+                         # our tool calculates full chains — structurally different approaches
         "threshold_pct": threshold_pct,
         "items": results,
     }
@@ -346,19 +347,32 @@ def print_validation_result(result, show_all=False):
     if result is None:
         return
 
-    vtype = result["type"].upper()
+    vtype = result["type"]
     matched = result["matched"]
     divergent = result["divergent"]
     threshold = result["threshold_pct"]
     items = result["items"]
 
+    is_kat_ref = vtype == "kat_reference"
+
     print(f"\n{'═' * 80}")
-    print(f"  {vtype} VALIDATION")
-    print(f"  Coflnet items: {result['total_coflnet']} | Matched: {matched} | "
-          f"Divergent (>{threshold}%): {divergent}")
+    if is_kat_ref:
+        print(f"  KAT REFERENCE DATA (Coflnet)")
+        print(f"  Coflnet items: {result['total_coflnet']} | "
+              f"Note: reference only — no cross-validation "
+              f"(Coflnet provides per-step data, our tool calculates full chains)")
+    else:
+        print(f"  {vtype.upper()} VALIDATION")
+        print(f"  Coflnet items: {result['total_coflnet']} | Matched: {matched} | "
+              f"Divergent (>{threshold}%): {divergent}")
     print(f"{'═' * 80}")
 
-    if result["type"] == "kat":
+    if not is_kat_ref:
+        print(f"\n  Note: Large divergences (1000%+) for craftable items are usually")
+        print(f"  methodology differences — our tool uses LBIN (what players pay on AH)")
+        print(f"  while Coflnet uses craft cost (ingredient cost). These are not bugs.")
+
+    if is_kat_ref:
         # Kat: show top Coflnet profits as reference data
         print(f"\n  Top Kat upgrades by Coflnet profit (reference data — no direct comparison):")
         print(f"  {'Pet Name':<30s} {'Rarity':>8s} {'Profit':>10s} {'Cost':>10s} {'Vol':>5s}")
@@ -439,6 +453,9 @@ def print_summary(all_results):
 
     for result in all_results:
         if result is None:
+            continue
+        if result["type"] == "kat_reference":
+            print(f"  ℹ {'kat':>10s}: {result['matched']:>4d} Coflnet items (reference only)")
             continue
         status = "✓" if result["divergent"] == 0 else "⚠"
         print(f"  {status} {result['type']:>10s}: {result['matched']:>4d} matched, "

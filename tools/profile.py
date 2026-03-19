@@ -131,9 +131,9 @@ def fetch_skill_tables():
             thresholds = [0] + [int(l["totalExpRequired"]) for l in skill_data["levels"]]
             SKILL_THRESHOLDS[name] = thresholds
             SKILL_MAX_LEVELS[name] = max_level
-        print(f"  Loaded {len(SKILL_THRESHOLDS)} skill tables from API")
+        print(f"  Loaded {len(SKILL_THRESHOLDS)} skill tables from API", file=sys.stderr)
     except Exception as e:
-        print(f"  Could not fetch skill tables ({e}), using fallback")
+        print(f"  Could not fetch skill tables ({e}), using fallback", file=sys.stderr)
         SKILL_MAX_LEVELS.update(_FALLBACK_MAX_LEVELS)
         for name in _FALLBACK_MAX_LEVELS:
             if name in ("runecrafting", "social"):
@@ -2513,7 +2513,6 @@ def _calc_senither_dungeon_weight(member):
 
 def _calc_lily_skill_weight(member):
     """Calculate Lily skill weight (ratio-based with overflow)."""
-    import math
 
     wd = _load_weight_data()
     lily = wd.get("lily", {})
@@ -3155,11 +3154,297 @@ def print_market_prices(member, price_cache):
             print(f"    {display:40s} {price_str}")
 
 
+# ─── JSON Data Collectors ──────────────────────────────────────────────
+# These extract structured data from the member dict for --json output.
+# Each returns a dict suitable for json.dump.
+
+def collect_general(member, profile):
+    """Collect general profile data."""
+    currencies = member.get("currencies", {})
+    leveling = member.get("leveling", {})
+    sb_xp = leveling.get("experience", 0)
+    accessory_bag = member.get("accessory_bag_storage", {})
+
+    banking = profile.get("banking", {})
+    bank = banking.get("balance", None)
+
+    fairy_data = member.get("fairy_soul", {})
+
+    data = {
+        "sb_level": int(sb_xp / 100),
+        "sb_xp": sb_xp,
+        "purse": currencies.get("coin_purse", member.get("coin_purse", 0)),
+        "bank": bank,
+        "motes": currencies.get("motes_purse", 0),
+        "fairy_souls": fairy_data.get("total_collected", member.get("fairy_souls_collected", 0)),
+        "fairy_souls_max": 253,
+        "magical_power": accessory_bag.get("highest_magical_power", 0),
+        "selected_power": accessory_bag.get("selected_power", ""),
+        "cookie_buff": member.get("profile", {}).get("cookie_buff_active", False),
+    }
+
+    # Essence
+    essence_data = currencies.get("essence", {})
+    if essence_data:
+        data["essence"] = {
+            etype: essence_data.get(etype, {}).get("current", 0)
+            for etype in ["WITHER", "UNDEAD", "DRAGON", "GOLD", "DIAMOND", "ICE", "SPIDER", "CRIMSON"]
+            if essence_data.get(etype, {}).get("current", 0) > 0
+        }
+
+    # First join
+    first_join_ts = member.get("profile", {}).get("first_join")
+    if first_join_ts:
+        dt = datetime.fromtimestamp(first_join_ts / 1000, tz=timezone.utc)
+        data["first_join"] = dt.strftime("%Y-%m-%d")
+        data["days_played"] = (datetime.now(timezone.utc) - dt).days
+
+    return data
+
+
+def collect_skills(member):
+    """Collect skill levels and XP."""
+    skills_raw = {}
+    for key, val in member.get("player_data", {}).get("experience", {}).items():
+        name = key.replace("SKILL_", "").lower()
+        skills_raw[name] = val
+    if not skills_raw:
+        for key, val in member.items():
+            if key.startswith("experience_skill_"):
+                name = key.replace("experience_skill_", "")
+                skills_raw[name] = val
+
+    if not skills_raw:
+        return {"error": "Skills API disabled or no data"}
+
+    excluded_from_avg = {"runecrafting", "social", "hunting"}
+    skills = {}
+    total_level = 0
+    skill_count = 0
+
+    for name in ["farming", "mining", "combat", "foraging", "fishing",
+                  "enchanting", "alchemy", "taming", "carpentry",
+                  "runecrafting", "social", "hunting"]:
+        xp = skills_raw.get(name, 0)
+        max_lvl = SKILL_MAX_LEVELS.get(name, 50)
+        thresholds = SKILL_THRESHOLDS.get(name, _FALLBACK_SKILL_XP)
+        level, progress = xp_to_level_progress(xp, thresholds, max_lvl)
+        skills[name] = {"level": level, "max": max_lvl, "xp": xp}
+        if name not in excluded_from_avg:
+            total_level += level
+            skill_count += 1
+
+    data = {"skills": skills}
+    if skill_count:
+        data["skill_average"] = round(total_level / skill_count, 1)
+    return data
+
+
+def collect_slayers(member):
+    """Collect slayer levels, XP, and kills."""
+    slayer_wrapper = member.get("slayer", {})
+    slayer_data = slayer_wrapper.get("slayer_bosses", member.get("slayer_bosses", {}))
+    if not slayer_data:
+        return {"error": "No slayer data"}
+
+    slayers = {}
+    total_xp = 0
+    for name in ["zombie", "spider", "wolf", "enderman", "blaze", "vampire"]:
+        d = slayer_data.get(name, {})
+        xp = d.get("xp", 0)
+        total_xp += xp
+        thresholds = SLAYER_XP_THRESHOLDS.get(name, [])
+        level = xp_to_level(xp, thresholds)
+        max_lvl = len(thresholds) - 1
+
+        kills = {}
+        for tier in range(5):
+            k = d.get(f"boss_kills_tier_{tier}", 0)
+            if k > 0:
+                kills[f"t{tier + 1}"] = k
+
+        slayers[name] = {"level": level, "max": max_lvl, "xp": xp, "kills": kills}
+
+    return {"slayers": slayers, "total_xp": total_xp}
+
+
+def collect_dungeons(member):
+    """Collect dungeon levels, class data, and floor stats."""
+    dungeons = member.get("dungeons", {})
+    if not dungeons:
+        return {"error": "No dungeon data"}
+
+    cata = dungeons.get("dungeon_types", {}).get("catacombs", {})
+    cata_xp = cata.get("experience", 0)
+    cata_level, _ = xp_to_level_progress(cata_xp, DUNGEON_XP_THRESHOLDS, 50)
+
+    data = {
+        "catacombs": {"level": cata_level, "max": 50, "xp": cata_xp},
+        "secrets": dungeons.get("secrets", 0),
+        "selected_class": dungeons.get("selected_dungeon_class", "unknown"),
+    }
+
+    # Classes
+    classes = dungeons.get("player_classes", {})
+    if classes:
+        data["classes"] = {}
+        for cls_name in ["healer", "mage", "berserk", "archer", "tank"]:
+            cls_data = classes.get(cls_name, {})
+            cls_xp = cls_data.get("experience", 0)
+            cls_level, _ = xp_to_level_progress(cls_xp, DUNGEON_XP_THRESHOLDS, 50)
+            data["classes"][cls_name] = {"level": cls_level, "xp": cls_xp}
+
+    # Floor completions
+    completions = cata.get("tier_completions", {})
+    fastest_sp = cata.get("fastest_time_s_plus", {})
+    if completions:
+        data["floors"] = {}
+        for floor, count in sorted(completions.items(), key=lambda x: int(x[0]) if x[0].isdigit() else -1):
+            if not floor.isdigit():
+                continue
+            label = "entrance" if floor == "0" else f"f{floor}"
+            entry = {"completions": int(count)}
+            if floor in fastest_sp:
+                entry["fastest_s_plus_ms"] = fastest_sp[floor]
+            data["floors"][label] = entry
+
+    # Master mode
+    master = dungeons.get("dungeon_types", {}).get("master_catacombs", {})
+    m_completions = master.get("tier_completions", {})
+    m_floors = {k: v for k, v in m_completions.items() if k.isdigit() and v > 0}
+    if m_floors:
+        data["master_floors"] = {}
+        m_fastest_sp = master.get("fastest_time_s_plus", {})
+        for floor, count in sorted(m_floors.items(), key=lambda x: int(x[0])):
+            label = f"m{floor}"
+            entry = {"completions": int(count)}
+            if floor in m_fastest_sp:
+                entry["fastest_s_plus_ms"] = m_fastest_sp[floor]
+            data["master_floors"][label] = entry
+
+    return data
+
+
+def collect_hotm(member):
+    """Collect HotM/HotF levels, powder, and perks."""
+    mining_core = member.get("mining_core", {})
+    skill_tree = member.get("skill_tree", {})
+
+    if not mining_core and not skill_tree:
+        return {"error": "No HotM data"}
+
+    xp_data = skill_tree.get("experience", {})
+    tokens_data = skill_tree.get("tokens_spent", {})
+
+    mining_xp = xp_data.get("mining", 0) if isinstance(xp_data, dict) else 0
+    foraging_xp = xp_data.get("foraging", 0) if isinstance(xp_data, dict) else 0
+
+    hotm_level, _, hotm_remaining = calc_hotx_level(mining_xp, max_level=10)
+    hotf_level, _, hotf_remaining = calc_hotx_level(foraging_xp, max_level=7)
+
+    data = {
+        "hotm": {"level": hotm_level, "max": 10, "xp": mining_xp, "xp_to_next": hotm_remaining},
+        "hotf": {"level": hotf_level, "max": 7, "xp": foraging_xp, "xp_to_next": hotf_remaining},
+        "tokens": {
+            "mining": tokens_data.get("mountain", 0) if isinstance(tokens_data, dict) else 0,
+            "foraging": tokens_data.get("forest", 0) if isinstance(tokens_data, dict) else 0,
+        },
+        "powder": {
+            "mithril": {"available": mining_core.get("powder_mithril", 0),
+                        "spent": mining_core.get("powder_spent_mithril", 0)},
+            "gemstone": {"available": mining_core.get("powder_gemstone", 0),
+                         "spent": mining_core.get("powder_spent_gemstone", 0)},
+            "glacite": {"available": mining_core.get("powder_glacite", 0),
+                        "spent": mining_core.get("powder_spent_glacite", 0)},
+        },
+    }
+
+    # Perks
+    nodes = skill_tree.get("nodes", {})
+    mining_nodes = nodes.get("mining", {})
+    if mining_nodes:
+        data["mining_perks"] = {
+            perk: level for perk, level in mining_nodes.items()
+            if isinstance(level, int) and level > 0 and not perk.startswith("toggle_")
+        }
+    foraging_nodes = nodes.get("foraging", {})
+    if foraging_nodes:
+        data["foraging_perks"] = {
+            perk: level for perk, level in foraging_nodes.items()
+            if isinstance(level, int) and level > 0 and not perk.startswith("toggle_")
+        }
+
+    return data
+
+
+def collect_pets(member):
+    """Collect pet data."""
+    pets = member.get("pets_data", {}).get("pets", member.get("pets", []))
+    if not pets:
+        return {"error": "No pets"}
+
+    pet_levels, rarity_offsets = _load_pet_levels()
+    rarity_order = {"COMMON": 0, "UNCOMMON": 1, "RARE": 2, "EPIC": 3, "LEGENDARY": 4, "MYTHIC": 5}
+    pets_sorted = sorted(pets, key=lambda p: (rarity_order.get(p.get("tier", ""), 0), p.get("exp", 0)), reverse=True)
+
+    pet_list = []
+    active_pet = None
+    for p in pets_sorted:
+        lvl = _calc_pet_level(p.get("exp", 0), p.get("tier", ""), pet_levels, rarity_offsets)
+        entry = {
+            "type": p.get("type", "?"),
+            "rarity": p.get("tier", "?"),
+            "level": lvl,
+            "xp": p.get("exp", 0),
+            "active": p.get("active", False),
+        }
+        if p.get("heldItem"):
+            entry["held_item"] = p["heldItem"]
+        if p.get("skin"):
+            entry["skin"] = p["skin"]
+        pet_list.append(entry)
+        if p.get("active"):
+            active_pet = entry
+
+    return {
+        "total": len(pets_sorted),
+        "active": active_pet,
+        "pets": pet_list,
+    }
+
+
+def collect_collections(member):
+    """Collect collection data."""
+    collections = member.get("collection", {})
+    if not collections:
+        return {"error": "Collections API disabled or no data"}
+
+    sorted_colls = sorted(collections.items(), key=lambda x: x[1], reverse=True)
+    return {
+        "total_unique": len(sorted_colls),
+        "collections": {name: count for name, count in sorted_colls},
+    }
+
+
+# Maps section names to their JSON collector functions
+JSON_COLLECTORS = {
+    "general": lambda member, profile: collect_general(member, profile),
+    "skills": lambda member, profile: collect_skills(member),
+    "slayers": lambda member, profile: collect_slayers(member),
+    "dungeons": lambda member, profile: collect_dungeons(member),
+    "hotm": lambda member, profile: collect_hotm(member),
+    "pets": lambda member, profile: collect_pets(member),
+    "collections": lambda member, profile: collect_collections(member),
+}
+
+
 def main():
     parser = argparse.ArgumentParser(description="Fetch and display Hypixel SkyBlock profile data.")
     parser.add_argument("username", nargs="?", default=os.environ.get("MINECRAFT_USERNAME", ""))
     parser.add_argument("--full", "-f", action="store_true", help="Show all sections")
     parser.add_argument("--section", "-s", type=str, default="", help="Comma-separated extra sections to show")
+    parser.add_argument("--only", "-o", type=str, default="", help="Show ONLY these sections (comma-separated), skip core defaults")
+    parser.add_argument("--json", action="store_true", help="Output structured JSON instead of formatted text")
     args = parser.parse_args()
 
     USERNAME = args.username
@@ -3172,7 +3457,15 @@ def main():
         sys.exit(1)
 
     # Determine which sections to show
-    if args.full:
+    if args.only:
+        active_sections = set()
+        for s in args.only.split(","):
+            s = s.strip().lower()
+            if s in ALL_SECTIONS:
+                active_sections.add(s)
+            else:
+                print(f"Warning: unknown section '{s}'. Available: {', '.join(ALL_SECTIONS)}")
+    elif args.full:
         active_sections = set(ALL_SECTIONS)
     else:
         active_sections = set(CORE_SECTIONS)
@@ -3187,11 +3480,13 @@ def main():
     def show(section):
         return section in active_sections
 
-    print(f"Resolving UUID for {USERNAME}...")
+    # In JSON mode, send progress to stderr to keep stdout clean
+    _out = sys.stderr if args.json else sys.stdout
+    print(f"Resolving UUID for {USERNAME}...", file=_out)
     uuid, display_name = resolve_uuid(USERNAME)
-    print(f"Player: {display_name} ({uuid})")
+    print(f"Player: {display_name} ({uuid})", file=_out)
 
-    print("Fetching profiles...")
+    print("Fetching profiles...", file=_out)
     data = get_profiles(uuid)
 
     if not data.get("success") or not data.get("profiles"):
@@ -3211,7 +3506,7 @@ def main():
     profile_name = active.get("cute_name", "Unknown")
     game_mode = active.get("game_mode", "normal")
     mode_str = f" ({game_mode})" if game_mode != "normal" else ""
-    print(f"Profile: {profile_name}{mode_str}")
+    print(f"Profile: {profile_name}{mode_str}", file=_out)
 
     member = active["members"].get(uuid, {})
     if not member:
@@ -3233,6 +3528,21 @@ def main():
     fetch_skill_tables()
     if show("collections"):
         fetch_collection_tiers()
+
+    # JSON output mode: collect structured data and exit
+    if args.json:
+        json_data = {
+            "player": display_name,
+            "uuid": uuid,
+            "profile": profile_name,
+        }
+        json_sections = JSON_COLLECTORS.keys() if not args.only else active_sections
+        for section in json_sections:
+            collector = JSON_COLLECTORS.get(section)
+            if collector:
+                json_data[section] = collector(member, active)
+        print(json.dumps(json_data, indent=2))
+        return
 
     # Fetch supplementary data
     profile_id = active["profile_id"]

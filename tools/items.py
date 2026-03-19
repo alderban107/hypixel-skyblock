@@ -77,7 +77,14 @@ def _load_stale_cache(cache_path):
     """Load stale cache as fallback. Returns None if no cache exists."""
     if cache_path.exists():
         try:
-            return json.loads(cache_path.read_text())
+            data = json.loads(cache_path.read_text())
+            # Warn if cache is significantly stale (>2× TTL)
+            mtime = cache_path.stat().st_mtime
+            age_hours = (time.time() - mtime) / 3600
+            if age_hours > RESOURCE_TTL * 2 / 3600:
+                print(f"  [Warning: using stale cache {cache_path.name} ({age_hours:.0f}h old)]",
+                      file=sys.stderr)
+            return data
         except (json.JSONDecodeError, OSError):
             pass
     return None

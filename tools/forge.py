@@ -66,21 +66,39 @@ def load_profile_hotm():
         return None
     try:
         data = json.loads(LAST_PROFILE_PATH.read_text())
-        member = data.get("profile", {}).get("members", {})
-        for uuid, mdata in member.items():
-            mining = mdata.get("mining_core", {})
-            # HotM XP → level (simplified)
-            experience = mining.get("experience", 0)
-            # Also check nodes for quick_forge level
-            nodes = mining.get("nodes", {})
-            hotm_level = 0
-            # HotM levels by XP thresholds
-            hotm_xp_table = [0, 3000, 12000, 37000, 97000, 197000, 347000, 557000, 847000, 1247000]
-            for lvl, xp_needed in enumerate(hotm_xp_table):
-                if experience >= xp_needed:
-                    hotm_level = lvl + 1
-            quick_forge_level = nodes.get("forge_time", 0)
-            return {"hotm": hotm_level, "quick_forge": quick_forge_level}
+        uuid = data.get("uuid", "")
+        members = data.get("profile", {}).get("members", {})
+        # Find the correct member by UUID
+        mdata = None
+        for key, val in members.items():
+            if key.replace("-", "") == uuid:
+                mdata = val
+                break
+        if not mdata:
+            # Fallback: use first member
+            mdata = next(iter(members.values()), None)
+        if not mdata:
+            return None
+
+        # HotM XP — check new path first (skill_tree.experience.mining),
+        # fall back to old path (mining_core.experience)
+        experience = (mdata.get("skill_tree", {}).get("experience", {}).get("mining", 0)
+                      or mdata.get("mining_core", {}).get("experience", 0))
+
+        # Quick Forge — check new path first (skill_tree.nodes.mining),
+        # fall back to old path (mining_core.nodes)
+        quick_forge_level = (mdata.get("skill_tree", {}).get("nodes", {})
+                             .get("mining", {}).get("forge_time", 0)
+                             or mdata.get("mining_core", {}).get("nodes", {})
+                             .get("forge_time", 0))
+
+        hotm_level = 0
+        hotm_xp_table = [0, 3000, 12000, 37000, 97000, 197000, 347000, 557000, 847000, 1247000]
+        for lvl, xp_needed in enumerate(hotm_xp_table):
+            if experience >= xp_needed:
+                hotm_level = lvl + 1
+
+        return {"hotm": hotm_level, "quick_forge": quick_forge_level}
     except (json.JSONDecodeError, KeyError):
         pass
     return None
@@ -124,9 +142,16 @@ def calc_forge_profits(forge_data, hotm_filter=None, quick_forge_level=0, use_bu
 
     for entry in forge_data:
         craft = entry.get("craftData", {})
-        duration_hours = entry.get("duration", 0)
+        # Coflnet returns duration in seconds; convert to hours
+        duration_hours = entry.get("duration", 0) / 3600
         hotm_required = entry.get("requiredHotMLevel", 0)
         requirements = entry.get("requirements", {})
+
+        # Sanity check: warn if duration exceeds 30 days (possible API unit change)
+        if duration_hours > 720:
+            print(f"  Warning: {entry.get('craftData', {}).get('itemName', '?')} "
+                  f"duration is {duration_hours:.0f}h ({duration_hours/24:.0f}d) — "
+                  f"possible API unit change", file=sys.stderr)
 
         # Filter by HotM
         if hotm_filter is not None and hotm_required > hotm_filter:
@@ -289,9 +314,8 @@ def main():
         else:
             print("  Warning: Could not load profile data. Run profile.py first.", file=sys.stderr)
 
-    print("  Fetching forge data from Coflnet...", end="", flush=True)
     forge_data = fetch_forge_data()
-    print(f" {len(forge_data)} recipes")
+    print(f"  Fetching forge data from Coflnet... {len(forge_data)} recipes")
 
     results = calc_forge_profits(
         forge_data,

@@ -360,6 +360,8 @@ def print_forge_flips(flips, title="FORGE FLIPS"):
 
     if not flips:
         print("  No profitable forge flips found.")
+    else:
+        print("  Profit = Sell × 0.99 − Cost. Time includes Quick Forge if applicable.")
     print()
 
 
@@ -656,10 +658,6 @@ def scan_craft_flips(recipes, price_cache, craft_cache, use_cached_only=False,
     return flips
 
 
-# ─── Profile Filtering ────────────────────────────────────────────────
-
-
-
 # ─── Display ──────────────────────────────────────────────────────────
 
 def print_flips(flips, title="CRAFT FLIPS"):
@@ -688,6 +686,8 @@ def print_flips(flips, title="CRAFT FLIPS"):
 
     if not flips:
         print("  No profitable crafts found.")
+    else:
+        print("  Profit = Sell × 0.99 × (1 − undercut%) − Cost. Sell shows LBIN before fees.")
     print()
 
 

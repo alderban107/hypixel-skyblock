@@ -466,6 +466,11 @@ class PriceCache:
                 parts.append(f"avg: {_fmt(p['avg_bin'])}")
             if p.get("sales_day") is not None:
                 parts.append(f"{p['sales_day']:.0f}/day")
+            # Flag likely LBIN manipulation
+            lbin = p.get("lowest_bin") or 0
+            avg = p.get("avg_bin") or 0
+            if lbin and avg and avg > 0 and lbin > 3 * avg:
+                parts.append("⚠️ LBIN may be manipulated")
             base = "  ".join(parts)
         elif p["source"] == "override":
             base = f"NPC/Override: {_fmt(p['lowest_bin'])}"
@@ -485,7 +490,8 @@ class PriceCache:
         For Bazaar items:
             weighted = (buy_price × buy_volume + sell_price × sell_volume)
                        / (buy_volume + sell_volume)
-        For AH items: returns LBIN, falling back to avg_lbin.
+        For AH items: returns LBIN with manipulation guard — if LBIN > 5×
+            the 3-day avg, uses avg instead (matches crafts.py sanity check).
         For overrides: returns the override price.
         Returns None if no price data.
         """
@@ -500,7 +506,12 @@ class PriceCache:
                 return (buy * bv + sell * sv) / total_vol
             return buy or sell or None
         if p["source"] in ("auction", "override"):
-            return p.get("lowest_bin") or p.get("avg_bin") or None
+            lbin = p.get("lowest_bin")
+            avg = p.get("avg_bin")
+            # LBIN manipulation guard: if LBIN > 5× avg, use avg instead
+            if lbin and avg and avg > 0 and lbin > 5 * avg:
+                return avg
+            return lbin or avg or None
         return None
 
     def variant_price(self, item_id, item_nbt=None):

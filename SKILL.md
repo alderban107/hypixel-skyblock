@@ -1,7 +1,7 @@
 ---
 name: skyblock
 description: Fetch a Hypixel SkyBlock profile and provide live gameplay recommendations
-allowed-tools: Bash(cd tools && python3 profile.py*), Bash(cd tools && python3 pricing.py*), Bash(cd tools && python3 crafts.py*), Bash(cd tools && python3 investments.py*), Bash(cd tools && python3 kat.py*), Bash(cd tools && python3 museum.py*), Bash(cd tools && python3 networth.py*), Bash(cd tools && python3 dungeons.py*), Bash(cd tools && python3 accessories.py*), Bash(cd tools && python3 slayers.py*), Bash(cd tools && python3 sbxp.py*), Bash(cd tools && python3 items.py*), Bash(cd tools && python3 minions.py*), Bash(cd tools && python3 dragons.py*), Bash(cd tools && python3 farming.py*), Bash(cd tools && python3 forge.py*), Bash(cd tools && python3 validate.py*)
+allowed-tools: Bash(cd tools && python3 profile.py*), Bash(cd tools && python3 pricing.py*), Bash(cd tools && python3 crafts.py*), Bash(cd tools && python3 investments.py*), Bash(cd tools && python3 kat.py*), Bash(cd tools && python3 museum.py*), Bash(cd tools && python3 networth.py*), Bash(cd tools && python3 dungeons.py*), Bash(cd tools && python3 accessories.py*), Bash(cd tools && python3 slayers.py*), Bash(cd tools && python3 sbxp.py*), Bash(cd tools && python3 items.py*), Bash(cd tools && python3 minions.py*), Bash(cd tools && python3 dragons.py*), Bash(cd tools && python3 farming.py*), Bash(cd tools && python3 forge.py*), Bash(cd tools && python3 validate.py*), Bash(cd tools && python3 shards.py*)
 ---
 
 # SkyBlock Profile Analyzer
@@ -115,7 +115,16 @@ When this skill is invoked:
    cd tools && python3 validate.py --forge
    ```
 
-18. **Grep the local wiki** to verify game mechanics before making claims:
+18. **Check shard fusion profitability** for hunting skill optimization:
+   ```
+   cd tools && python3 shards.py
+   cd tools && python3 shards.py chain molthorn
+   cd tools && python3 shards.py farm
+   cd tools && python3 shards.py fillers
+   cd tools && python3 shards.py health
+   ```
+
+19. **Grep the local wiki** to verify game mechanics before making claims:
    ```
    grep -ri "search term" data/wiki/
    ```
@@ -123,9 +132,9 @@ When this skill is invoked:
 
    **If `data/wiki/` is empty or doesn't exist**, tell the user to run the wiki dump first (`cd tools && python3 wiki_dump.py`) before you can verify game mechanics. Do not guess at specifics without wiki verification.
 
-19. **Reference the beginner guide** at `guide/index.html` for progression advice. The guide contains curated gear paths, money-making strategies, mod recommendations, and section-by-section walkthrough content that has been hands-on verified. It covers topics not always on the wiki (e.g., optimal mod setups, budget-conscious upgrade paths, early-game money methods). Prefer its recommendations over generic wiki info when they overlap — but don't modify the guide unless asked.
+20. **Reference the beginner guide** at `guide/index.html` for progression advice. The guide contains curated gear paths, money-making strategies, mod recommendations, and section-by-section walkthrough content that has been hands-on verified. It covers topics not always on the wiki (e.g., optimal mod setups, budget-conscious upgrade paths, early-game money methods). Prefer its recommendations over generic wiki info when they overlap — but don't modify the guide unless asked.
 
-20. **Analyze the profile and provide recommendations.** You ARE the recommendation engine — the script just fetches data for you to interpret.
+21. **Analyze the profile and provide recommendations.** You ARE the recommendation engine — the script just fetches data for you to interpret.
 
 ## Analysis Checklist
 

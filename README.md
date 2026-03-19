@@ -114,7 +114,7 @@ Items are priced with full modifier pricing — 19 modifier handlers with applic
 | Transmission Tuners | 0.7× | `tuned_transmission` NBT |
 | Mana Disintegrator | 0.8× | `mana_disintegrator_count` NBT |
 
-Reports dual networth (total + unsoulbound). Soulbound items are detected from lore lines (`✦ Soulbound`, `Co-op Soulbound`) and the `donated_museum` NBT flag, then valued at recursive crafting cost. Unpriceable items are tracked separately rather than silently dropped.
+Reports dual networth (total + unsoulbound). Soulbound items are detected from lore lines (`✦ Soulbound`, `Co-op Soulbound`) and the `donated_museum` NBT flag, then valued at market reference price (what they'd sell for if tradeable) or 0 if no market data exists. This matches SkyHelper-Networth's approach — soulbound items can't actually be sold, so recursive craft cost would overstate their value. Unpriceable items are tracked separately rather than silently dropped.
 
 ```bash
 python3 networth.py                    # full networth breakdown
@@ -417,6 +417,10 @@ Large and/or generated files that don't belong in version control. Everything he
 
    # Clone NEU item database
    git clone https://github.com/NotEnoughUpdates/NotEnoughUpdates-REPO data/neu-repo
+
+   # To update later:
+   #   cd data/neu-repo && git pull
+   #   cd tools && python3 wiki_dump.py --update
 
    # Generate Obsidian vault (requires both wiki + neu-repo)
    cd tools && python3 converter.py && cd ..

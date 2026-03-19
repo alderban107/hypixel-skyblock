@@ -290,6 +290,8 @@ def show_upgrade(pet_type, from_rarity, to_rarity, price_cache, show_profit=Fals
             if sales:
                 parts.append(f"({sales:.1f}/day)")
             print(f"  {to_name} {pet_display} AH:  {' '.join(parts)}")
+            if sales is None or sales < 0.5:
+                print(f"  ⚠ This rarity has very low AH volume — selling may take a long time")
 
             # Get cheapest input cost (AH vs craft)
             input_cost, input_source = _get_input_cost(pet_type, from_rarity, price_cache)
@@ -482,36 +484,49 @@ def scan_all_pets(price_cache):
     # Sort by profit descending
     results.sort(key=lambda r: r["profit"], reverse=True)
 
-    # Print table
-    print()
-    print(f"  KAT FLIPS (full chain, sorted by profit)")
-    w = 95
-    print(f"  {'═' * w}")
-    print(f"  {'Pet':<20s} {'Path':<22s} {'Input':>8s} {'Kat':>8s} {'Sell':>8s} {'Profit':>8s} {'Time':>8s} {'Sales':>6s}")
-    print(f"  {'─' * 20} {'─' * 22} {'─' * 8} {'─' * 8} {'─' * 8} {'─' * 8} {'─' * 8} {'─' * 6}")
+    # Partition by liquidity
+    liquid = [r for r in results if r["sales_day"] is not None and r["sales_day"] >= 0.5]
+    illiquid = [r for r in results if r["sales_day"] is None or r["sales_day"] < 0.5]
 
-    for r in results:
-        pet_display = r["pet_type"].replace("_", " ").title()
-        if len(pet_display) > 19:
-            pet_display = pet_display[:16] + "..."
-        from_name = RARITY_NAME[r["from_rarity"]]
-        to_name = RARITY_NAME[r["to_rarity"]]
-        path = f"{from_name} -> {to_name}"
-
-        # Flag craft-sourced input
-        input_str = _fmt(r["input_cost"])
-        if r["input_source"] == "craft":
-            input_str += "*"
-
-        sales_str = f"{r['sales_day']:.0f}/d" if r["sales_day"] else "?"
-
-        print(f"  {pet_display:<20s} {path:<22s} {input_str:>8s} {_fmt(r['kat_total']):>8s} "
-              f"{_fmt(r['sell_val']):>8s} {_fmt(r['profit']):>8s} {_format_time(r['time']):>8s} {sales_str:>6s}")
-
-    print()
-    if any(r["input_source"] == "craft" for r in results):
-        print(f"  * = input pet priced via crafting recipe (cheaper than AH)")
+    def _print_scan_table(rows, header):
         print()
+        print(f"  {header}")
+        w = 95
+        print(f"  {'═' * w}")
+        print(f"  {'Pet':<20s} {'Path':<22s} {'Input':>8s} {'Kat':>8s} {'Sell':>8s} {'Profit':>8s} {'Time':>8s} {'Sales':>6s}")
+        print(f"  {'─' * 20} {'─' * 22} {'─' * 8} {'─' * 8} {'─' * 8} {'─' * 8} {'─' * 8} {'─' * 6}")
+
+        for r in rows:
+            pet_display = r["pet_type"].replace("_", " ").title()
+            if len(pet_display) > 19:
+                pet_display = pet_display[:16] + "..."
+            from_name = RARITY_NAME[r["from_rarity"]]
+            to_name = RARITY_NAME[r["to_rarity"]]
+            path = f"{from_name} -> {to_name}"
+
+            # Flag craft-sourced input
+            input_str = _fmt(r["input_cost"])
+            if r["input_source"] == "craft":
+                input_str += "*"
+
+            sales_str = f"{r['sales_day']:.0f}/d" if r["sales_day"] else "?"
+
+            print(f"  {pet_display:<20s} {path:<22s} {input_str:>8s} {_fmt(r['kat_total']):>8s} "
+                  f"{_fmt(r['sell_val']):>8s} {_fmt(r['profit']):>8s} {_format_time(r['time']):>8s} {sales_str:>6s}")
+
+    _print_scan_table(liquid, "KAT FLIPS (full chain, sorted by profit)")
+
+    if illiquid:
+        _print_scan_table(illiquid, "⚠ LOW LIQUIDITY (may take days/weeks to sell)")
+
+    print()
+    notes = []
+    if any(r["input_source"] == "craft" for r in results):
+        notes.append('* = input pet priced via crafting recipe (cheaper than AH)')
+    notes.append('Sales "?" = no recent AH data. High profit + low liquidity = high risk.')
+    for note in notes:
+        print(f"  {note}")
+    print()
 
 
 # ─── Shopping List ────────────────────────────────────────────────────

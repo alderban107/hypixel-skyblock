@@ -930,7 +930,12 @@ def print_recommendations(available_tasks, formula_results, member, category_fil
 
     if category_filter:
         cf = category_filter.lower()
-        all_recs = [r for r in all_recs if cf in r["category"].lower()]
+        filtered = [r for r in all_recs if cf in r["category"].lower()]
+        if not filtered and all_recs:
+            known_cats = sorted(set(r["category"] for r in all_recs))
+            print(f"  No recommendations match category '{category_filter}'.")
+            print(f"  Available: {', '.join(known_cats)}\n")
+        all_recs = filtered
 
     # Sort by: effort (ascending), then XP value (descending)
     all_recs.sort(key=lambda r: (EFFORT_ORDER.get(r["effort"], 2), -r["xp_per_unit"]))

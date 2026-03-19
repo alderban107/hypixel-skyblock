@@ -1149,6 +1149,11 @@ def show_ranked_table(results, num_minions, tier, use_sc3000, use_diamond,
 
     if top_n and top_n < len(results):
         print(f"  ... showing top {top_n} of {len(results)}")
+
+    if not use_sc3000:
+        print(f"  ⚠ Without Super Compactor, minion storage fills quickly with raw drops.")
+        print(f"    Profits assume all items are collected and sold — actual yield depends")
+        print(f"    on collection frequency. High-action minions are most affected.")
     print()
 
 
@@ -1192,6 +1197,25 @@ def show_detail(minion_key, tier, num_minions, fuel, use_sc3000, use_diamond,
     print(f"  Per minion:        {_fmt(result['per_minion'])}/day")
     print(f"  {num_minions} minions:        "
           f"{_fmt(result['profit_day'])}/day")
+
+    if not use_sc3000:
+        # Calculate storage fill time: 15 slots × 64 = 960 items capacity
+        storage_cap = 15 * 64
+        total_drops = sum(d["raw_per_action"] for d in result["drop_details"])
+        if total_drops > 0 and result["actions_day"] > 0:
+            drops_per_day = total_drops * result["actions_day"]
+            fill_days = storage_cap / drops_per_day
+            if fill_days < 1/24:
+                fill_str = f"{fill_days * 24 * 60:.0f} minutes"
+            elif fill_days < 1:
+                fill_str = f"{fill_days * 24:.1f} hours"
+            else:
+                fill_str = f"{fill_days:.1f} days"
+            print(f"\n  ⚠ No Super Compactor — storage fills in ~{fill_str}")
+            print(f"    Storage: 15 slots × 64 = 960 items. "
+                  f"At {total_drops:.1f} drops/action and "
+                  f"{result['actions_day']:,.0f} actions/day, "
+                  f"fills in ~{fill_str}.")
 
     # ROI
     if show_roi:
