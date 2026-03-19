@@ -27,3 +27,4 @@ guide/research/
 __pycache__/
 *.pyc
 .venv/
+data/vault/

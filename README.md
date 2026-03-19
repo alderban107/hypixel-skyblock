@@ -4,7 +4,7 @@ A collection of tools and resources for playing [Hypixel SkyBlock](https://hypix
 
 [Hypixel SkyBlock](https://hypixel.net/) is an MMORPG-style game mode on Minecraft's largest multiplayer server. Players progress through skills, gear, dungeons, bosses, and a player-driven economy with two distinct markets: the **Bazaar** (bulk commodity exchange with instant buy/sell orders) and **Auctions** (player-to-player item sales, typically using "Buy It Now" fixed prices). Equipment in SkyBlock has hidden properties — reforges, enchantments, star upgrades, hot potato books — stored as compressed [NBT](https://minecraft.wiki/w/NBT_format) data in the API, which the tools here decode and display.
 
-This repo includes a beginner guide, a CLI profile analyzer with live market pricing, a craft flip scanner, a Kat upgrade calculator, a minion profit analyzer, a slayer profit calculator, a dungeon profit calculator, an accessories optimizer, a SkyBlock XP analyzer, a networth calculator, a museum donation optimizer, an event investment tracker, a shard fusion advisor, a local wiki mirror, and an Obsidian vault generator that cross-links game data for graph-view exploration.
+This repo includes a beginner guide, a CLI profile analyzer with live market pricing, a craft flip scanner, a Kat upgrade calculator, a minion profit analyzer, a slayer profit calculator, a dungeon profit calculator, an accessories optimizer, a SkyBlock XP analyzer, a networth calculator, a museum donation optimizer, an event investment tracker, a shard fusion advisor, and a local wiki mirror.
 
 ## What's Here
 
@@ -28,7 +28,7 @@ Interactive features: localStorage-backed checkboxes with per-section progress t
 
 ### `tools/` — Python Scripts
 
-Sixteen standalone scripts. No dependencies beyond the standard library. Run from the `tools/` directory (scripts import from each other via relative imports).
+Fifteen standalone scripts. No dependencies beyond the standard library. Run from the `tools/` directory (scripts import from each other via relative imports).
 
 ---
 
@@ -51,16 +51,17 @@ Also used as a library — all other tools import `display_name()` from here, an
 
 **`profile.py`** — Fetches a player's SkyBlock profile from the [Hypixel API v2](https://api.hypixel.net/) and prints a comprehensive breakdown. Decodes base64-gzip NBT inventory blobs to extract item details (reforges, enchantments with levels, star count, hot potato book count, rarity) for every equipped item, accessory, wardrobe slot, ender chest item, and backpack.
 
-Output is organized into 24 sections — 9 core shown by default, 15 extended available on request:
+Output is organized into 25 sections — 10 core shown by default, 15 extended available on request:
 
 | Core (default) | Extended (`--full` or `-s`) |
 |---|---|
-| general, dailies, skills, slayers, dungeons | collections, minions, garden, museum |
+| general, dailies, mayor, skills, slayers, dungeons | collections, minions, garden, museum |
 | hotm, effects, pets, inventories | rift, sacks, jacob, crystals |
 | | bestiary, stats, foraging, chocolate |
 | | community, misc, crafts |
 
 Also includes:
+- **Mayor & Election** — current mayor perks, minister, active money-making opportunities cross-referenced against `data/mayors.json`, election forecast with vote percentages, and prep advice for the likely next mayor (profile-aware: checks pet ownership for requirement-gated activities like Diana's Mythological Ritual)
 - **Market prices** for all equipped gear and weapons, with total accessory bag value (top 5 most expensive shown)
 - **Upgrade suggestions** based on current gear tier — filters out items the player already owns and shows live prices for each recommendation
 - **Raw JSON export** to `data/last_profile.json` with full profile data, garden, museum, and cached market prices for further analysis
@@ -355,26 +356,6 @@ Incremental updates check the wiki's `recentchanges` API for pages modified sinc
 
 Page titles with special characters are sanitized for the filesystem (slashes become `_SLASH_`, etc.). Content pages come from namespace 0 (excluding redirects), templates from namespace 10 with prefix `Data/`.
 
----
-
-**`converter.py`** — Converts two data sources into an interconnected [Obsidian](https://obsidian.md/) vault:
-
-- [**NEU-REPO**](https://github.com/NotEnoughUpdates/NotEnoughUpdates-REPO) — a community-maintained database of every SkyBlock item as individual JSON files, plus constant files for essence costs, reforges, enchantments, pets, and leveling XP tables. One markdown file is generated per item (~10,000+).
-- **Local wiki dump** — the wikitext pages from `wiki_dump.py`. Each page is converted from MediaWiki markup to markdown (~6,200 files). Handles bold/italic, headings, internal/external links, HTML tags, MediaWiki table syntax (`{| |}` to markdown tables), Minecraft color codes, and categories (extracted to YAML frontmatter tags).
-
-Cross-linking uses a three-tier ID resolution system (NEU display names < wiki secondary params < wiki `|item=` params) to convert internal IDs like `SHADOW_ASSASSIN_CHESTPLATE` into `[[Shadow Assassin Chestplate]]` wikilinks that Obsidian can follow.
-
-The converter handles 15+ page-level templates (Item Page, Armor Page, NPC Page, Mob Page, etc.), 20+ inline templates (recipes as 3x3 grids, forge recipes with durations, coin formatting, stat formatting, rarity badges, zone/NPC links), and MediaWiki table conversion with pipe escaping inside wikilinks. Template recursion is capped at 200 iterations.
-
-Output includes a pre-configured `.obsidian/app.json` (wikilinks enabled, frontmatter visible).
-
-```bash
-python3 converter.py               # full conversion (~12,000 files)
-python3 converter.py --wiki-only   # only wiki pages
-python3 converter.py --items-only  # only NEU items
-python3 converter.py --page "Coal" # single page (debugging)
-```
-
 ### `data/` — Reference Data (git-ignored)
 
 Large and/or generated files that don't belong in version control. Everything here can be regenerated with the tools above:
@@ -384,7 +365,7 @@ Large and/or generated files that don't belong in version control. Everything he
 | `wiki/` | ~27 MB | `wiki_dump.py` | 6,200+ `.wiki` files (raw wikitext from fandom wiki) + `.dump_meta.json` |
 | `wiki/parsed/` | ~50 MB | `wiki_dump.py --parse` | Template-expanded `.txt` files for grep-friendly data lookups |
 | `neu-repo/` | ~82 MB | [git clone](https://github.com/NotEnoughUpdates/NotEnoughUpdates-REPO) | Item JSONs, constants, recipes |
-| `vault/` | ~53 MB | `converter.py` | ~12,000 interlinked `.md` files for Obsidian |
+| `mayors.json` | ~14 KB | curated | Mayor opportunity mappings for 11 active candidates (validated against API) |
 | `items_resource.json` | ~5.1 MB | [Hypixel API](https://api.hypixel.net/v2/resources/skyblock/items) | 5,361 items with stats, requirements, upgrade costs (no key needed) |
 | `skills_resource.json` | ~120 KB | [Hypixel API](https://api.hypixel.net/v2/resources/skyblock/skills) | Skill XP tables + max levels (no key needed) |
 | `collections_resource.json` | ~84 KB | [Hypixel API](https://api.hypixel.net/v2/resources/skyblock/collections) | Collection tier thresholds (no key needed) |
@@ -421,9 +402,6 @@ Large and/or generated files that don't belong in version control. Everything he
    # To update later:
    #   cd data/neu-repo && git pull
    #   cd tools && python3 wiki_dump.py --update
-
-   # Generate Obsidian vault (requires both wiki + neu-repo)
-   cd tools && python3 converter.py && cd ..
    ```
 
 4. Run tools from the `tools/` directory:
