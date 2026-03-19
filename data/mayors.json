@@ -3,6 +3,9 @@
     "description": "Mayor money-making opportunities and profile-relevant buffs",
     "sources": "Hypixel API (election endpoint) + wiki.fandom.com mayor pages",
     "last_validated": "2026-03-19",
+    "validated_against_api": ["economist", "farming", "fishing", "pets", "dungeons", "events"],
+    "unvalidated": ["slayer", "mining", "derpy", "jerry", "scorpius"],
+    "unvalidated_note": "These mayors were not in the current election/mayor slot. Perk names are from wiki text and may not match API exactly. Will be validated when they next appear.",
     "notes": [
       "Active regular candidates: Aatrox, Cole, Diana, Diaz, Finnegan, Foxy, Marina, Paul",
       "Active special candidates: Derpy, Jerry, Scorpius (every 8 SB years)",
