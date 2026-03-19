@@ -1,175 +1,177 @@
 ---
 name: skyblock
-description: Fetch a Hypixel SkyBlock profile and provide live gameplay recommendations
-allowed-tools: Bash(cd tools && python3 profile.py*), Bash(cd tools && python3 pricing.py*), Bash(cd tools && python3 crafts.py*), Bash(cd tools && python3 investments.py*), Bash(cd tools && python3 kat.py*), Bash(cd tools && python3 museum.py*), Bash(cd tools && python3 networth.py*), Bash(cd tools && python3 dungeons.py*), Bash(cd tools && python3 accessories.py*), Bash(cd tools && python3 slayers.py*), Bash(cd tools && python3 sbxp.py*), Bash(cd tools && python3 items.py*), Bash(cd tools && python3 minions.py*), Bash(cd tools && python3 dragons.py*), Bash(cd tools && python3 farming.py*), Bash(cd tools && python3 forge.py*), Bash(cd tools && python3 validate.py*), Bash(cd tools && python3 shards.py*)
+description: Fetch a Hypixel SkyBlock profile and provide live gameplay recommendations. Use this skill whenever the user asks about their SkyBlock progression, gear upgrades, money-making, dungeon readiness, skill levels, minions, collections, slayers, mining, rift progress, or wants a profile checkup — even if they don't say "profile" explicitly. Also use when they ask what to do next in SkyBlock or wants fresh recommendations.
+compatibility: Requires Python 3, Hypixel API key in ~/projects/hypixel-skyblock/.env, local wiki dump in data/wiki/, NEU repo in data/neu-repo/
 ---
 
 # SkyBlock Profile Analyzer
 
-When this skill is invoked:
+## Tools & Data Sources
 
-1. **Run the profile script** to fetch live data from the Hypixel API:
-   ```
-   cd tools && python3 profile.py --full
-   ```
+**Profile data:**
+```
+cd ~/projects/hypixel-skyblock/tools && python3 profile.py --full
+```
+Raw JSON at `~/projects/hypixel-skyblock/data/last_profile.json` if you need to dig deeper.
 
-2. **Read the raw JSON** for deeper analysis if needed:
-   - `data/last_profile.json` contains full profile + garden + museum data
+**Live prices:**
+```
+cd ~/projects/hypixel-skyblock/tools && python3 pricing.py ITEM_ID ITEM_ID_2
+```
+Use Hypixel internal IDs, not display names. Some are non-obvious: Necron = `POWER_WITHER_*`, Goldor = `TANK_WITHER_*`, Storm = `WISE_WITHER_*`, Maxor = `SPEED_WITHER_*`. If pricing returns nothing for an item you know exists, the ID is wrong — check `data/neu-repo/items/` or search Coflnet: `curl -s 'https://sky.coflnet.com/api/item/search/QUERY'`. If price data is genuinely missing, say so rather than silently omitting.
 
-3. **Check live prices** for specific items when evaluating upgrades:
-   ```
-   cd tools && python3 pricing.py ITEM_ID ITEM_ID_2
-   ```
+**Local wiki** at `~/projects/hypixel-skyblock/data/wiki/` (~6,200 pages of wikitext from hypixel-skyblock.fandom.com). Grep this for game mechanics — drop rates, collection thresholds, recipe requirements, slayer mechanics, dungeon requirements. Training data is unreliable for SkyBlock; the wiki is kept current with `wiki_dump.py --update`.
 
-4. **Check craft flips** for money-making opportunities:
-   ```
-   cd tools && python3 crafts.py --profile
-   ```
+**Beginner guide** at `~/projects/hypixel-skyblock/guide/index.html`. Curated gear paths, money-making strategies, progression advice. Cross-reference gear recommendations against this before suggesting upgrades. Activity-specific sections at `#sg-{skill}` (e.g., `#sg-mining`).
 
-5. **Check event investments** for buy/sell opportunities based on event cycles:
-   ```
-   cd tools && python3 investments.py
-   ```
+**NEU repo** at `data/neu-repo/`:
+- `items/ITEM_ID.json` — recipes, lore, skill requirements. Only ~26% of items have recipes; drops won't have one.
+- `constants/essencecosts.json` — star upgrade costs for 528 items
+- `constants/reforges.json` — 50 reforges with stat breakdowns by rarity
+- `constants/reforgestones.json` — 79 stones with item type mappings. **Skill requirements are in Roman numerals** in the lore — convert before comparing against the player's levels.
+- `constants/enchants.json`, `constants/pets.json`, `constants/leveling.json`
 
-6. **Check Kat pet upgrade profits** for pet flipping opportunities:
-   ```
-   cd tools && python3 kat.py --scan
-   cd tools && python3 kat.py RABBIT --from common --to mythic --shopping
-   ```
+**SBXP analysis:**
+```
+cd ~/projects/hypixel-skyblock/tools && python3 sbxp.py
+```
+Full SkyBlock XP breakdown — 25 formula-based calculators (skills, fairy souls, MP, pets, collections, minions, dungeons, slayers, bestiary, mining, garden, museum) + 692 individual tasks (harp songs, essence shop, trophy fish, event perks, abiphone contacts, dojo, timecharms, objectives, etc.). Smart recommendations cross-reference essence stockpiles vs shop costs, find close collection milestones, and surface garden quick wins. Use `--brief` for just recommendations, `--category X` to filter, `--json` for scripting. Task database at `data/sbxp_tasks.json`.
 
-7. **Check networth** for total profile value and modifier breakdown:
-   ```
-   cd tools && python3 networth.py
-   cd tools && python3 networth.py --category pets
-   cd tools && python3 networth.py --top 20
-   ```
+**Craft flips:** The profile output includes a `CRAFT FLIPS` section showing profitable crafts the player has unlocked and ones they're close to unlocking. For a fresh check, run `crafts.py --profile`.
 
-8. **Check dungeon profitability** for which floors and chests are worth running:
-   ```
-   cd tools && python3 dungeons.py
-   cd tools && python3 dungeons.py --floor f7
-   ```
+**Accessory upgrades:**
+```
+cd ~/projects/hypixel-skyblock/tools && python3 accessories.py
+```
+Finds all missing accessories ranked by coins/MP efficiency. Shows upgrade paths (e.g. Ring → Artifact) and flags what you already own. Use when evaluating MP upgrades or wondering what accessory to buy next.
 
-9. **Check slayer profitability** for which bosses are worth grinding:
-   ```
-   cd tools && python3 slayers.py
-   cd tools && python3 slayers.py --type zombie --tier 5
-   cd tools && python3 slayers.py --type wolf --tier 4 --magic-find 200
-   cd tools && python3 slayers.py --aatrox
-   ```
+**Dungeon profit:**
+```
+cd ~/projects/hypixel-skyblock/tools && python3 dungeons.py
+cd ~/projects/hypixel-skyblock/tools && python3 dungeons.py --floor f6
+cd ~/projects/hypixel-skyblock/tools && python3 dungeons.py --score s+d3
+```
+Per-floor profit breakdown with chest recommendations (which to open, which to skip), kismet feather analysis, and RNG meter targets ranked by coins/XP. Summary view ranks all floors by hourly rate. Use when deciding which floor to grind or whether to open chests.
 
-10. **Check missing accessories** for cheap MP upgrades:
-   ```
-   cd tools && python3 accessories.py
-   cd tools && python3 accessories.py --upgrades-only
-   cd tools && python3 accessories.py --budget 5m
-   ```
+**Slayer profit:**
+```
+cd ~/projects/hypixel-skyblock/tools && python3 slayers.py
+```
+Per-slayer, per-tier profit analysis showing profit/boss, profit/hr, and coins/XP. Identifies the best tier for each slayer type. Use when deciding which slayer to do or which tier is most efficient.
 
-11. **Analyze SkyBlock XP** for efficient progression:
-   ```
-   cd tools && python3 sbxp.py
-   cd tools && python3 sbxp.py --brief
-   cd tools && python3 sbxp.py --category mining
-   ```
+**Minion profit:**
+```
+cd ~/projects/hypixel-skyblock/tools && python3 minions.py
+cd ~/projects/hypixel-skyblock/tools && python3 minions.py --slots 9 --tier 7
+```
+Ranks all minion types by daily profit. Defaults to T11 with optimal setup (SC3000, Diamond Spreading, E-Lava). Use `--slots` and `--tier` to match the player's actual setup. Use when optimizing minion layout.
 
-12. **Check minion optimization** for profit and slot unlocks:
-   ```
-   cd tools && python3 minions.py
-   cd tools && python3 minions.py --item snow --roi
-   cd tools && python3 minions.py --slots
-   ```
+**Museum donations:**
+```
+cd ~/projects/hypixel-skyblock/tools && python3 museum.py
+```
+Lists all missing museum donations sorted by cost, showing the cheapest items to donate next. Use when the player wants to increase museum progress efficiently.
 
-13. **Check museum donations** for cheapest missing items:
-   ```
-   cd tools && python3 museum.py
-   cd tools && python3 museum.py --xp
-   ```
+**Shard fusions:**
+```
+cd ~/projects/hypixel-skyblock/tools && python3 shards.py
+cd ~/projects/hypixel-skyblock/tools && python3 shards.py chain <name>
+cd ~/projects/hypixel-skyblock/tools && python3 shards.py farm
+```
+Shard fusion advisor — ranks farmable shards by chain value, shows cheapest fillers per rarity, identifies dead markets to avoid. Use when the player is doing shard content or asking about fusion profitability.
 
-14. **Check dragon fight profitability** for expected value per fight:
-   ```
-   cd tools && python3 dragons.py
-   cd tools && python3 dragons.py --type superior
-   cd tools && python3 dragons.py --eyes 4
-   ```
+**Event investments:**
+```
+cd ~/projects/hypixel-skyblock/tools && python3 investments.py
+cd ~/projects/hypixel-skyblock/tools && python3 investments.py --calendar
+cd ~/projects/hypixel-skyblock/tools && python3 investments.py --event spooky
+```
+Event-driven price cycle tracker. Uses Coflnet historical data to identify buy/sell windows around Spooky Festival, Jerry's Workshop, Hoppity's Hunt, Traveling Zoo, and mayor-dependent events. Shows current event status, buy recommendations with profit percentages, and optimal timing. Run this during profile checkups to catch active or upcoming event opportunities.
 
-15. **Check farming profit** by crop with fortune scaling:
-   ```
-   cd tools && python3 farming.py
-   cd tools && python3 farming.py --fortune 500
-   cd tools && python3 farming.py --crop wheat
-   cd tools && python3 farming.py --profile
-   ```
+**Dragon fight EV:**
+```
+cd ~/projects/hypixel-skyblock/tools && python3 dragons.py
+cd ~/projects/hypixel-skyblock/tools && python3 dragons.py --type superior --eyes 4
+```
+Expected value per fight by dragon type, using DragonLoot.json drop tables + live pricing. Shows net profit after eye cost.
 
-16. **Check forge recipe profitability** sorted by profit/hour:
-   ```
-   cd tools && python3 forge.py
-   cd tools && python3 forge.py --profile
-   cd tools && python3 forge.py --hotm 5 --quick-forge 20
-   cd tools && python3 forge.py --item TITANIUM_DRILL_1
-   ```
+**Farming profit:**
+```
+cd ~/projects/hypixel-skyblock/tools && python3 farming.py --profile
+cd ~/projects/hypixel-skyblock/tools && python3 farming.py --fortune 500
+cd ~/projects/hypixel-skyblock/tools && python3 farming.py --crop wheat
+```
+Per-crop profit/hr with fortune scaling. Compares NPC vs Bazaar (raw and enchanted) sell methods. `--profile` auto-detects farming fortune.
 
-17. **Cross-validate pricing** against Coflnet to catch calculation errors:
-   ```
-   cd tools && python3 validate.py
-   cd tools && python3 validate.py --crafts --threshold 50
-   cd tools && python3 validate.py --forge
-   ```
+**Forge flips:**
+```
+cd ~/projects/hypixel-skyblock/tools && python3 forge.py --profile
+cd ~/projects/hypixel-skyblock/tools && python3 forge.py --hotm 5 --quick-forge 20
+cd ~/projects/hypixel-skyblock/tools && python3 forge.py --item TITANIUM_DRILL_1
+```
+Forge recipe profitability from Coflnet data, sorted by profit/hour. Filters by HotM level, applies Quick Forge time reduction. `--profile` auto-detects HotM level.
 
-18. **Check shard fusion profitability** for hunting skill optimization:
-   ```
-   cd tools && python3 shards.py
-   cd tools && python3 shards.py chain molthorn
-   cd tools && python3 shards.py farm
-   cd tools && python3 shards.py fillers
-   cd tools && python3 shards.py health
-   ```
+**Net worth:**
+```
+cd ~/projects/hypixel-skyblock/tools && python3 networth.py
+cd ~/projects/hypixel-skyblock/tools && python3 networth.py --verbose
+cd ~/projects/hypixel-skyblock/tools && python3 networth.py --category pets
+```
+Full networth breakdown by category (purse, bank, inventory, armor, accessories, wardrobe, pets, museum, sacks, storage, essence). Values soulbound items via recursive craft cost. Shows top N most valuable items with component breakdown (base, stars, HPB, enchants, reforge, etherwarp). `--verbose` lists every priced item, `--category` filters to one category, `--no-cosmetic` excludes dyes/skins/runes.
 
-19. **Grep the local wiki** to verify game mechanics before making claims:
-   ```
-   grep -ri "search term" data/wiki/
-   ```
-   The wiki is a local dump of the fandom wiki (hypixel-skyblock.fandom.com, ~6,200 pages of wikitext), actively maintained by community volunteers. Always check it before stating specifics about drop rates, recipe requirements, collection unlock thresholds, slayer mechanics, or dungeon requirements. Training data may be outdated — the wiki is kept current with `tools/wiki_dump.py --update`.
+**Cross-validation:**
+```
+cd ~/projects/hypixel-skyblock/tools && python3 validate.py
+cd ~/projects/hypixel-skyblock/tools && python3 validate.py --forge --threshold 30
+```
+Cross-validates our pricing against Coflnet for crafts, Kat upgrades, fusions, and forge recipes. Use when pricing seems off or to sanity-check recommendations.
 
-   **If `data/wiki/` is empty or doesn't exist**, tell the user to run the wiki dump first (`cd tools && python3 wiki_dump.py`) before you can verify game mechanics. Do not guess at specifics without wiki verification.
+## How to Analyze
 
-20. **Reference the beginner guide** at `guide/index.html` for progression advice. The guide contains curated gear paths, money-making strategies, mod recommendations, and section-by-section walkthrough content that has been hands-on verified. It covers topics not always on the wiki (e.g., optimal mod setups, budget-conscious upgrade paths, early-game money methods). Prefer its recommendations over generic wiki info when they overlap — but don't modify the guide unless asked.
+Run the profile, read the output, and think about what's actually useful to tell the player right now. You're the recommendation engine — the script just fetches data.
 
-21. **Analyze the profile and provide recommendations.** You ARE the recommendation engine — the script just fetches data for you to interpret.
+Look at the whole profile. Skills, gear, dungeons, slayers, collections, minions, pets, mining, foraging, Rift, garden, chocolate factory, museum, bestiary, active effects, sacks, contests — whatever's relevant. Don't tunnel-vision on one area. This skill is invoked when the player wants a broad view and fresh ideas, not a rehash of what was already discussed in the session.
 
-## Analysis Checklist
+For money-making analysis, use the full toolkit: `crafts.py --profile` for craft flips, `forge.py --profile` for forge flips, `farming.py --profile` for crop profit, `dragons.py` for dragon fight EV, `investments.py` for event cycles, `kat.py --scan` for pet flips, `dungeons.py` for dungeon chest profit, `slayers.py` for slayer tier efficiency, `shards.py` for fusion profitability. Compare across methods to recommend the best options for the player's current stage. Use `validate.py` if any pricing looks suspicious.
 
-Cover ALL of these areas, not just one or two. The user invokes this skill when they want a broad view of their profile and fresh ideas — not a deep dive into whatever was discussed earlier in the session.
+For upgrade questions, use `accessories.py` for MP-efficient accessory upgrades, `minions.py` for minion optimization, and `museum.py` for cheap donations.
 
-- **Progression stage**: Where is the user in the game? Early/mid/late? What content are they ready for?
-- **Skill gaps**: Any skills lagging behind? Quick wins to raise skill average?
-- **Gear assessment**: Is current equipment appropriate for the user's level and next goals? The INVENTORIES section shows all equipped armor, equipment slots, inventory items, accessories, ender chest contents, and backpacks — use this to see exactly what they have before recommending anything. Use `pricing.py` to check current market values when evaluating upgrade options.
-- **SkyBlock XP**: Run `sbxp.py` (or `--brief`) to find cheap XP. Check affordable essence perks, close collection milestones, and garden progress.
-- **Minion optimization**: Run `minions.py` to check profit rankings. Are minions set up well? Missing easy crafts for slot unlocks? Use `--slots` to find cheapest slot unlock path.
-- **Collections**: Any collections close to a meaningful tier unlock? Grep the wiki for collection tier thresholds rather than guessing.
-- **Slayer/Dungeon readiness**: Ready to start or progress in slayers/dungeons? What gear/stats are needed? Check the wiki for floor requirements and slayer level unlock thresholds. Run `dungeons.py` to show which floors are most profitable at current prices. Run `slayers.py` to show which slayer bosses are most profitable — include tier comparison and RNG meter analysis.
-- **Pets**: Is the active pet optimal? Any pets worth getting for current activities?
-- **Magical Power**: Run `accessories.py` to see active MP, inactive/duplicate accessories, and the cheapest missing MP upgrades. Also check `--upgrades-only` for chain upgrade opportunities.
-- **Money-making**: Run `crafts.py --profile` for craft flips, `investments.py` for event investments, `kat.py --scan` for pet flip opportunities, `forge.py --profile` for forge flips, and `farming.py --profile` for crop profit comparison. Highlight the best current opportunities.
-- **Dragons**: Run `dragons.py` to check dragon fight EV. Worth mentioning if Superior is highly profitable or if eye prices make fights unprofitable.
-- **Museum**: Run `museum.py` to check cheapest missing donations. SkyBlock XP from museum milestones adds up.
-- **Garden**: Progression status, worth investing time?
-- **Validation**: If pricing seems off during analysis, run `validate.py` to cross-check against Coflnet data.
+Give **actionable recommendations** — things the player can do right now or work toward. Prioritize by impact. If they're broke, money-making comes first (you can't buy upgrades with an empty purse). Free daily wins are always worth mentioning. Don't pad with filler recommendations; if there are 3 good things to say, say 3.
 
-## Response Format
+Include prices when recommending purchases so the player can evaluate affordability. The Banking API doesn't work for all profiles, so the purse is the only visible number — it's a floor, not the whole picture.
 
-- Start with a quick status summary (stage, standout stats, immediate concerns)
-- Give **3-5 prioritized actions** across different areas of the game, with clear reasoning
-- Recommendations should be independent of what was discussed earlier in the session — the user typically invokes this skill when they want to switch objectives, so suggest variety
-- When recommending upgrades, include live prices from `pricing.py` so the user can evaluate affordability
-- Flag anything urgent (expiring items, easy wins being missed, gear that's holding them back)
-- Suggest a longer-term direction based on where they're heading
+## Things That Have Gone Wrong Before
 
-## Important Context
+These are corrections from past sessions. They're here because I got them wrong at least once:
 
-- Fairy souls only give SkyBlock XP now, NOT stats. They must be exchanged in chunks of 5 — don't recommend spending them unless the user has 5+ unspent.
-- **Do NOT recommend money farming or flag low purse/bank balance.** The Banking API often doesn't return data, so the purse value shown may be misleading — many players keep most coins in the bank. Treat money as a non-issue unless the user specifically asks about it.
-- The local wiki dump is sourced from the fandom wiki (hypixel-skyblock.fandom.com) — always prefer grepping the local dump over web lookups
-- If the API key has expired, check the dev key expiry or personal key approval status in `.env`
-- **Check the INVENTORIES section carefully before recommending items.** Don't recommend talismans/gear the user already owns — they may be in the ender chest, backpack, or accessory bag.
-- Don't push expensive consumables (like HPBs) on transitional gear that will be replaced soon
-- **Always verify claims against the local wiki or beginner guide before stating them as fact.** If you're unsure about a mechanic, grep the wiki first.
+**Don't recommend things the player can't do.** Check coins, skill levels, quest prerequisites, collection tiers, and unlock gates before suggesting anything. Reforge stones have skill requirements hidden in Roman numerals in the NEU repo. If something is gated, either note what it takes to clear the gate or suggest something else.
+
+**Don't recommend things the player already has.** The INVENTORIES section shows armor, equipment, inventory, accessories, ender chest, and backpacks. Read it before suggesting gear or talismans.
+
+**Don't judge items by rarity alone.** "Epic > Uncommon" is not analysis. Grep the wiki for both items and compare actual stats. Lower-rarity items can be better for specific content.
+
+**Don't call accessory duplicates "extras" without checking.** Many accessories are tiered (Talisman → Ring → Artifact) and multiple copies of lower tiers are crafting materials for upgrades. Check the wiki or NEU repo for upgrade paths before suggesting the player sell or trash copies.
+
+**Don't trust training data for SkyBlock mechanics.** Always verify against the wiki or NEU repo before making claims about drop rates, recipes, collection thresholds, or how game systems work.
+
+**Don't describe garden farming as passive/AFK.** It's active gameplay — the player has to manually farm crops.
+
+**Fairy souls give SkyBlock XP and Backpack Slots**, not stats. Exchanged at Tia in chunks of 5.
+
+**Skill caps vary.** Farming goes to 60 (via Gold Medals/Anita), Taming to 60 (Pet Collector/George), Foraging to 54 (Agatha + collection). The profile script shows the actual max. Don't confuse NEU repo base caps (50) with the real ceiling.
+
+**Chronomatron bonus clicks** are automatically consumed during the next Superpairs round. They're not a separate claimable thing. Don't tell the player to "claim" them. **Players typically do Chronomatron (add-on) before Superpairs** — if the profile says "add-on not done", it may just mean they haven't done their experiments yet today. Don't recommend doing add-ons as if they're being skipped.
+
+**MP is low priority.** Don't default to recommending accessory bag expansion or talisman shopping as a top action. Only flag MP if it's severely behind the player's progression stage.
+
+**Don't push expensive consumables on transitional gear.** Respect the player's budget — they will replace gear as they progress.
+
+**Commit to recommendations.** Players want clear reasoning, not hedging. Present options when there are genuine tradeoffs, but don't waffle when you have a clear best pick.
+
+**Quiver arrows all show as generic `ARROW` in the API.** The item ID doesn't distinguish between arrow types (flint, spectral, etc.). Don't assume the player is using plain arrows or recommend arrow upgrades based on quiver data alone.
+
+## Subagent Rules
+
+Subagents don't see this skill file. When delegating SkyBlock research, tell them to verify claims by grepping `~/projects/hypixel-skyblock/data/wiki/`. Never present subagent output directly — verify key claims yourself first. Label web-sourced information and note whether you verified it against the wiki.
+
+If the API key has expired, tell the player to check `~/projects/hypixel-skyblock/.env`.
