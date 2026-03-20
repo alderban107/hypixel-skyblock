@@ -1,18 +1,38 @@
+<div align="center">
+
 # Hypixel SkyBlock Toolkit
 
-> 14 CLI tools for profile analysis, market pricing, and profit optimization in [Hypixel SkyBlock](https://hypixel.net/). Pure Python, no dependencies.
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![Tools](https://img.shields.io/badge/tools-14-blue)](https://github.com/alderban107/hypixel-skyblock#tools)
+[![No Dependencies](https://img.shields.io/badge/dependencies-none-brightgreen)](https://github.com/alderban107/hypixel-skyblock)
+[![License](https://img.shields.io/badge/license-personal_use-lightgrey)](https://github.com/alderban107/hypixel-skyblock#license)
+
+**Profile analysis, market pricing, and profit optimization for [Hypixel SkyBlock](https://hypixel.net/).**
+<br>Pure Python. No dependencies. Live data from the Hypixel API.
+
+</div>
 
 ![Profile Demo](assets/demo-profile.gif)
 
 ## Features
 
-- **Profile Analyzer** — 25-section breakdown of any player's profile with live market prices, mayor-aware recommendations, and election forecasts
-- **Profit Calculators** — Craft flips, forge recipes, dungeon chests, slayer bosses, Kat pet upgrades, minion setups, and shard fusions — all with live pricing
-- **Networth Calculator** — Full modifier-aware valuation across 12+ storage locations with 19 pricing handlers
-- **Accessory Optimizer** — Ranks missing accessories by coins/MP with upgrade path detection
-- **SkyBlock XP Engine** — 692 individual tasks scored and prioritized to find your cheapest XP gains
+- **Profile Analyzer** — 25-section breakdown with live market prices, mayor-aware recommendations, and election forecasts
+- **Profit Calculators** — Craft flips, forge recipes, dungeon chests, slayer bosses, Kat pet upgrades, minion setups, and shard fusions
+- **Networth Calculator** — Modifier-aware valuation across 12+ storage locations with 19 pricing handlers
+- **Accessory Optimizer** — Missing accessories ranked by coins/MP with upgrade chain detection
+- **SkyBlock XP Engine** — 692 tasks scored and prioritized to find your cheapest XP gains
 - **Beginner Guide** — Single-page HTML guide from first day through mid-game with verified mechanics
 - **AI Skill** — Drop-in `SKILL.md` that turns an AI coding assistant into a profile advisor
+
+## Table of Contents
+
+- [Quick Start](#quick-start)
+- [Tools](#tools) — [Core](#core) · [Profit Analysis](#profit-analysis) · [Progression](#progression) · [Data](#data)
+- [Tool Details](#tool-details)
+- [Beginner Guide](#beginner-guide)
+- [AI Skill](#ai-skill)
+- [Data Sources](#data-sources)
+- [License](#license)
 
 ## Quick Start
 
