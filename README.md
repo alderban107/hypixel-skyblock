@@ -27,7 +27,11 @@
 ## Table of Contents
 
 - [Quick Start](#quick-start)
-- [Tools](#tools) — [Core](#core) · [Profit Analysis](#profit-analysis) · [Progression](#progression) · [Data](#data)
+- [Tools](#tools)
+  - [Core](#core)
+  - [Profit Analysis](#profit-analysis)
+  - [Progression](#progression)
+  - [Data](#data)
 - [Tool Details](#tool-details)
 - [Beginner Guide](#beginner-guide)
 - [AI Skill](#ai-skill)
