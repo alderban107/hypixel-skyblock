@@ -195,11 +195,15 @@ python3 items.py shadow assassin       # search items by name
 
 Scans all NEU-REPO crafting recipes for profitable flips — items where bazaar-bought ingredients craft into something that sells for more on the AH. Prices ingredients via Bazaar API, output via Moulberry LBIN. Calculates profit after 1% AH tax. Minimum thresholds: 10K profit and 1 sale/day.
 
+The `--sell-order` mode finds a different class of flip: crafts where the output is also on the Bazaar, but the profit only exists when you place a **sell order** instead of instant-selling. These have a spread between the instant-sell price (low) and the buy price (what buyers pay to instant-buy your order). The script calculates profit after the 1.125% Bazaar tax, filters by minimum buy volume (500+), and shows the spread percentage as a patience indicator.
+
 The `--profile` mode cross-references your collections and slayer levels to show which crafts you've unlocked and which are closest.
 
 ```bash
 python3 crafts.py              # full scan (~5 sec)
+python3 crafts.py --sell-order # bazaar sell-order flips (patient flipping)
 python3 crafts.py --profile    # filtered by your unlocks
+python3 crafts.py --sell-order --profile  # sell-order flips with unlock status
 python3 crafts.py --forge      # include Forge recipes
 python3 crafts.py --item MINING_2_TRAVEL_SCROLL  # single recipe breakdown
 ```

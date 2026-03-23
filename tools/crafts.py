@@ -8,6 +8,7 @@ current lowest BIN, and actual sales volume).
 
 Usage:
     python3 crafts.py              # Full scan — all profitable crafts
+    python3 crafts.py --sell-order  # Bazaar sell-order flips (patient flipping)
     python3 crafts.py --forge      # Scan forge recipes (time-gated crafts)
     python3 crafts.py --profile    # Filter by player's unlocked recipes
     python3 crafts.py --cached     # Use cached prices only (skip API calls)
@@ -658,6 +659,194 @@ def scan_craft_flips(recipes, price_cache, craft_cache, use_cached_only=False,
     return flips
 
 
+# ─── Sell-Order (Patient) Bazaar Flips ────────────────────────────────
+
+MIN_BUY_VOLUME = 500   # minimum buy-side volume to ensure sell orders fill
+
+def scan_sell_order_flips(recipes, price_cache, undercut_pct=0.1):
+    """Scan for crafts where you instant-buy materials and sell-order the output.
+
+    The existing scanner compares instant-buy cost vs instant-sell revenue,
+    which misses items with large Bazaar spreads. This mode compares:
+      Cost:    ingredient instant-buy prices (same)
+      Revenue: output buy-price (what buyers pay to instant-buy YOUR sell order)
+
+    A small undercut is applied to the sell order price to ensure it fills.
+    Bazaar takes a 1.125% tax on sell orders.
+    """
+    BZ_TAX = 0.98875  # 1.125% bazaar listing tax
+
+    price_cache._fetch_bazaar()
+
+    flips = []
+    for recipe in recipes:
+        item_id = recipe["item_id"]
+
+        if item_id in DISABLED_ITEMS:
+            continue
+
+        # Cost: instant-buy all ingredients
+        cost = calculate_craft_cost(recipe, price_cache)
+        if cost is None:
+            continue
+
+        # Output must be on bazaar with buy-side data
+        output_price = price_cache.get_price(item_id)
+        if output_price["source"] != "bazaar":
+            continue
+
+        buy_price = output_price.get("buy", 0)
+        sell_price = output_price.get("sell", 0)
+        buy_volume = output_price.get("buy_volume", 0)
+
+        if buy_price <= 0 or buy_volume < MIN_BUY_VOLUME:
+            continue
+
+        # Revenue: place sell order slightly below buy price
+        order_price = buy_price * (1 - undercut_pct / 100)
+        revenue = order_price * BZ_TAX  # after bazaar tax
+        profit = revenue - cost
+
+        if profit < MIN_PROFIT:
+            continue
+
+        spread = buy_price - sell_price
+        spread_pct = (spread / buy_price * 100) if buy_price > 0 else 0
+
+        flips.append({
+            "item_id": item_id,
+            "cost": cost,
+            "order_price": order_price,
+            "revenue": revenue,
+            "profit": profit,
+            "buy_price": buy_price,
+            "sell_price": sell_price,
+            "spread": spread,
+            "spread_pct": spread_pct,
+            "buy_volume": buy_volume,
+            "requirement": recipe["requirement"],
+        })
+
+    flips.sort(key=lambda x: x["profit"], reverse=True)
+    return flips
+
+
+def print_sell_order_flips(flips):
+    """Print table of sell-order bazaar flips."""
+    print(f"\nBAZAAR SELL-ORDER FLIPS (min {_fmt(MIN_PROFIT)} profit, min {MIN_BUY_VOLUME} buy volume)")
+    print("  Buy materials instantly, craft, place sell order. Patient but no AH needed.")
+    print("=" * 120)
+    print(f"  {'Item':<30s} {'Cost':>10s}  {'Order @':>10s}  {'Profit':>10s}  "
+          f"{'Spread':>7s}  {'BuyVol':>8s}  Requirement")
+    print(f"  {'-'*30} {'-'*10}  {'-'*10}  {'-'*10}  "
+          f"{'-'*7}  {'-'*8}  {'-'*20}")
+
+    for flip in flips:
+        name = display_name(flip["item_id"])
+        if len(name) > 30:
+            name = name[:27] + "..."
+        req_text = flip["requirement"]["text"] if flip["requirement"] else ""
+        spread_str = f"{flip['spread_pct']:.0f}%"
+        bvol_str = f"{flip['buy_volume']:,}"
+        print(f"  {name:<30s} {_fmt(flip['cost']):>10s}  {_fmt(flip['order_price']):>10s}  "
+              f"{_fmt(flip['profit']):>10s}  {spread_str:>7s}  {bvol_str:>8s}  {req_text}")
+
+    if not flips:
+        print("  No profitable sell-order flips found.")
+    else:
+        print(f"\n  Profit = OrderPrice × 0.98875 (bazaar tax) − Cost.")
+        print(f"  Spread = gap between instant-buy and instant-sell (higher = more margin but slower fills).")
+        print(f"  BuyVol = buy-side volume (demand for your sell order).")
+    print()
+
+
+def print_profile_sell_order_flips(flips, member):
+    """Print sell-order flips filtered by player unlocks, with almost-unlocked section."""
+    unlocked = []
+    almost = []
+
+    for flip in flips:
+        item_id = flip["item_id"]
+        checked = check_requirements(item_id, member)
+
+        if not checked:
+            unlocked.append(flip)
+            continue
+
+        all_met = all(r.get("met", False) for r in checked)
+        if all_met:
+            unlocked.append(flip)
+        else:
+            for r in checked:
+                if not r.get("met", False) and r.get("needed") and r["needed"] > 0:
+                    progress = r.get("progress", 0) or 0
+                    pct = progress / r["needed"] if r["needed"] > 0 else 0
+                    almost.append({
+                        **flip,
+                        "progress": progress,
+                        "needed": r["needed"],
+                        "pct": pct,
+                        "req_text": r.get("text", ""),
+                        "req_type": r.get("type", ""),
+                    })
+                    break
+
+    # Print unlocked
+    print(f"\nUNLOCKED SELL-ORDER FLIPS")
+    print("  Buy materials instantly, craft, place sell order. Patient but no AH needed.")
+    print("=" * 110)
+    if unlocked:
+        print(f"  {'Item':<30s} {'Cost':>10s}  {'Order @':>10s}  {'Profit':>10s}  "
+              f"{'Spread':>7s}  {'BuyVol':>8s}")
+        print(f"  {'-'*30} {'-'*10}  {'-'*10}  {'-'*10}  "
+              f"{'-'*7}  {'-'*8}")
+        for flip in unlocked:
+            name = display_name(flip["item_id"])
+            if len(name) > 30:
+                name = name[:27] + "..."
+            spread_str = f"{flip['spread_pct']:.0f}%"
+            bvol_str = f"{flip['buy_volume']:,}"
+            print(f"  {name:<30s} {_fmt(flip['cost']):>10s}  {_fmt(flip['order_price']):>10s}  "
+                  f"{_fmt(flip['profit']):>10s}  {spread_str:>7s}  {bvol_str:>8s}")
+    else:
+        print("  No unlocked profitable sell-order flips found.")
+
+    print(f"\n  Profit = OrderPrice × 0.98875 (bazaar tax) − Cost.")
+    print(f"  Spread = gap between instant-buy and instant-sell (higher = more margin but slower fills).")
+    print(f"  BuyVol = buy-side volume (demand for your sell order).")
+    print()
+
+    # Print almost unlocked
+    almost.sort(key=lambda x: x["pct"], reverse=True)
+    almost = almost[:15]
+    if almost:
+        print(f"ALMOST UNLOCKED (sorted by proximity to requirement)")
+        print("=" * 100)
+        print(f"  {'Item':<26s} {'Profit':>8s}  {'BuyVol':>8s}  {'Requirement':<22s} Progress")
+        print(f"  {'-'*26} {'-'*8}  {'-'*8}  {'-'*22} {'-'*20}")
+        for flip in almost:
+            name = display_name(flip["item_id"])
+            if len(name) > 26:
+                name = name[:23] + "..."
+            bvol_str = f"{flip['buy_volume']:,}"
+
+            prog = flip["progress"]
+            needed = flip["needed"]
+            pct = flip["pct"] * 100
+
+            # Format progress
+            if needed >= 1_000_000:
+                prog_str = f"{prog/1000:.1f}K / {needed/1000:.0f}K"
+            elif needed >= 10_000:
+                prog_str = f"{prog/1000:.1f}K / {needed/1000:.1f}K"
+            else:
+                prog_str = f"{prog:,.0f} / {needed:,.0f}"
+
+            print(f"  {name:<26s} {_fmt(flip['profit']):>8s}  {bvol_str:>8s}  "
+                  f"{flip['req_text']:<22s} {prog_str} ({pct:.0f}%)")
+        print()
+
+
 # ─── Display ──────────────────────────────────────────────────────────
 
 def print_flips(flips, title="CRAFT FLIPS"):
@@ -963,6 +1152,8 @@ def main():
     parser = argparse.ArgumentParser(description="SkyBlock craft flip scanner")
     parser.add_argument("--forge", action="store_true",
                         help="Scan forge recipes instead of crafting recipes")
+    parser.add_argument("--sell-order", action="store_true", dest="sell_order",
+                        help="Bazaar sell-order flips: instant-buy materials, sell-order output")
     parser.add_argument("--profile", action="store_true",
                         help="Filter by player's unlocked recipes (reads last_profile.json)")
     parser.add_argument("--cached", action="store_true",
@@ -994,7 +1185,36 @@ def main():
 
     price_cache = PriceCache()
 
-    if args.forge:
+    if args.sell_order:
+        # ── Sell-order bazaar flip mode ──────────────────────────────
+        print("  Parsing recipes from NEU repo...", file=sys.stderr)
+        all_recipes = parse_recipes()
+        print(f"  Found {len(all_recipes)} crafting recipes", file=sys.stderr)
+
+        valid = filter_craft_flips(all_recipes, price_cache)
+        print(f"  {len(valid)} recipes with all-bazaar ingredients", file=sys.stderr)
+
+        if not valid:
+            print("\n  No valid candidates found.")
+            price_cache.flush()
+            return
+
+        flips = scan_sell_order_flips(valid, price_cache,
+                                      undercut_pct=args.undercut)
+        price_cache.flush()
+
+        if args.profile:
+            member = _load_profile_member()
+            if member:
+                print_profile_sell_order_flips(flips, member)
+            else:
+                print("  Error: last_profile.json not found. Run 'python3 profile.py' first.",
+                      file=sys.stderr)
+                print_sell_order_flips(flips)
+        else:
+            print_sell_order_flips(flips)
+
+    elif args.forge:
         # ── Forge flip mode ──────────────────────────────────────────
         print("  Parsing forge recipes from NEU repo...", file=sys.stderr)
         forge_recipes = parse_forge_recipes()
