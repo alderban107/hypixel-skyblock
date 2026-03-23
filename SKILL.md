@@ -12,7 +12,7 @@ compatibility: Requires Python 3, Hypixel API key in ~/projects/hypixel-skyblock
 ```
 cd ~/projects/hypixel-skyblock/tools && python3 profile.py --full
 ```
-Raw JSON at `~/projects/hypixel-skyblock/data/last_profile.json` if you need to dig deeper.
+Raw JSON at `~/projects/hypixel-skyblock/data/last_profile.json` if you need to dig deeper. The script automatically compares against the previous pull and prints a `CHANGES SINCE LAST PULL` section showing stat changes, skill/slayer level-ups, new items, etc. Previous profile saved at `data/previous_profile.json`.
 
 **Live prices:**
 ```

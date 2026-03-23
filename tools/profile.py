@@ -3581,6 +3581,315 @@ JSON_COLLECTORS = {
 }
 
 
+# ─── Profile Diff ─────────────────────────────────────────────────
+
+def _extract_profile_snapshot(member):
+    """Extract comparable stats from a member dict for diffing."""
+    snap = {}
+
+    # SB Level
+    snap["sb_xp"] = member.get("leveling", {}).get("experience", 0)
+    snap["sb_level"] = int(snap["sb_xp"] // 100)
+
+    # Purse
+    snap["purse"] = member.get("currencies", {}).get("coin_purse", 0)
+
+    # MP
+    snap["mp"] = member.get("accessory_bag_storage", {}).get("highest_magical_power", 0)
+
+    # Fairy souls
+    fs = member.get("fairy_soul", {})
+    snap["fairy_souls"] = fs.get("total_collected", 0)
+
+    # Skills
+    snap["skills"] = {}
+    for key, val in member.get("player_data", {}).get("experience", {}).items():
+        name = key.replace("SKILL_", "").lower()
+        snap["skills"][name] = val
+
+    # Skill levels (computed)
+    snap["skill_levels"] = {}
+    for name, xp in snap["skills"].items():
+        max_lvl = SKILL_MAX_LEVELS.get(name, 50)
+        thresholds = SKILL_THRESHOLDS.get(name, _FALLBACK_SKILL_XP)
+        snap["skill_levels"][name] = xp_to_level(xp, thresholds, max_lvl)
+
+    # Slayers
+    slayer_data = member.get("slayer", {}).get("slayer_bosses", {})
+    snap["slayer_xp"] = {}
+    snap["slayer_levels"] = {}
+    for name in ["zombie", "spider", "wolf", "enderman", "blaze", "vampire"]:
+        xp = slayer_data.get(name, {}).get("xp", 0)
+        snap["slayer_xp"][name] = xp
+        thresholds = SLAYER_XP_THRESHOLDS.get(name, [])
+        snap["slayer_levels"][name] = xp_to_level(xp, thresholds)
+
+    # Dungeons
+    cata = member.get("dungeons", {}).get("dungeon_types", {}).get("catacombs", {})
+    cata_xp = cata.get("experience", 0)
+    snap["cata_xp"] = cata_xp
+    cata_thresholds = SKILL_THRESHOLDS.get("catacombs", _FALLBACK_SKILL_XP)
+    snap["cata_level"] = xp_to_level(cata_xp, cata_thresholds, 50)
+
+    # Dungeon class levels
+    snap["class_levels"] = {}
+    classes = member.get("dungeons", {}).get("player_classes", {})
+    for cls_name in ["healer", "mage", "berserk", "archer", "tank"]:
+        cls_xp = classes.get(cls_name, {}).get("experience", 0)
+        cls_thresholds = SKILL_THRESHOLDS.get("catacombs", _FALLBACK_SKILL_XP)
+        snap["class_levels"][cls_name] = xp_to_level(cls_xp, cls_thresholds, 50)
+
+    # Secrets
+    snap["secrets"] = cata.get("secrets", member.get("dungeons", {}).get("secrets", 0))
+
+    # HotM
+    mining_core = member.get("mining_core", {})
+    snap["hotm_xp"] = mining_core.get("experience", 0)
+    hotm_level, _, _ = calc_hotx_level(snap["hotm_xp"], max_level=10)
+    snap["hotm_level"] = hotm_level
+
+    # Powder
+    snap["mithril_powder"] = mining_core.get("powder_mithril", 0) + mining_core.get("powder_spent_mithril", 0)
+    snap["gemstone_powder"] = mining_core.get("powder_gemstone", 0) + mining_core.get("powder_spent_gemstone", 0)
+
+    # Pets
+    pets = member.get("pets_data", {}).get("pets", [])
+    snap["pet_count"] = len(pets)
+
+    # Bestiary
+    snap["bestiary_milestone"] = member.get("bestiary", {}).get("milestone", {}).get("last_claimed_milestone", 0)
+
+    # Essence
+    snap["essence"] = {}
+    for etype, edata in member.get("currencies", {}).get("essence", {}).items():
+        snap["essence"][etype] = edata.get("current", 0)
+
+    # Collections (total unique)
+    snap["collections_count"] = len(member.get("collection", {}))
+
+    # Museum
+    snap["museum_items"] = member.get("museum", {}).get("items_donated", 0) if "museum" in member else None
+
+    # Item IDs across all inventories
+    try:
+        snap["item_ids"] = collect_gear_ids(member)
+    except Exception:
+        snap["item_ids"] = set()
+
+    return snap
+
+
+def print_profile_diff(prev_member, curr_member, prev_data):
+    """Print changes between previous and current profile pull."""
+    # Need skill tables loaded
+    if not SKILL_THRESHOLDS:
+        return
+
+    prev = _extract_profile_snapshot(prev_member)
+    curr = _extract_profile_snapshot(curr_member)
+
+    changes = []
+
+    # Timestamp
+    prev_ts = prev_data.get("timestamp")
+    if prev_ts:
+        dt = datetime.fromtimestamp(prev_ts, tz=timezone.utc)
+        now = datetime.now(tz=timezone.utc)
+        delta = now - dt
+        if delta.days > 0:
+            age = f"{delta.days}d ago"
+        elif delta.seconds > 3600:
+            age = f"{delta.seconds // 3600}h ago"
+        else:
+            age = f"{delta.seconds // 60}m ago"
+    else:
+        age = "unknown"
+
+    # SB Level
+    if curr["sb_level"] != prev["sb_level"]:
+        changes.append(("SB Level", prev["sb_level"], curr["sb_level"],
+                         f"+{curr['sb_level'] - prev['sb_level']}"))
+
+    # MP
+    if curr["mp"] != prev["mp"]:
+        changes.append(("Magical Power", prev["mp"], curr["mp"],
+                         f"+{curr['mp'] - prev['mp']}"))
+
+    # Purse
+    purse_diff = curr["purse"] - prev["purse"]
+    if abs(purse_diff) > 100_000:  # Only show if >100K change
+        changes.append(("Purse", _fmt(prev["purse"]), _fmt(curr["purse"]),
+                         f"{'+' if purse_diff > 0 else ''}{_fmt(purse_diff)}"))
+
+    # Fairy souls
+    if curr["fairy_souls"] != prev["fairy_souls"]:
+        changes.append(("Fairy Souls", prev["fairy_souls"], curr["fairy_souls"],
+                         f"+{curr['fairy_souls'] - prev['fairy_souls']}"))
+
+    # Skills
+    skill_changes = []
+    for name in ["farming", "mining", "combat", "foraging", "fishing",
+                  "enchanting", "alchemy", "taming", "carpentry",
+                  "runecrafting", "hunting"]:
+        prev_lvl = prev["skill_levels"].get(name, 0)
+        curr_lvl = curr["skill_levels"].get(name, 0)
+        if curr_lvl != prev_lvl:
+            skill_changes.append((name.capitalize(), prev_lvl, curr_lvl,
+                                   f"+{curr_lvl - prev_lvl}"))
+        elif name in curr["skills"] and name in prev["skills"]:
+            xp_diff = curr["skills"][name] - prev["skills"].get(name, 0)
+            if xp_diff > 10_000:  # Meaningful XP gain within same level
+                skill_changes.append((f"{name.capitalize()} XP", "", "",
+                                       f"+{_fmt(xp_diff)} XP"))
+
+    # Slayers
+    slayer_changes = []
+    for name in ["zombie", "spider", "wolf", "enderman", "blaze", "vampire"]:
+        prev_lvl = prev["slayer_levels"].get(name, 0)
+        curr_lvl = curr["slayer_levels"].get(name, 0)
+        if curr_lvl != prev_lvl:
+            slayer_changes.append((name.capitalize(), prev_lvl, curr_lvl,
+                                    f"+{curr_lvl - prev_lvl}"))
+        else:
+            xp_diff = curr["slayer_xp"].get(name, 0) - prev["slayer_xp"].get(name, 0)
+            if xp_diff > 100:
+                slayer_changes.append((f"{name.capitalize()} XP", "", "",
+                                        f"+{_fmt(xp_diff)} XP"))
+
+    # Catacombs
+    if curr["cata_level"] != prev["cata_level"]:
+        changes.append(("Catacombs", prev["cata_level"], curr["cata_level"],
+                         f"+{curr['cata_level'] - prev['cata_level']}"))
+    elif curr["cata_xp"] - prev["cata_xp"] > 10_000:
+        changes.append(("Catacombs XP", "", "",
+                         f"+{_fmt(curr['cata_xp'] - prev['cata_xp'])} XP"))
+
+    # Class levels
+    class_changes = []
+    for cls_name in ["healer", "mage", "berserk", "archer", "tank"]:
+        prev_lvl = prev["class_levels"].get(cls_name, 0)
+        curr_lvl = curr["class_levels"].get(cls_name, 0)
+        if curr_lvl != prev_lvl:
+            class_changes.append((cls_name.capitalize(), prev_lvl, curr_lvl,
+                                   f"+{curr_lvl - prev_lvl}"))
+
+    # Secrets
+    if curr["secrets"] != prev["secrets"]:
+        changes.append(("Secrets Found", prev["secrets"], curr["secrets"],
+                         f"+{curr['secrets'] - prev['secrets']}"))
+
+    # HotM
+    if curr["hotm_level"] != prev["hotm_level"]:
+        changes.append(("HotM Level", prev["hotm_level"], curr["hotm_level"],
+                         f"+{curr['hotm_level'] - prev['hotm_level']}"))
+
+    # Powder
+    mith_diff = curr["mithril_powder"] - prev["mithril_powder"]
+    gem_diff = curr["gemstone_powder"] - prev["gemstone_powder"]
+    if mith_diff > 1000:
+        changes.append(("Mithril Powder (lifetime)", _fmt(prev["mithril_powder"]),
+                         _fmt(curr["mithril_powder"]), f"+{_fmt(mith_diff)}"))
+    if gem_diff > 1000:
+        changes.append(("Gemstone Powder (lifetime)", _fmt(prev["gemstone_powder"]),
+                         _fmt(curr["gemstone_powder"]), f"+{_fmt(gem_diff)}"))
+
+    # Pets
+    if curr["pet_count"] != prev["pet_count"]:
+        changes.append(("Pets", prev["pet_count"], curr["pet_count"],
+                         f"+{curr['pet_count'] - prev['pet_count']}"))
+
+    # Bestiary
+    if curr["bestiary_milestone"] != prev["bestiary_milestone"]:
+        changes.append(("Bestiary Milestone", prev["bestiary_milestone"],
+                         curr["bestiary_milestone"],
+                         f"+{curr['bestiary_milestone'] - prev['bestiary_milestone']}"))
+
+    # Collections
+    if curr["collections_count"] != prev["collections_count"]:
+        changes.append(("Unique Collections", prev["collections_count"],
+                         curr["collections_count"],
+                         f"+{curr['collections_count'] - prev['collections_count']}"))
+
+    # New items (items in current that weren't in previous)
+    new_items = curr["item_ids"] - prev["item_ids"]
+    gone_items = prev["item_ids"] - curr["item_ids"]
+    # Filter out common junk
+    junk = {"SKYBLOCK_MENU", "ARROW", "MITHRIL_ORE", "HARD_STONE", "COAL",
+            "COBBLESTONE", "ROTTEN_FLESH", "BONE", "IRON_INGOT", "GOLD_INGOT",
+            "REDSTONE", "LAPIS_LAZULI", "DIAMOND", "EMERALD", "ENCHANTED_BOOK",
+            "COMPOST", "FLINT_AND_STEEL", "SOUL_SAND"}
+    new_items -= junk
+    gone_items -= junk
+
+    # Check if anything changed at all
+    has_changes = (changes or skill_changes or slayer_changes or
+                   class_changes or new_items)
+    if not has_changes:
+        return
+
+    print_section("CHANGES SINCE LAST PULL")
+    print(f"  Previous pull: {age}")
+    print()
+
+    if changes:
+        # Find widths for alignment
+        label_w = max(len(c[0]) for c in changes)
+        for label, prev_val, curr_val, delta in changes:
+            if prev_val != "" and curr_val != "":
+                print(f"  {label:<{label_w}}  {prev_val} → {curr_val}  ({delta})")
+            else:
+                print(f"  {label:<{label_w}}  {delta}")
+        print()
+
+    if skill_changes:
+        print("  Skills:")
+        for label, prev_val, curr_val, delta in skill_changes:
+            if prev_val != "" and curr_val != "":
+                print(f"    {label:<16}  {prev_val} → {curr_val}  ({delta})")
+            else:
+                print(f"    {label:<16}  {delta}")
+        print()
+
+    if slayer_changes:
+        print("  Slayers:")
+        for label, prev_val, curr_val, delta in slayer_changes:
+            if prev_val != "" and curr_val != "":
+                print(f"    {label:<16}  {prev_val} → {curr_val}  ({delta})")
+            else:
+                print(f"    {label:<16}  {delta}")
+        print()
+
+    if class_changes:
+        print("  Dungeon Classes:")
+        for label, prev_val, curr_val, delta in class_changes:
+            print(f"    {label:<16}  {prev_val} → {curr_val}  ({delta})")
+        print()
+
+    if new_items:
+        # Show new items with display names
+        named = []
+        for item_id in sorted(new_items):
+            name = display_name(item_id) or item_id.replace("_", " ").title()
+            named.append(name)
+        if len(named) <= 20:
+            print(f"  New Items ({len(named)}):")
+            for name in named:
+                print(f"    + {name}")
+        else:
+            print(f"  New Items: {len(named)} new item types detected (too many to list)")
+        print()
+
+    if gone_items and len(gone_items) <= 10:
+        named = []
+        for item_id in sorted(gone_items):
+            name = display_name(item_id) or item_id.replace("_", " ").title()
+            named.append(name)
+        print(f"  Removed Items ({len(named)}):")
+        for name in named:
+            print(f"    - {name}")
+        print()
+
+
 def main():
     parser = argparse.ArgumentParser(description="Fetch and display Hypixel SkyBlock profile data.")
     parser.add_argument("username", nargs="?", default=os.environ.get("MINECRAFT_USERNAME", ""))
@@ -3734,8 +4043,23 @@ def main():
         print(f"\n  (Showing core sections only. Use --full for all, or -s section1,section2)")
         print(f"  Extended: {', '.join(EXTENDED_SECTIONS)}")
 
-    # Also dump raw JSON for detailed analysis
+    # --- Profile diff (compare against previous pull) ---
     raw_path = Path(__file__).parent.parent / "data" / "last_profile.json"
+    prev_path = Path(__file__).parent.parent / "data" / "previous_profile.json"
+
+    if raw_path.exists() and not args.json:
+        try:
+            prev_data = json.loads(raw_path.read_text())
+            prev_member = prev_data.get("member", {})
+            print_profile_diff(prev_member, member, prev_data)
+        except (json.JSONDecodeError, KeyError):
+            pass  # Corrupted previous file, skip diff
+
+    # Rotate: current becomes previous, then save new
+    if raw_path.exists():
+        import shutil
+        shutil.copy2(raw_path, prev_path)
+
     raw_data = {
         "player": display_name,
         "uuid": uuid,
@@ -3745,6 +4069,7 @@ def main():
         "garden": garden_data,
         "museum": museum_data,
         "market_prices": price_cache.export(),
+        "timestamp": int(time.time()),
     }
     raw_path.write_text(json.dumps(raw_data, indent=2))
     print(f"\n{'=' * 60}")
