@@ -104,7 +104,7 @@ The Bestiary page says "focus on mobs you are already killing" but doesn't say *
 The correction callouts do a much better job at this — "AOTD is outdated because X, the correct path is Y" — but the positive recommendations rarely explain *why this over alternatives*. A new player can't evaluate advice they can't reason about.
 
 ### 24. Useful Resources Page Has No Opinions
-Beyond the missing hyperlinks (Issue #15), the deeper problem is editorial: the page has zero opinion about what to use when. "Bazaar Tracker — real-time Bazaar prices and flip opportunities" tells a reader nothing about whether they should use Bazaar Tracker or Coflnet or `crafts.py`. A resources page should rank, compare, and recommend — not just catalog.
+Beyond the missing hyperlinks (Issue #15), the deeper problem is editorial: the page has zero opinion about what to use when. "Bazaar Tracker — real-time Bazaar prices and flip opportunities" tells a reader nothing about whether they should use Bazaar Tracker or Coflnet or `flips.py`. A resources page should rank, compare, and recommend — not just catalog.
 
 ### 25. Correction Callouts Are the Best Differentiator — But Not Leveraged
 The correction boxes ("AOTD is outdated", "Bazaar doesn't count for collections", "F4 should be skipped") are the guide's differentiator over the wiki. But they're scattered with no way to see all corrections at a glance, and a new reader doesn't know the guide *has* this feature until they stumble on one.

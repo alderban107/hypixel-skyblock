@@ -355,6 +355,12 @@ class PriceCache:
         """
         if item_id in self._bazaar:
             return item_id
+        # NEU repo uses hyphens for Minecraft damage values (INK_SACK-4),
+        # but the Bazaar API uses colons (INK_SACK:4). Try the colon form.
+        import re
+        colon_id = re.sub(r'-(\d+)$', r':\1', item_id)
+        if colon_id != item_id and colon_id in self._bazaar:
+            return colon_id
         # Build reverse lookup: display name -> bazaar product ID (once)
         if self._name_to_bz_id is None:
             self._name_to_bz_id = {}
@@ -491,7 +497,7 @@ class PriceCache:
             weighted = (buy_price × buy_volume + sell_price × sell_volume)
                        / (buy_volume + sell_volume)
         For AH items: returns LBIN with manipulation guard — if LBIN > 5×
-            the 3-day avg, uses avg instead (matches crafts.py sanity check).
+            the 3-day avg, uses avg instead (matches flip_engine sanity check).
         For overrides: returns the override price.
         Returns None if no price data.
         """

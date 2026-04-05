@@ -654,7 +654,7 @@ def main():
     parser.add_argument("--profit", action="store_true",
                         help="Show profit analysis (AH buy/sell comparison)")
     parser.add_argument("--scan", action="store_true",
-                        help="Scan all pets and rank by profit")
+                        help="Scan all pets (use 'flips.py kat' instead)")
     parser.add_argument("--shopping", action="store_true",
                         help="Show consolidated shopping list")
     args = parser.parse_args()
@@ -670,7 +670,11 @@ def main():
     price_cache = PriceCache()
 
     if args.scan:
-        scan_all_pets(price_cache)
+        print("  Note: 'kat.py --scan' has moved to 'flips.py kat'", file=sys.stderr)
+        print("  Forwarding...\n", file=sys.stderr)
+        import os
+        os.execv(sys.executable, [sys.executable,
+                 os.path.join(os.path.dirname(__file__), "flips.py"), "kat"])
     elif args.shopping:
         pet_type = args.pet.upper()
         # Determine from/to rarities

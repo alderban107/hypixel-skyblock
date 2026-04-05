@@ -23,7 +23,7 @@ from pathlib import Path
 
 from items import display_name
 from pricing import PriceCache, _fmt
-from crafts import parse_recipes
+from flip_engine import parse_recipes
 from profile import api_get, resolve_uuid, get_profiles, get_museum, API_KEY
 
 DATA_DIR = Path(__file__).parent.parent / "data"

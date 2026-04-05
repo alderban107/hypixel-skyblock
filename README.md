@@ -3,7 +3,7 @@
 # Hypixel SkyBlock Toolkit
 
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![Tools](https://img.shields.io/badge/tools-14-blue)](https://github.com/alderban107/hypixel-skyblock#tools)
+[![Tools](https://img.shields.io/badge/tools-17-blue)](https://github.com/alderban107/hypixel-skyblock#tools)
 [![No Dependencies](https://img.shields.io/badge/dependencies-none-brightgreen)](https://github.com/alderban107/hypixel-skyblock)
 [![License](https://img.shields.io/badge/license-personal_use-lightgrey)](https://github.com/alderban107/hypixel-skyblock#license)
 
@@ -17,7 +17,7 @@
 ## Features
 
 - **Profile Analyzer** — 25-section breakdown with live market prices, mayor-aware recommendations, and election forecasts
-- **Profit Calculators** — Craft flips, forge recipes, dungeon chests, slayer bosses, Kat pet upgrades, minion setups, and shard fusions
+- **Profit Calculators** — Unified flip scanner (craft, forge, Kat, NPC, bits) with recursive cost optimization, plus dungeon chests, slayer bosses, minion setups, and shard fusions
 - **Networth Calculator** — Modifier-aware valuation across 12+ storage locations with 19 pricing handlers
 - **Accessory Optimizer** — Missing accessories ranked by coins/MP with upgrade chain detection
 - **SkyBlock XP Engine** — 692 tasks scored and prioritized to find your cheapest XP gains
@@ -31,7 +31,7 @@
   - [Core](#core)
   - [Profit Analysis](#profit-analysis)
   - [Progression](#progression)
-  - [Data](#data)
+  - [Data & Validation](#data--validation)
 - [Tool Details](#tool-details)
 - [Beginner Guide](#beginner-guide)
 - [AI Skill](#ai-skill)
@@ -73,13 +73,14 @@ Requires Python 3.9+ and a [Hypixel developer API key](https://developer.hypixel
 
 | Tool | What it does |
 |---|---|
-| [`crafts.py`](#craftspy) | Scan all recipes for profitable craft flips with unlock requirements |
-| [`forge.py`](#forgepy) | Forge recipe profitability sorted by profit/hour |
+| [`flips.py`](#flipspy) | Unified flip scanner — craft, forge, kat, NPC, bits with recursive cost optimization |
 | [`dungeons.py`](#dungeonspy) | Per-floor dungeon profit with chest recommendations and kismet analysis |
 | [`slayers.py`](#slayerspy) | Per-tier slayer profit with RNG meter optimization |
-| [`kat.py`](#katpy) | Pet upgrade chains — cost, materials, time, and flip profit |
+| [`kat.py`](#katpy) | Pet upgrade chains — cost, materials, time, shopping lists |
 | [`minions.py`](#minionspy) | Minion ranking by daily profit with setup cost and ROI |
 | [`shards.py`](#shardspy) | Shard fusion chain advisor with market health checks |
+| [`dragons.py`](#dragonspy) | End Dragon fight EV by dragon type with live drop pricing |
+| [`farming.py`](#farmingpy) | Per-crop profit/hour with fortune scaling and sell method comparison |
 
 ### Progression
 
@@ -89,11 +90,12 @@ Requires Python 3.9+ and a [Hypixel developer API key](https://developer.hypixel
 | [`sbxp.py`](#sbxppy) | SkyBlock XP analysis — 692 tasks prioritized by effort |
 | [`museum.py`](#museumpy) | Cheapest missing museum donations |
 
-### Data
+### Data & Validation
 
 | Tool | What it does |
 |---|---|
 | [`wiki_dump.py`](#wiki_dumppy) | Local mirror of the SkyBlock fandom wiki (~6,200 pages) |
+| [`validate.py`](#validatepy) | Cross-validates pricing against Coflnet to flag calculation divergences |
 
 ---
 
@@ -189,35 +191,30 @@ python3 items.py                       # summary stats
 python3 items.py shadow assassin       # search items by name
 ```
 
-### `crafts.py`
+### `flips.py`
 
-![Crafts Demo](assets/demo-crafts.gif)
+![Flips Demo](assets/demo-flips.gif)
 
-Scans all NEU-REPO crafting recipes for profitable flips — items where bazaar-bought ingredients craft into something that sells for more on the AH. Prices ingredients via Bazaar API, output via Moulberry LBIN. Calculates profit after 1% AH tax. Minimum thresholds: 10K profit and 1 sale/day.
+Unified flip scanner that finds profitable transformations across multiple flip types. Uses **recursive craft cost optimization** by default — if an ingredient is cheaper to craft than buy from the bazaar, that cascades through all recipes using it, uncovering flips that simpler tools miss.
 
-The `--sell-order` mode finds a different class of flip: crafts where the output is also on the Bazaar, but the profit only exists when you place a **sell order** instead of instant-selling. These have a spread between the instant-sell price (low) and the buy price (what buyers pay to instant-buy your order). The script calculates profit after the 1.125% Bazaar tax, filters by minimum buy volume (500+), and shows the spread percentage as a patience indicator.
+Three output sections in the default view:
+- **Instant Flips** (craft + NPC) — sorted by profit
+- **Time-Gated Flips** (forge + Kat pet upgrades) — sorted by profit/hour, with duration
+- **Bit Shop Value** — ranked by coins/bit
 
-The `--profile` mode cross-references your collections and slayer levels to show which crafts you've unlocked and which are closest.
-
-```bash
-python3 crafts.py              # full scan (~5 sec)
-python3 crafts.py --sell-order # bazaar sell-order flips (patient flipping)
-python3 crafts.py --profile    # filtered by your unlocks
-python3 crafts.py --sell-order --profile  # sell-order flips with unlock status
-python3 crafts.py --forge      # include Forge recipes
-python3 crafts.py --item MINING_2_TRAVEL_SCROLL  # single recipe breakdown
-```
-
-### `forge.py`
-
-![Forge Demo](assets/demo-forge.gif)
-
-Forge recipe profitability from Coflnet data, sorted by profit/hour. Filters by HotM level, applies Quick Forge time reduction. `--profile` auto-detects your HotM level.
+Supply/demand indicators show market state: ↑ undersupplied (sells fill fast), ↓ oversupplied (competitive), ≈ balanced, ⚠ illiquid.
 
 ```bash
-python3 forge.py --profile             # filtered by your HotM
-python3 forge.py --hotm 5 --quick-forge 20
-python3 forge.py --item TITANIUM_DRILL_1
+python3 flips.py                          # all flip types
+python3 flips.py craft                    # craft flips only
+python3 flips.py forge                    # forge flips only
+python3 flips.py sell-order               # bazaar sell-order flips
+python3 flips.py kat                      # kat pet upgrade flips
+python3 flips.py npc                      # NPC buy → market sell
+python3 flips.py bits                     # bit shop value ranking
+python3 flips.py --profile                # filter by player unlocks
+python3 flips.py --item PERSONAL_COMPACTOR_4000  # recipe breakdown with recursive costs
+python3 flips.py --no-recursive           # disable recursive costing
 ```
 
 ### `dungeons.py`
@@ -265,12 +262,12 @@ python3 slayers.py --aatrox            # apply mayor bonuses
 
 ![Kat Demo](assets/demo-kat.gif)
 
-Kat pet upgrade calculator. Builds full upgrade chains across rarity steps, compares buy-vs-craft for starting pets, and generates consolidated shopping lists.
+Kat pet upgrade calculator. Builds full upgrade chains across rarity steps, compares buy-vs-craft for starting pets, and generates consolidated shopping lists. For the scan of all profitable Kat flips, use `flips.py kat`.
 
 ```bash
-python3 kat.py --scan                  # rank all pets by flip profit
 python3 kat.py RABBIT --profit         # single pet with profit analysis
 python3 kat.py SKELETON --shopping     # consolidated shopping list
+python3 kat.py --scan                  # → forwards to flips.py kat
 ```
 
 ### `minions.py`
@@ -322,6 +319,34 @@ python3 shards.py farm                 # farmable shard rankings
 python3 shards.py health               # market health check
 ```
 
+### `dragons.py`
+
+![Dragons Demo](assets/demo-dragons.gif)
+
+Expected value per End Dragon fight by dragon type, using [SkyHanni](https://github.com/hannibal002/SkyHanni)'s DragonLoot.json drop tables with live market pricing. Shows net profit after eye cost and highlights which dragon types are worth fighting at your eye count.
+
+```bash
+python3 dragons.py                     # all dragon types summary
+python3 dragons.py --type superior     # detailed Superior Dragon breakdown
+python3 dragons.py --eyes 4            # assume 4 eyes placed
+python3 dragons.py --json              # machine-readable output
+```
+
+### `farming.py`
+
+![Farming Demo](assets/demo-farming.gif)
+
+Per-crop profit calculator with farming fortune scaling. Compares NPC sell, raw bazaar sell, and enchanted bazaar sell to find the best method for each crop. Supports auto-detection of farming fortune from your profile.
+
+```bash
+python3 farming.py                     # all crops (default 100 fortune)
+python3 farming.py --fortune 500       # set farming fortune
+python3 farming.py --crop wheat        # detailed wheat breakdown
+python3 farming.py --profile           # auto-detect fortune from profile
+python3 farming.py --npc               # include NPC sell prices
+python3 farming.py --json              # machine-readable output
+```
+
 ### `wiki_dump.py`
 
 Mirrors the [SkyBlock Fandom Wiki](https://hypixel-skyblock.fandom.com/) locally (~6,200 pages). Supports incremental updates and template-expanded plain text generation for grep-friendly data lookups.
@@ -330,6 +355,20 @@ Mirrors the [SkyBlock Fandom Wiki](https://hypixel-skyblock.fandom.com/) locally
 python3 wiki_dump.py                   # full dump (~5 min)
 python3 wiki_dump.py --update          # incremental update
 python3 wiki_dump.py --parse           # generate searchable plain text
+```
+
+### `validate.py`
+
+Cross-validates our craft, forge, Kat, and shard fusion pricing against [Coflnet](https://sky.coflnet.com/)'s independent calculations. Flags items where the two sources diverge beyond a configurable threshold — useful for catching pricing bugs or stale data.
+
+```bash
+python3 validate.py                    # run all validations
+python3 validate.py --crafts           # craft profits only
+python3 validate.py --forge            # forge recipes only
+python3 validate.py --kat              # Kat upgrades only
+python3 validate.py --fusions          # shard fusions only
+python3 validate.py --threshold 30     # flag divergences >30% (default: 20%)
+python3 validate.py --verbose          # show all items, not just divergent
 ```
 
 ## Beginner Guide

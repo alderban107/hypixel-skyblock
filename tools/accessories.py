@@ -24,7 +24,7 @@ from pathlib import Path
 from items import (display_name, get_item, get_items_data, get_category,
                    get_tier, check_requirements, get_all_requirements)
 from pricing import PriceCache, _fmt
-from crafts import find_recipe, calculate_craft_cost
+from flip_engine import find_recipe, calculate_craft_cost
 from profile import decode_nbt_inventory_slots
 
 DATA_DIR = Path(__file__).parent.parent / "data"

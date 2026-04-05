@@ -18,7 +18,7 @@ from urllib.error import HTTPError
 
 from items import display_name, _roman, check_requirements
 from pricing import PriceCache, _fmt
-from crafts import (parse_recipes, load_craft_cache, filter_craft_flips,
+from flip_engine import (parse_recipes, load_craft_cache, filter_bazaar_ingredient_recipes,
                     calculate_craft_cost)
 
 DATA_DIR = Path(__file__).parent.parent / "data"
@@ -3084,12 +3084,12 @@ def print_craft_flips(member, price_cache):
     cache_age = time.time() - cache_ts if cache_ts else None
 
     if not avg_lbin or (cache_age and cache_age > 86400):
-        print("  Run 'python3 crafts.py' to scan craft flips")
+        print("  Run 'python3 flips.py' to scan craft flips")
         return
 
     # Parse recipes and filter
     all_recipes = parse_recipes()
-    valid = filter_craft_flips(all_recipes, price_cache)
+    valid = filter_bazaar_ingredient_recipes(all_recipes, price_cache)
 
     # Calculate profits using cached Moulberry data
     flips = []
@@ -3180,7 +3180,7 @@ def print_craft_flips(member, price_cache):
                   f"{req_text:<22s} {prog_str} ({flip['pct']*100:.0f}%)")
 
     hours_ago = cache_age / 3600 if cache_age else 0
-    print(f"\n  (Prices cached {hours_ago:.1f}h ago. Run 'python3 crafts.py' to refresh)")
+    print(f"\n  (Prices cached {hours_ago:.1f}h ago. Run 'python3 flips.py' to refresh)")
 
 
 def print_market_prices(member, price_cache):

@@ -37,7 +37,7 @@ cd ~/projects/hypixel-skyblock/tools && python3 sbxp.py
 ```
 Full SkyBlock XP breakdown — 25 formula-based calculators (skills, fairy souls, MP, pets, collections, minions, dungeons, slayers, bestiary, mining, garden, museum) + 692 individual tasks (harp songs, essence shop, trophy fish, event perks, abiphone contacts, dojo, timecharms, objectives, etc.). Smart recommendations cross-reference essence stockpiles vs shop costs, find close collection milestones, and surface garden quick wins. Use `--brief` for just recommendations, `--category X` to filter, `--json` for scripting. Task database at `data/sbxp_tasks.json`.
 
-**Craft flips:** The profile output includes a `CRAFT FLIPS` section showing profitable crafts the player has unlocked and ones they're close to unlocking. For a fresh check, run `crafts.py --profile`. For **sell-order flips** (buy materials on Bazaar, craft, place sell order instead of instant-selling), run `crafts.py --sell-order --profile`. These find crafts where the profit margin lives in the Bazaar spread — invisible to the regular scan because instant-sell would be a loss.
+**Flips:** The profile output includes a `CRAFT FLIPS` section showing profitable crafts the player has unlocked and ones they're close to unlocking. For a comprehensive scan, run `flips.py --profile` which covers craft flips, forge flips, Kat pet upgrades, NPC flips, and bit shop value — all with recursive cost optimization (if an ingredient is cheaper to craft than buy, it uses the craft cost). For specific flip types: `flips.py craft`, `flips.py forge`, `flips.py sell-order` (patient bazaar flips where profit lives in the spread), `flips.py kat`, `flips.py npc`, `flips.py bits`. Use `--item ITEM_ID` for a detailed recipe breakdown showing which ingredients should be crafted vs bought.
 
 **Accessory upgrades:**
 ```
@@ -97,11 +97,11 @@ Per-crop profit/hr with fortune scaling. Compares NPC vs Bazaar (raw and enchant
 
 **Forge flips:**
 ```
-cd ~/projects/hypixel-skyblock/tools && python3 forge.py --profile
-cd ~/projects/hypixel-skyblock/tools && python3 forge.py --hotm 5 --quick-forge 20
-cd ~/projects/hypixel-skyblock/tools && python3 forge.py --item TITANIUM_DRILL_1
+cd ~/projects/hypixel-skyblock/tools && python3 flips.py forge
+cd ~/projects/hypixel-skyblock/tools && python3 flips.py forge --profile
+cd ~/projects/hypixel-skyblock/tools && python3 flips.py --item REFINED_MITHRIL
 ```
-Forge recipe profitability from Coflnet data, sorted by profit/hour. Filters by HotM level, applies Quick Forge time reduction. `--profile` auto-detects HotM level.
+Forge recipe profitability sorted by profit/hour, with recursive ingredient costing. `--profile` filters by player unlocks. `--item` shows detailed forge recipe breakdown with profit/hour.
 
 **Net worth:**
 ```
@@ -124,7 +124,7 @@ Run the profile, read the output, and think about what's actually useful to tell
 
 Look at the whole profile. Skills, gear, dungeons, slayers, collections, minions, pets, mining, foraging, Rift, garden, chocolate factory, museum, bestiary, active effects, sacks, contests — whatever's relevant. Don't tunnel-vision on one area. This skill is invoked when the player wants a broad view and fresh ideas, not a rehash of what was already discussed in the session.
 
-For money-making analysis, use the full toolkit: `crafts.py --profile` for craft flips, `crafts.py --sell-order --profile` for patient bazaar flips, `forge.py --profile` for forge flips, `farming.py --profile` for crop profit, `dragons.py` for dragon fight EV, `kat.py --scan` for pet flips, `dungeons.py` for dungeon chest profit, `slayers.py` for slayer tier efficiency, `shards.py` for fusion profitability. Compare across methods to recommend the best options for the player's current stage. Use `validate.py` if any pricing looks suspicious.
+For money-making analysis, use the full toolkit: `flips.py --profile` for all flip types (craft, forge, Kat, NPC, bits), `flips.py sell-order --profile` for patient bazaar flips, `farming.py --profile` for crop profit, `dragons.py` for dragon fight EV, `dungeons.py` for dungeon chest profit, `slayers.py` for slayer tier efficiency, `shards.py` for fusion profitability. Compare across methods to recommend the best options for the player's current stage. Use `validate.py` if any pricing looks suspicious.
 
 For upgrade questions, use `accessories.py` for MP-efficient accessory upgrades, `minions.py` for minion optimization, and `museum.py` for cheap donations.
 
