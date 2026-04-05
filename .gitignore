@@ -3,6 +3,7 @@
 
 # Account-specific data
 data/last_profile.json
+data/previous_profile.json
 
 # Generated / large (regenerable with tools)
 data/price_cache.json
